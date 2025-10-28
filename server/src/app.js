@@ -24,8 +24,16 @@ const app = express();
 InitializeCloudinary();
 
 // Initialize rate limiter
-await initRateLimiter();
-// app.use(rateLimiter);
+if (process.env.REDIS_URL) {
+  try {
+    await initRateLimiter();
+    // app.use(rateLimiter);
+  } catch (err) {
+    console.warn('⚠️ Rate limiter not initialized:', err?.message || err);
+  }
+} else {
+  console.warn('⚠️ Rate limiter disabled: REDIS_URL not set');
+}
 
 // Middleware
 app.use(express.json());
