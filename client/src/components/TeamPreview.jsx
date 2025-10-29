@@ -37,6 +37,33 @@ const CARD_THEMES = [
 	},
 ];
 
+const footerLinks = [
+	{
+		title: 'Company',
+		links: [
+			{ label: 'About', url: '/about' },
+			{ label: 'Team', url: '/team' },
+			{ label: 'Careers', url: '/careers' },
+		],
+	},
+	{
+		title: 'Community',
+		links: [
+			{ label: 'Projects', url: '/projects' },
+			{ label: 'Blog', url: '/blog' },
+			{ label: 'Instagram', url: 'https://www.instagram.com/syntaxclub/' },
+		],
+	},
+	{
+		title: 'Support',
+		links: [
+			{ label: 'FAQ', url: '/faq' },
+			{ label: 'Contact', url: '/contact' },
+			{ label: 'Privacy', url: '/privacy' },
+		],
+	},
+];
+
 const TeamPreview = () => {
 	const [teamMembers, setTeamMembers] = useState([]);
 	const [hoveredCard, setHoveredCard] = useState(null);
