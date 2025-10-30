@@ -363,3 +363,16 @@ textarea:focus-visible {
 	border: 1px solid rgba(226, 232, 240, 0.14);
 	border-radius: 14px;
 }
+
+/* Visual utilities for background logo */
+.mask-fade {
+	-webkit-mask-image: radial-gradient(60% 60% at 50% 40%, #000 60%, transparent 100%);
+	mask-image: radial-gradient(60% 60% at 50% 40%, #000 60%, transparent 100%);
+}
+.mix-soft-light {
+	mix-blend-mode: soft-light;
+}
+/* Optional: slight tilt utility */
+.tilt-1 {
+	transform: rotate(-1.2deg);
+}
