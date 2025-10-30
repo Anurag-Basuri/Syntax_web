@@ -33,13 +33,11 @@ const Footer = () => {
 
 	return (
 		<footer className="pt-24 pb-12 px-4 relative z-10 overflow-hidden bg-transparent">
-			{/* Background elements */}
-			<div className="absolute inset-0 -z-10">
-				<div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent"></div>
-				<div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-600/5 rounded-full blur-3xl animate-pulse-slow"></div>
-				<div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-purple-600/5 rounded-full blur-3xl animate-pulse-slow"></div>
+			{/* soft, transparent accents only */}
+			<div className="absolute inset-0 -z-10 pointer-events-none">
+				<div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-600/5 rounded-full blur-3xl" />
+				<div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-purple-600/5 rounded-full blur-3xl" />
 			</div>
-
 			<div className="max-w-6xl mx-auto">
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-16">
 					{/* Brand column */}
