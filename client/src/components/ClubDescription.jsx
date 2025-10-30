@@ -83,7 +83,7 @@ const ClubDescription = () => {
 				>
 					{/* Who We Are Card */}
 					<motion.div variants={itemVariants} className="relative">
-						<div className="bg-gradient-to-br from-blue-900/20 to-indigo-900/20 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 h-full shadow-2xl shadow-blue-900/20 overflow-hidden">
+						<div className="bg-gradient-to-br from-blue-900/20 to-indigo-900/20 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 md:p-8 h-full shadow-2xl shadow-blue-900/20 overflow-hidden">
 							{/* Decorative corner element */}
 							<div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-bl-full backdrop-blur-sm" />
 
@@ -104,21 +104,21 @@ const ClubDescription = () => {
 											/>
 										</svg>
 									</div>
-									<h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
+									<h2 className="text-3xl font-bold bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
 										Who We Are
 									</h2>
 								</div>
 
 								<div className="space-y-4">
-									<p className="text-lg text-blue-100 leading-relaxed">
-										Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-										Pellentesque euismod, nisi eu consectetur cursus, nisl erat
-										dictum urna, nec dictum velit enim eu erat.
+									<p className="text-base md:text-lg text-blue-100 leading-relaxed">
+										Syntax is a collective of passionate developers, designers,
+										and tech enthusiasts dedicated to fostering a vibrant
+										culture of innovation and learning.
 									</p>
-									<p className="text-lg text-blue-100 leading-relaxed">
-										Sed ut perspiciatis unde omnis iste natus error sit
-										voluptatem accusantium doloremque laudantium, totam rem
-										aperiam.
+									<p className="text-base md:text-lg text-blue-100 leading-relaxed">
+										We bridge the gap between theory and practice, providing a
+										platform for members to grow their skills, build amazing
+										projects, and connect with the tech industry.
 									</p>
 								</div>
 
@@ -163,7 +163,7 @@ const ClubDescription = () => {
 
 					{/* What We Do Card */}
 					<motion.div variants={itemVariants} className="relative">
-						<div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 h-full shadow-2xl shadow-indigo-900/20 overflow-hidden">
+						<div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 md:p-8 h-full shadow-2xl shadow-indigo-900/20 overflow-hidden">
 							{/* Decorative corner element */}
 							<div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 rounded-bl-full backdrop-blur-sm" />
 
@@ -190,7 +190,7 @@ const ClubDescription = () => {
 											/>
 										</svg>
 									</div>
-									<h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+									<h2 className="text-3xl font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
 										What We Do
 									</h2>
 								</div>
