@@ -78,21 +78,21 @@ const UpcomingEventShowcase = () => {
 
 	if (loading) {
 		return (
-			<section className="py-24 px-4 relative z-10 bg-transparent min-h-[60vh]">
+			<section className="section-container py-normal relative z-10 bg-transparent min-h-[60vh]">
 				<div className="max-w-4xl mx-auto">
 					<div className="animate-pulse flex flex-col items-center">
-						<div className="h-8 bg-blue-300/20 rounded-lg mb-4 w-3/4"></div>
-						<div className="h-4 bg-blue-300/10 rounded mb-8 w-1/2"></div>
-						<div className="w-full bg-gradient-to-br from-blue-900/30 to-purple-900/30 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row items-stretch">
-							<div className="md:w-1/2 h-64 md:h-auto bg-blue-800/20"></div>
+						<div className="h-8 bg-white/10 rounded-lg mb-4 w-3/4"></div>
+						<div className="h-4 bg-white/5 rounded mb-8 w-1/2"></div>
+						<div className="w-full glass-card rounded-3xl overflow-hidden flex flex-col md:flex-row items-stretch">
+							<div className="md:w-1/2 h-64 md:h-auto bg-white/5"></div>
 							<div className="flex-1 p-8 space-y-4">
-								<div className="h-4 bg-blue-800/20 rounded w-3/4"></div>
-								<div className="h-4 bg-blue-800/20 rounded w-1/2"></div>
-								<div className="h-4 bg-blue-800/20 rounded w-2/3"></div>
-								<div className="h-4 bg-blue-800/20 rounded w-1/3"></div>
+								<div className="h-4 bg-white/10 rounded w-3/4"></div>
+								<div className="h-4 bg-white/10 rounded w-1/2"></div>
+								<div className="h-4 bg-white/10 rounded w-2/3"></div>
+								<div className="h-4 bg-white/10 rounded w-1/3"></div>
 								<div className="flex gap-4 mt-8">
-									<div className="h-10 w-32 bg-indigo-700/20 rounded-xl"></div>
-									<div className="h-10 w-32 bg-blue-800/20 rounded-xl"></div>
+									<div className="h-10 w-32 bg-white/10 rounded-xl"></div>
+									<div className="h-10 w-32 bg-white/10 rounded-xl"></div>
 								</div>
 							</div>
 						</div>
@@ -157,7 +157,7 @@ const UpcomingEventShowcase = () => {
 				: eventDate.toLocaleTimeString(undefined, {
 						hour: '2-digit',
 						minute: '2-digit',
-					});
+				  });
 		}
 	}
 
@@ -170,7 +170,7 @@ const UpcomingEventShowcase = () => {
 			? Math.max(
 					0,
 					event.totalSpots - 152 - (event.registrations ? event.registrations.length : 0)
-				)
+			  )
 			: null;
 
 	// ExpandableText component for mobile description
@@ -200,16 +200,10 @@ const UpcomingEventShowcase = () => {
 	if (isMobile) {
 		return (
 			<section className="py-8 px-2 relative z-10 bg-transparent min-h-[70vh] overflow-hidden">
-				{/* Floating background elements */}
-				<div className="absolute top-10 left-4 w-20 h-20 bg-cyan-400/10 rounded-full blur-xl animate-pulse"></div>
-				<div
-					className="absolute top-32 right-6 w-16 h-16 bg-purple-400/10 rounded-full blur-lg animate-pulse"
-					style={{ animationDelay: '1s' }}
-				></div>
-				<div
-					className="absolute bottom-20 left-8 w-12 h-12 bg-pink-400/10 rounded-full blur-md animate-pulse"
-					style={{ animationDelay: '2s' }}
-				></div>
+				{/* lighter accents */}
+				<div className="absolute top-10 left-4 w-20 h-20 bg-cyan-400/8 rounded-full blur-xl"></div>
+				<div className="absolute top-32 right-6 w-16 h-16 bg-purple-400/8 rounded-full blur-lg"></div>
+				<div className="absolute bottom-20 left-8 w-12 h-12 bg-pink-400/8 rounded-full blur-md"></div>
 
 				<div className="max-w-sm mx-auto relative z-10">
 					{/* Header */}
@@ -260,7 +254,7 @@ const UpcomingEventShowcase = () => {
 					>
 						<motion.div
 							variants={itemVariants}
-							className="bg-gradient-to-br from-blue-900/60 via-purple-900/70 to-indigo-900/60 backdrop-blur-2xl border-2 border-white/20 rounded-3xl overflow-hidden shadow-2xl relative"
+							className="glass-card border-white/20 rounded-3xl overflow-hidden shadow-2xl relative"
 							whileHover={{ scale: 1.02 }}
 							transition={{ type: 'spring', stiffness: 300 }}
 						>
@@ -269,19 +263,18 @@ const UpcomingEventShowcase = () => {
 								<motion.div
 									variants={itemVariants}
 									className="relative w-full h-64 overflow-hidden"
-									whileHover={{ scale: 1.05 }}
-									transition={{ duration: 0.6 }}
+									whileHover={{ scale: 1.02 }}
 								>
-									<div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10"></div>
+									<div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10" />
 									<img
 										src={poster.url}
 										alt={event.title}
-										className="w-full h-full object-cover object-center rounded-t-3xl"
+										className="w-full h-full object-cover object-center"
 									/>
-									{/* Floating Info Cards on Poster */}
+									{/* Floating Info Cards */}
 									<div className="absolute top-4 left-4 z-20">
 										<motion.div
-											className="bg-black/70 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/20 flex items-center gap-2"
+											className="bg-black/60 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/20 flex items-center gap-2"
 											animate={{ y: [0, -5, 0] }}
 											transition={{
 												duration: 3,
@@ -297,14 +290,9 @@ const UpcomingEventShowcase = () => {
 											</span>
 										</motion.div>
 									</div>
-									{/* Bottom overlay with key info */}
+									{/* Bottom overlay */}
 									<div className="absolute bottom-0 left-0 right-0 z-20 p-3">
-										<motion.div
-											className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-2"
-											initial={{ y: 50, opacity: 0 }}
-											animate={{ y: 0, opacity: 1 }}
-											transition={{ delay: 0.5, duration: 0.6 }}
-										>
+										<div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-2">
 											<div className="flex items-center justify-between mb-1">
 												<div className="flex items-center gap-2">
 													<Calendar className="w-4 h-4 text-cyan-400" />
@@ -325,7 +313,7 @@ const UpcomingEventShowcase = () => {
 													{event.venue}
 												</span>
 											</div>
-										</motion.div>
+										</div>
 									</div>
 								</motion.div>
 							)}
@@ -390,21 +378,16 @@ const UpcomingEventShowcase = () => {
 										boxShadow: '0 10px 40px rgba(99, 102, 241, 0.4)',
 									}}
 									whileTap={{ scale: 0.95 }}
-									className="w-full flex items-center justify-center gap-3 px-5 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 border border-indigo-400/50 rounded-2xl font-bold text-white transition-all duration-300 shadow-lg relative overflow-hidden group"
+									className="w-full flex items-center justify-center gap-3 px-5 py-3 btn-primary rounded-2xl"
 									onClick={() => navigate(`/event`)}
 								>
-									<div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 to-purple-600/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out"></div>
-									<span className="relative z-10">Discover More</span>
-									<ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform duration-300" />
+									<span>Discover More</span>
+									<ArrowRight className="w-5 h-5" />
 								</motion.button>
 							</motion.div>
 						</motion.div>
-						{/* Decorative Elements */}
-						<div className="absolute -top-2 -left-2 w-4 h-4 bg-cyan-400/60 rounded-full blur-sm animate-ping"></div>
-						<div
-							className="absolute -bottom-2 -right-2 w-4 h-4 bg-purple-400/60 rounded-full blur-sm animate-ping"
-							style={{ animationDelay: '1s' }}
-						></div>
+						<div className="absolute -top-2 -left-2 w-4 h-4 bg-cyan-400/50 rounded-full blur-sm"></div>
+						<div className="absolute -bottom-2 -right-2 w-4 h-4 bg-purple-400/50 rounded-full blur-sm"></div>
 					</motion.div>
 				</div>
 			</section>
@@ -413,14 +396,12 @@ const UpcomingEventShowcase = () => {
 
 	// Desktop layout
 	return (
-		<section className="py-24 px-4 relative z-10 overflow-hidden">
-			{/* Background elements */}
+		<section className="section-container py-normal relative z-10 overflow-hidden">
+			{/* airy accents */}
 			<div className="absolute inset-0 -z-10">
-				<div className="absolute inset-0 bg-gradient-to-br from-indigo-900/20 to-purple-900/30 backdrop-blur-2xl"></div>
-				<div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl animate-pulse-slow"></div>
-				<div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl animate-pulse-slow"></div>
+				<div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-600/5 rounded-full blur-3xl animate-pulse-slow"></div>
+				<div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-purple-600/5 rounded-full blur-3xl animate-pulse-slow"></div>
 			</div>
-
 			<div className="max-w-7xl mx-auto">
 				<motion.div
 					initial={{ opacity: 0, y: 20 }}
@@ -445,7 +426,7 @@ const UpcomingEventShowcase = () => {
 				>
 					{/* Event Card */}
 					<motion.div variants={itemVariants} className="relative group">
-						<div className="bg-gradient-to-br from-indigo-900/30 to-purple-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl shadow-indigo-900/20 overflow-hidden transition-all duration-300 group-hover:border-white/20 group-hover:shadow-indigo-900/40">
+						<div className="glass-card p-6 md:p-8 overflow-hidden hover-lift">
 							{/* Decorative elements */}
 							<div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 rounded-bl-full backdrop-blur-sm transition-all duration-300 group-hover:scale-125" />
 							<div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-600/10 rounded-tr-full backdrop-blur-sm transition-all duration-300 group-hover:scale-125" />
@@ -515,7 +496,7 @@ const UpcomingEventShowcase = () => {
 								<motion.button
 									whileHover={{ scale: 1.05 }}
 									whileTap={{ scale: 0.95 }}
-									className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-semibold text-white shadow-lg transition-all"
+									className="w-full sm:w-auto px-6 py-3 btn-primary rounded-xl"
 									onClick={() => navigate('/event')}
 								>
 									Learn More
@@ -526,7 +507,7 @@ const UpcomingEventShowcase = () => {
 
 					{/* Poster Section */}
 					<motion.div variants={itemVariants} className="relative group">
-						<div className="bg-gradient-to-br from-purple-900/30 to-pink-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl shadow-purple-900/20 overflow-hidden transition-all duration-300 group-hover:border-white/20 group-hover:shadow-purple-900/40">
+						<div className="glass-card p-6 md:p-8 overflow-hidden hover-lift">
 							{/* Decorative elements */}
 							<div className="absolute top-0 right-0 w-32 h-32 bg-purple-600/10 rounded-bl-full backdrop-blur-sm transition-all duration-300 group-hover:scale-125" />
 							<div className="absolute bottom-0 left-0 w-24 h-24 bg-pink-600/10 rounded-tr-full backdrop-blur-sm transition-all duration-300 group-hover:scale-125" />
