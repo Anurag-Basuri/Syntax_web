@@ -65,228 +65,163 @@ const footerLinks = [
 ];
 
 const TeamPreview = () => {
-    const [teamMembers, setTeamMembers] = useState([]);
-    const [hoveredCard, setHoveredCard] = useState(null);
-    const navigate = useNavigate();
+	const [teamMembers, setTeamMembers] = useState([]);
+	const [hoveredCard, setHoveredCard] = useState(null);
+	const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchLeaders = async () => {
-            try {
-                const response = await publicClient.get('/api/members/getleaders');
-                setTeamMembers(
-                    Array.isArray(response.data?.data?.members) ? response.data.data.members : []
-                );
-            } catch (error) {
-                setTeamMembers([]);
-            }
-        };
-        fetchLeaders();
-    }, []);
+	useEffect(() => {
+		const fetchLeaders = async () => {
+			try {
+				const response = await publicClient.get('/api/members/getleaders');
+				setTeamMembers(
+					Array.isArray(response.data?.data?.members) ? response.data.data.members : []
+				);
+			} catch (error) {
+				setTeamMembers([]);
+			}
+		};
+		fetchLeaders();
+	}, []);
 
-    const [ref, inView] = useInView({
-        triggerOnce: true,
-        threshold: 0.1,
-    });
+	const [ref, inView] = useInView({
+		triggerOnce: true,
+		threshold: 0.1,
+	});
 
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: {
-            opacity: 1,
-            transition: { staggerChildren: 0.08, delayChildren: 0.2 },
-        },
-    };
+	const containerVariants = {
+		hidden: { opacity: 0 },
+		visible: {
+			opacity: 1,
+			transition: { staggerChildren: 0.08, delayChildren: 0.2 },
+		},
+	};
 
-    const cardVariants = {
-        hidden: { opacity: 0, y: 50, scale: 0.9, rotateX: -15 },
-        visible: {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            rotateX: 0,
-            transition: { duration: 0.6, type: 'spring', stiffness: 100, damping: 15 },
-        },
-    };
+	const cardVariants = {
+		hidden: { opacity: 0, y: 50, scale: 0.9, rotateX: -15 },
+		visible: {
+			opacity: 1,
+			y: 0,
+			scale: 1,
+			rotateX: 0,
+			transition: { duration: 0.6, type: 'spring', stiffness: 100, damping: 15 },
+		},
+	};
 
-    const getTheme = (index) => CARD_THEMES[index % CARD_THEMES.length];
+	const getTheme = (index) => CARD_THEMES[index % CARD_THEMES.length];
 
-    return (
-        <div className="min-h-screen bg-transparent relative overflow-hidden flex items-center">
-            <div className="relative z-10 px-4 py-16 sm:py-24 w-full">
-                <div className="max-w-7xl mx-auto">
-                    {/* Header Section */}
-                    <div className="text-center mb-16">
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8 }}
-                            className="space-y-6"
-                        >
-                            <motion.span
-                                className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-purple-500/40 text-purple-200 text-base font-semibold shadow-lg backdrop-blur-md"
-                                whileHover={{ scale: 1.08 }}
-                            >
-                                Meet Our Core Team
-                            </motion.span>
-                            <p className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
-                                The driving force behind Syntax. A diverse team of leaders, mentors,
-                                and builders working together to shape our future.
-                            </p>
-                        </motion.div>
-                    </div>
-                    <motion.div
-                        ref={ref}
-                        variants={containerVariants}
-                        initial="hidden"
-                        animate={inView ? 'visible' : 'hidden'}
-                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-16"
-                    >
-                        {teamMembers.map((member, index) => {
-                            const theme = getTheme(index);
-                            const isHovered = hoveredCard === index;
+	return (
+		<div className="min-h-screen bg-transparent relative overflow-hidden flex items-center">
+			<div className="relative z-10 px-4 py-16 sm:py-24 w-full">
+				<div className="max-w-7xl mx-auto">
+					{/* Header Section */}
+					<div className="text-center mb-16">
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 0.6 }}
+							className="mb-6"
+						>
+							<span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-purple-500/40 text-purple-200 text-base font-semibold shadow-lg backdrop-blur-md">
+								Meet Our Core Team
+							</span>
+							<p className="text-gray-300 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
+								The driving force behind Syntax. A diverse team of leaders, mentors,
+								and builders working together to shape our future.
+							</p>
+						</motion.div>
+					</div>
 
-                            return (
-                                <motion.div
-                                    key={member.id}
-                                    variants={cardVariants}
-                                    onHoverStart={() => setHoveredCard(index)}
-                                    onHoverEnd={() => setHoveredCard(null)}
-                                    whileHover={{
-                                        y: -10,
-                                        transition: { duration: 0.3 },
-                                    }}
-                                    className="group relative"
-                                >
-                                    {/* Glow Effect */}
-                                    <motion.div
-                                        className={`absolute -inset-0.5 bg-gradient-to-r ${theme.bg} rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-                                        style={
-                                            isHovered
-                                                ? { boxShadow: `0 0 30px rgba(${theme.glow})` }
-                                                : {}
-                                        }
-                                    />
+					{/* Team Grid */}
+					<motion.div
+						initial={{ opacity: 0, y: 30 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.8, delay: 0.2 }}
+						className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+					>
+						{teamMembers.slice(0, 6).map((member, index) => {
+							const theme = getTheme(index);
+							return (
+								<motion.div
+									key={member._id || index}
+									initial={{ opacity: 0, y: 20 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{ duration: 0.6, delay: index * 0.1 }}
+									className="relative group"
+								>
+									<div
+										className={`bg-gradient-to-br ${theme.bg} backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl overflow-hidden transition-all duration-300 group-hover:border-white/20 group-hover:shadow-2xl`}
+										style={{
+											boxShadow: `0 0 20px rgba(${theme.glow})`,
+										}}
+									>
+										{/* Decorative elements */}
+										<div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full backdrop-blur-sm transition-all duration-300 group-hover:scale-125" />
+										<div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-tr-full backdrop-blur-sm transition-all duration-300 group-hover:scale-125" />
 
-                                    {/* Card */}
-                                    <div
-                                        className={`relative bg-gradient-to-br ${theme.bg} backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden h-full bg-transparent`}
-                                    >
-                                        {/* Avatar Section */}
-                                        <div className="relative p-6 pb-4">
-                                            <motion.div
-                                                className="relative mx-auto w-20 h-20 sm:w-24 sm:h-24"
-                                                whileHover={{ scale: 1.1 }}
-                                                transition={{ duration: 0.3 }}
-                                            >
-                                                <div
-                                                    className={`absolute inset-0 rounded-full bg-gradient-to-br from-${theme.accent} to-white/20 blur-md opacity-50`}
-                                                />
-                                                <img
-                                                    src={member.profilePicture}
-                                                    alt={member.fullName}
-                                                    className="relative w-full h-full rounded-full object-cover border-2 border-white/20 shadow-lg"
-                                                />
-                                                <motion.div
-                                                    className={`absolute -bottom-1 -right-1 w-6 h-6 bg-${theme.accent} rounded-full border-2 border-gray-900 flex items-center justify-center`}
-                                                    initial={{ scale: 0 }}
-                                                    animate={{ scale: 1 }}
-                                                    transition={{ delay: 0.5, type: 'spring' }}
-                                                >
-                                                    <div className="w-2 h-2 bg-white rounded-full" />
-                                                </motion.div>
-                                            </motion.div>
-                                        </div>
+										<div className="relative z-10 text-center">
+											<div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-white/20 to-white/10 border border-white/20 flex items-center justify-center shadow-lg">
+												<span className="text-2xl font-bold text-white">
+													{member.name?.charAt(0).toUpperCase() || '?'}
+												</span>
+											</div>
+											<h3 className="text-xl font-bold text-white mb-1">
+												{member.name || 'Team Member'}
+											</h3>
+											<p className={`text-${theme.accent} font-medium`}>
+												{member.role || 'Role'}
+											</p>
+											<p className="text-gray-300 text-sm mt-2 leading-relaxed">
+												{member.bio ||
+													'Passionate about technology and innovation.'}
+											</p>
+										</div>
+									</div>
+								</motion.div>
+							);
+						})}
+					</motion.div>
 
-                                        {/* Content Section */}
-                                        <div className="px-6 pb-6 text-center">
-                                            <motion.h3
-                                                className="text-lg sm:text-xl font-bold text-white mb-2 group-hover:text-gray-100 transition-colors"
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                transition={{ delay: 0.3 }}
-                                            >
-                                                {member.fullName}
-                                            </motion.h3>
-
-                                            <motion.p
-                                                className={`text-${theme.accent} text-sm sm:text-base font-medium opacity-90`}
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                transition={{ delay: 0.4 }}
-                                            >
-                                                {member.designation}
-                                            </motion.p>
-
-                                            {/* Subtle decoration */}
-                                            <motion.div
-                                                className={`mt-4 h-0.5 bg-gradient-to-r from-transparent via-${theme.accent}/50 to-transparent`}
-                                                initial={{ scaleX: 0 }}
-                                                animate={{ scaleX: 1 }}
-                                                transition={{ delay: 0.6, duration: 0.5 }}
-                                            />
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                    </motion.div>
-
-                    {/* CTA Section */}
-                    <motion.div
-                        className="text-center"
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.8, duration: 0.6 }}
-                    >
-                        <motion.button
-                            onClick={() => navigate('/team')}
-                            whileHover={{
-                                scale: 1.05,
-                                boxShadow: '0 20px 40px rgba(139, 92, 246, 0.3)',
-                            }}
-                            whileTap={{ scale: 0.95 }}
-                            className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 rounded-full font-semibold text-white text-lg shadow-2xl overflow-hidden"
-                        >
-                            <span className="relative z-10 flex items-center gap-3">
-                                Explore Full Team
-                                <motion.svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                    animate={{ x: [0, 5, 0] }}
-                                    transition={{
-                                        duration: 1.5,
-                                        repeat: Infinity,
-                                        ease: 'easeInOut',
-                                    }}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M17 8l4 4m0 0l-4 4m4-4H3"
-                                    />
-                                </motion.svg>
-                            </span>
-
-                            {/* Button glow effect */}
-                            <motion.div
-                                className="absolute inset-0 bg-gradient-to-r from-purple-400/50 via-pink-400/50 to-cyan-400/50 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                animate={{
-                                    scale: [1, 1.2, 1],
-                                }}
-                                transition={{
-                                    duration: 2,
-                                    repeat: Infinity,
-                                    ease: 'easeInOut',
-                                }}
-                            />
-                        </motion.button>
-                    </motion.div>
-                </div>
-            </div>
-        </div>
-    );
+					{/* CTA Button */}
+					<motion.div
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.6, delay: 0.8 }}
+						className="text-center mt-16"
+					>
+						<motion.button
+							onClick={() => navigate('/team')}
+							whileHover={{
+								scale: 1.05,
+								boxShadow: '0 20px 40px rgba(139, 92, 246, 0.3)',
+							}}
+							whileTap={{ scale: 0.95 }}
+							className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 rounded-full font-semibold text-white text-lg shadow-2xl overflow-hidden"
+						>
+							<span className="relative z-10 flex items-center gap-3">
+								Explore Full Team
+								<motion.svg
+									className="w-5 h-5"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									whileHover={{ x: 5 }}
+									transition={{ type: 'spring', stiffness: 400 }}
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M17 8l4 4m0 0l-4 4m4-4H3"
+									/>
+								</motion.svg>
+							</span>
+							<div className="absolute inset-0 bg-gradient-to-r from-purple-700 via-pink-700 to-cyan-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full" />
+						</motion.button>
+					</motion.div>
+				</div>
+			</div>
+		</div>
+	);
 };
 
 export default TeamPreview;
