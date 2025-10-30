@@ -16,16 +16,17 @@ const Home = () => {
 			<div className="fixed inset-0 -z-50 bg-gradient-to-b from-slate-950 via-blue-950/15 to-slate-950" />
 			<div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
 				<div className="absolute inset-0 bg-grid-white/[0.02] bg-[length:30px_30px]" />
+				{/* center-top watermark, softly masked and blended; hidden on very small screens */}
 				<motion.div
-					className="absolute inset-0 flex items-start justify-center pt-[12vh] md:pt-[14vh] lg:pt-[16vh]"
-					initial={{ opacity: 0, scale: 0.96 }}
-					animate={{ opacity: 0.03, scale: 1 }}
+					className="absolute inset-x-0 top-0 flex items-start justify-center pt-[9vh] sm:pt-[11vh] lg:pt-[13vh]"
+					initial={{ opacity: 0, scale: 0.96, y: -8 }}
+					animate={{ opacity: 0.05, scale: 1, y: 0 }}
 					transition={{ duration: 1.1, ease: 'easeOut' }}
 				>
 					<img
 						src={Logo}
 						alt="Syntax Logo"
-						className="w-[85vw] max-w-[900px] md:w-[70vw] md:max-w-[800px] h-auto object-contain"
+						className="w-[82vw] max-w-[820px] md:w-[70vw] md:max-w-[780px] h-auto object-contain mask-fade mix-soft-light tilt-1"
 						loading="eager"
 						decoding="async"
 					/>
