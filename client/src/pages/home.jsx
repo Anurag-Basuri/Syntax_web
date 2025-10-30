@@ -11,29 +11,35 @@ import AboutSyntax from '../components/AboutSyntax.jsx';
 
 const Home = () => {
 	return (
-		<div className="relative min-h-screen bg-gradient-to-b from-[#0a0e17] to-[#1a1f3a] text-white overflow-x-hidden">
+		<div className="relative min-h-screen bg-transparent text-white overflow-x-hidden">
+			{/* Fixed background gradient - subtle and consistent */}
+			<div className="fixed inset-0 -z-50 bg-gradient-to-b from-slate-950 via-blue-950/20 to-slate-950" />
+
 			{/* Fixed background elements */}
 			<div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-				<div className="absolute inset-0 bg-grid-white/[0.03] bg-[length:20px_20px]" />
-				{/* Logo: optimized for long, white PNG */}
+				{/* Grid */}
+				<div className="absolute inset-0 bg-grid-white/[0.02] bg-[length:30px_30px]" />
+
+				{/* Logo watermark */}
 				<motion.div
 					className="absolute inset-0 flex items-start justify-center pt-[12vh] md:pt-[14vh] lg:pt-[16vh]"
-					initial={{ opacity: 0, scale: 0.95 }}
-					animate={{ opacity: 0.04, scale: 1 }}
+					initial={{ opacity: 0, scale: 0.9 }}
+					animate={{ opacity: 0.03, scale: 1 }}
 					transition={{ duration: 1.2, ease: 'easeOut' }}
 				>
 					<img
 						src={Logo}
 						alt="Syntax Logo"
-						className="w-[90vw] max-w-[980px] md:w-[72vw] md:max-w-[860px] h-auto object-contain"
+						className="w-[85vw] max-w-[900px] md:w-[70vw] md:max-w-[800px] h-auto object-contain"
 						loading="eager"
 						decoding="async"
 					/>
 				</motion.div>
-				{/* Blur shapes */}
-				<div className="absolute top-1/4 left-1/4 w-80 h-80 rounded-full bg-blue-500/10 filter blur-3xl animate-pulse-slow" />
-				<div className="absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-indigo-500/15 filter blur-3xl animate-pulse-slow" />
-				<div className="absolute bottom-1/4 left-1/3 w-72 h-72 rounded-full bg-purple-500/12 filter blur-3xl animate-pulse-slow" />
+
+				{/* Subtle gradient orbs */}
+				<div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-blue-600/5 to-transparent rounded-full blur-3xl animate-glow-pulse" />
+				<div className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-gradient-to-bl from-purple-600/5 to-transparent rounded-full blur-3xl animate-glow-pulse" />
+				<div className="absolute bottom-0 left-1/2 w-[600px] h-[400px] bg-gradient-to-t from-indigo-600/3 to-transparent rounded-full blur-3xl animate-glow-pulse" />
 			</div>
 
 			{/* Content */}
