@@ -159,3 +159,26 @@ textarea:focus-visible {
 	outline: 2px solid rgba(59, 130, 246, 0.6);
 	outline-offset: 2px;
 }
+
+/* Brand font utility */
+.font-brand {
+	font-family:
+		'Space Grotesk',
+		ui-sans-serif,
+		system-ui,
+		-apple-system,
+		Segoe UI,
+		Roboto,
+		Inter,
+		Helvetica,
+		Arial,
+		'Apple Color Emoji',
+		'Segoe UI Emoji';
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+	.motion-safe\\:animate-none {
+		animation: none !important;
+	}
+}
