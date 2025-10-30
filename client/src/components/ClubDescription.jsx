@@ -82,10 +82,10 @@ const ClubDescription = () => {
 					className="grid grid-cols-1 lg:grid-cols-2 gap-10"
 				>
 					{/* Who We Are Card */}
-					<motion.div variants={itemVariants} className="relative">
-						<div className="bg-gradient-to-br from-blue-900/20 to-indigo-900/20 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 md:p-8 h-full shadow-2xl shadow-blue-900/20 overflow-hidden">
+					<motion.div variants={itemVariants} className="relative group">
+						<div className="bg-gradient-to-br from-blue-900/20 to-indigo-900/20 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 md:p-8 h-full shadow-2xl shadow-blue-900/20 overflow-hidden transition-all duration-300 group-hover:border-white/20">
 							{/* Decorative corner element */}
-							<div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-bl-full backdrop-blur-sm" />
+							<div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-bl-full backdrop-blur-sm transition-all duration-300 group-hover:scale-125" />
 
 							<div className="relative z-10">
 								<div className="flex items-center gap-3 mb-6">
@@ -162,10 +162,10 @@ const ClubDescription = () => {
 					</motion.div>
 
 					{/* What We Do Card */}
-					<motion.div variants={itemVariants} className="relative">
-						<div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 md:p-8 h-full shadow-2xl shadow-indigo-900/20 overflow-hidden">
+					<motion.div variants={itemVariants} className="relative group">
+						<div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 md:p-8 h-full shadow-2xl shadow-indigo-900/20 overflow-hidden transition-all duration-300 group-hover:border-white/20">
 							{/* Decorative corner element */}
-							<div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 rounded-bl-full backdrop-blur-sm" />
+							<div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 rounded-bl-full backdrop-blur-sm transition-all duration-300 group-hover:scale-125" />
 
 							<div className="relative z-10">
 								<div className="flex items-center gap-3 mb-6">
@@ -228,7 +228,7 @@ const ClubDescription = () => {
 										<motion.div
 											key={index}
 											variants={itemVariants}
-											className={`bg-gradient-to-br ${item.color} backdrop-blur-lg border border-white/10 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.03]`}
+											className={`bg-gradient-to-br ${item.color} backdrop-blur-lg border border-white/10 rounded-2xl p-5 transition-all duration-300 hover:scale-[1.03] hover:border-white/20 hover:shadow-xl`}
 										>
 											<div className="flex gap-4 items-start">
 												<div className="text-3xl mt-1">{item.icon}</div>
