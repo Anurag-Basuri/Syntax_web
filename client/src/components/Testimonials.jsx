@@ -1,5 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
+import { Quote, Star } from 'lucide-react';
+
+const testimonials = [
+	{
+		quote: 'Syntax gave me the confidence to lead a project from scratch. The mentorship and collaborative environment are unparalleled.',
+		name: 'Alex Johnson',
+		role: 'Project Lead, AI Division',
+		avatar: 'https://i.pravatar.cc/150?img=1',
+	},
+	{
+		quote: "Joining Syntax was the best decision of my college career. I've learned more from the workshops and hackathons than in any class.",
+		name: 'Samantha Lee',
+		role: 'Frontend Developer',
+		avatar: 'https://i.pravatar.cc/150?img=2',
+	},
+	{
+		quote: 'The community is incredible. Everyone is so willing to help and share their knowledge. It feels like a second family.',
+		name: 'Michael Chen',
+		role: 'Cloud Engineering Member',
+		avatar: 'https://i.pravatar.cc/150?img=3',
+	},
+	{
+		quote: 'From zero to deploying a full-stack app, Syntax provided the roadmap and the support. I highly recommend it to any aspiring developer.',
+		name: 'Jessica Rodriguez',
+		role: 'Full-Stack Developer',
+		avatar: 'https://i.pravatar.cc/150?img=4',
+	},
+];
 
 const EventEchoes = () => {
 	const [activeTab, setActiveTab] = useState('ghostboard');
@@ -13,6 +42,11 @@ const EventEchoes = () => {
 		lightshow: 78,
 		foodWipeout: 65,
 	});
+	const [current, setCurrent] = useState(0);
+	const [ref, inView] = useInView({
+		triggerOnce: true,
+		threshold: 0.2,
+	});
 
 	// Sample data
 	const eventFacts = [
@@ -22,15 +56,6 @@ const EventEchoes = () => {
 		{ id: 4, content: 'Record crowd jump: 3.5 ft average', emoji: '🚀' },
 		{ id: 5, content: '15 gallons of glow paint used', emoji: '🎨' },
 		{ id: 6, content: 'Midnight flash mob surprised everyone', emoji: '👯' },
-	];
-
-	const testimonials = [
-		'I came for the music. I stayed for the madness.',
-		'The lights. The people. The ghost energy.',
-		'Never danced so hard in my life!',
-		'Left my voice on the dance floor.',
-		'Pure euphoria from start to finish.',
-		'Connected with complete strangers through the beat.',
 	];
 
 	// Add new message to ghostboard
@@ -81,13 +106,37 @@ const EventEchoes = () => {
 		return () => clearInterval(interval);
 	}, []);
 
+	useEffect(() => {
+		const timer = setInterval(() => {
+			setCurrent((prev) => (prev === testimonials.length - 1 ? 0 : prev + 1));
+		}, 5000);
+		return () => clearInterval(timer);
+	}, []);
+
+	const variants = {
+		enter: (direction) => ({
+			x: direction > 0 ? 100 : -100,
+			opacity: 0,
+		}),
+		center: {
+			zIndex: 1,
+			x: 0,
+			opacity: 1,
+		},
+		exit: (direction) => ({
+			zIndex: 0,
+			x: direction < 0 ? 100 : -100,
+			opacity: 0,
+		}),
+	};
+
 	return (
 		<section className="py-24 px-4 relative z-10 overflow-hidden">
 			{/* Background elements */}
 			<div className="absolute inset-0 -z-10">
 				<div className="absolute inset-0 bg-gradient-to-br from-indigo-900/20 to-purple-900/30 backdrop-blur-2xl"></div>
-				<div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl"></div>
-				<div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl"></div>
+				<div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl animate-pulse-slow"></div>
+				<div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl animate-pulse-slow"></div>
 			</div>
 
 			<div className="max-w-6xl mx-auto">
