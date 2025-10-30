@@ -39,16 +39,24 @@ const Hero = () => {
 
 			<div className="max-w-6xl w-full mx-auto text-center relative z-10 pt-10 pb-16 md:pt-32 md:pb-24">
 				<motion.div
-					initial={{ opacity: 0, y: 20 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.8 }}
+					initial="hidden"
+					animate="visible"
+					variants={{
+						hidden: { opacity: 0 },
+						visible: {
+							opacity: 1,
+							transition: { staggerChildren: 0.15, delayChildren: 0.2 },
+						},
+					}}
 					className="mb-12"
 				>
 					{/* Club name with elegant typography */}
 					<motion.div
-						initial={{ opacity: 0, scale: 0.92, y: 10 }}
-						animate={{ opacity: 1, scale: 1, y: 0 }}
-						transition={{ delay: 0.3, duration: 0.8 }}
+						variants={{
+							hidden: { opacity: 0, scale: 0.9, y: 10 },
+							visible: { opacity: 1, scale: 1, y: 0 },
+						}}
+						transition={{ duration: 0.8, type: 'spring' }}
 						className="inline-block mb-10"
 					>
 						<div className="flex items-center justify-center gap-4">
@@ -63,9 +71,11 @@ const Hero = () => {
 
 					<motion.h1
 						className="text-4xl md:text-6xl font-bold mt-4 mb-6"
-						initial={{ opacity: 0, y: 30 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ delay: 0.5, duration: 0.8 }}
+						variants={{
+							hidden: { opacity: 0, y: 30 },
+							visible: { opacity: 1, y: 0 },
+						}}
+						transition={{ duration: 0.8, ease: 'easeOut' }}
 					>
 						<div className="font-serif italic text-white mb-3">Where Logic Meets</div>
 						<div className="bg-gradient-to-r from-blue-300 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
@@ -75,9 +85,11 @@ const Hero = () => {
 
 					<motion.p
 						className="text-lg md:text-xl max-w-3xl mx-auto text-indigo-200 font-light"
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ delay: 0.7, duration: 0.8 }}
+						variants={{
+							hidden: { opacity: 0 },
+							visible: { opacity: 1 },
+						}}
+						transition={{ duration: 0.8 }}
 					>
 						A community of developers building tomorrow through collaboration,
 						creativity, and transformative technology.
@@ -96,7 +108,7 @@ const Hero = () => {
 							boxShadow: '0 5px 20px rgba(99, 102, 241, 0.4)',
 						}}
 						whileTap={{ scale: 0.95 }}
-						className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-semibold text-lg shadow-lg flex items-center gap-2 transition-all"
+						className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-semibold text-lg shadow-lg flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
 						onClick={() => navigate('/auth', { state: { tab: 'register' } })}
 					>
 						<svg
@@ -115,30 +127,30 @@ const Hero = () => {
 						Join Our Community
 					</motion.button>
 
-					{/* <motion.button
-                        whileHover={{
-                            scale: 1.05,
-                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                        }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-6 py-3 md:px-8 md:py-4 bg-white/5 backdrop-blur-lg border border-indigo-500/30 rounded-xl font-medium text-base md:text-lg flex items-center gap-2 transition-all"
-                        onClick={() => navigate('/event')}
-                    >
-                        <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                        </svg>
-                        Explore Events
-                    </motion.button> */}
+					<motion.button
+						whileHover={{
+							scale: 1.05,
+							backgroundColor: 'rgba(255, 255, 255, 0.08)',
+						}}
+						whileTap={{ scale: 0.95 }}
+						className="px-8 py-4 bg-white/5 backdrop-blur-lg border border-indigo-500/30 rounded-xl font-medium text-lg flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
+						onClick={() => navigate('/event')}
+					>
+						<svg
+							className="w-5 h-5"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+							/>
+						</svg>
+						Explore Events
+					</motion.button>
 				</motion.div>
 			</div>
 
