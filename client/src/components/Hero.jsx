@@ -16,25 +16,21 @@ const Hero = () => {
 			{[...Array(15)].map((_, i) => (
 				<motion.div
 					key={i}
-					className="absolute rounded-full pointer-events-none"
+					className="absolute w-1 h-1 bg-indigo-400/30 rounded-full"
 					style={{
-						top: `${Math.random() * 90 + 5}%`,
-						left: `${Math.random() * 90 + 5}%`,
-						width: `${Math.random() * 10 + 5}px`,
-						height: `${Math.random() * 10 + 5}px`,
-						background: `rgba(99, 102, 241, ${Math.random() * 0.4 + 0.1})`,
+						top: `${Math.random() * 100}%`,
+						left: `${Math.random() * 100}%`,
 					}}
 					animate={{
-						y: [0, Math.random() * 40 - 20],
-						x: [0, Math.random() * 40 - 20],
+						y: [0, -20, 0],
+						opacity: [0.3, 1, 0.3],
 					}}
 					transition={{
-						duration: Math.random() * 5 + 5,
+						duration: 3 + Math.random() * 2,
 						repeat: Infinity,
-						repeatType: 'reverse',
-						ease: 'easeInOut',
+						delay: Math.random() * 2,
 					}}
-				></motion.div>
+				/>
 			))}
 
 			<div className="max-w-6xl w-full mx-auto text-center relative z-10 pt-10 pb-16 md:pt-32 md:pb-24">
@@ -99,8 +95,8 @@ const Hero = () => {
 				<motion.div
 					initial={{ opacity: 0, y: 40 }}
 					animate={{ opacity: 1, y: 0 }}
-					transition={{ delay: 0.9, duration: 0.8 }}
-					className="mt-8 md:mt-16 flex flex-col sm:flex-row gap-5 justify-center"
+					transition={{ delay: 0.8, duration: 0.8 }}
+					className="flex flex-col sm:flex-row gap-4 justify-center items-center"
 				>
 					<motion.button
 						whileHover={{
@@ -108,7 +104,7 @@ const Hero = () => {
 							boxShadow: '0 5px 20px rgba(99, 102, 241, 0.4)',
 						}}
 						whileTap={{ scale: 0.95 }}
-						className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-semibold text-lg shadow-lg flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
+						className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl font-semibold text-lg shadow-lg flex items-center gap-2 transition-all w-full sm:w-auto"
 						onClick={() => navigate('/auth', { state: { tab: 'register' } })}
 					>
 						<svg
@@ -133,7 +129,7 @@ const Hero = () => {
 							backgroundColor: 'rgba(255, 255, 255, 0.08)',
 						}}
 						whileTap={{ scale: 0.95 }}
-						className="px-8 py-4 bg-white/5 backdrop-blur-lg border border-indigo-500/30 rounded-xl font-medium text-lg flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
+						className="px-8 py-4 bg-white/5 backdrop-blur-lg border border-indigo-500/30 rounded-xl font-medium text-lg flex items-center gap-2 transition-all w-full sm:w-auto"
 						onClick={() => navigate('/event')}
 					>
 						<svg
@@ -155,36 +151,6 @@ const Hero = () => {
 			</div>
 
 			{/* Animated "Discover More" scroll indicator */}
-			<motion.div
-				className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center z-20"
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ delay: 1.2, duration: 0.8 }}
-			>
-				<motion.div
-					animate={{ y: [0, 12, 0] }}
-					transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-					className="w-8 h-12 rounded-full border-2 border-indigo-400/60 bg-gradient-to-b from-indigo-700/30 to-purple-700/20 shadow-xl flex flex-col items-center justify-start p-1 backdrop-blur-md"
-				>
-					<motion.div
-						className="w-2 h-2 bg-gradient-to-r from-indigo-400 via-blue-400 to-purple-400 rounded-full mt-2 shadow-md"
-						animate={{ y: [0, 10, 0], opacity: [1, 0.7, 1] }}
-						transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-					/>
-					<motion.div
-						className="w-1 h-4 mt-1 rounded-full bg-indigo-400/30"
-						animate={{ scaleY: [1, 1.2, 1] }}
-						transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-					/>
-				</motion.div>
-			</motion.div>
-
-			{/* Enhanced floating decorative elements */}
-			<motion.div
-				className="absolute top-1/4 left-2 md:left-10 w-32 md:w-56 h-32 md:h-56 rounded-full bg-gradient-to-br from-indigo-700/20 via-blue-700/10 to-purple-700/20 blur-3xl shadow-2xl pointer-events-none"
-				animate={{ scale: [1, 1.12, 1], rotate: [0, 8, 0] }}
-				transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-			></motion.div>
 			<motion.div
 				className="absolute bottom-1/3 right-6 md:right-10 w-44 md:w-64 h-44 md:h-64 rounded-full bg-gradient-to-br from-purple-700/20 via-indigo-700/10 to-blue-700/20 blur-3xl shadow-2xl pointer-events-none"
 				animate={{ scale: [1, 1.18, 1], rotate: [0, -8, 0] }}
