@@ -131,7 +131,7 @@ const EventEchoes = () => {
 	};
 
 	return (
-		<section className="py-24 px-4 relative z-10 overflow-hidden">
+		<section ref={ref} className="py-24 px-4 relative z-10 overflow-hidden">
 			{/* Background elements */}
 			<div className="absolute inset-0 -z-10">
 				<div className="absolute inset-0 bg-gradient-to-br from-indigo-900/20 to-purple-900/30 backdrop-blur-2xl"></div>
@@ -139,329 +139,74 @@ const EventEchoes = () => {
 				<div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl animate-pulse-slow"></div>
 			</div>
 
-			<div className="max-w-6xl mx-auto">
-				<div className="text-center mb-16">
-					<motion.h2
-						className="text-4xl md:text-5xl font-extrabold mb-4 bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent tracking-tight"
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.6 }}
-					>
-						Event Echoes
-					</motion.h2>
-					<motion.p
-						className="text-xl text-purple-200 max-w-2xl mx-auto"
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ duration: 0.6, delay: 0.2 }}
-					>
-						Relive the moments through the eyes of the crowd
-					</motion.p>
-				</div>
+			<div className="max-w-4xl mx-auto">
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={inView ? { opacity: 1, y: 0 } : {}}
+					transition={{ duration: 0.6 }}
+					className="text-center mb-16"
+				>
+					<h2 className="text-4xl md:text-5xl font-extrabold mb-4 bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent tracking-tight">
+						Member Spotlights
+					</h2>
+					<p className="text-xl text-purple-200 max-w-2xl mx-auto">
+						Hear what our members have to say about their journey with Syntax.
+					</p>
+				</motion.div>
 
-				{/* Tab navigation */}
-				<div className="flex flex-wrap justify-center gap-2 mb-12">
-					{[
-						{ id: 'ghostboard', label: '🎟️ Ghostboard' },
-						{ id: 'arcade', label: '🕹️ Memory Game' },
-						{ id: 'one-liners', label: '🌀 One-Liners' },
-						{ id: 'energy', label: '🧿 Energy Meter' },
-					].map((tab) => (
-						<motion.button
-							key={tab.id}
-							onClick={() => setActiveTab(tab.id)}
-							className={`px-5 py-3 rounded-full text-sm font-medium transition-all ${
-								activeTab === tab.id
-									? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-									: 'bg-white/10 text-purple-200 hover:bg-white/20'
-							}`}
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-						>
-							{tab.label}
-						</motion.button>
-					))}
-				</div>
-
-				{/* Tab content */}
-				<div className="bg-gradient-to-br from-indigo-900/30 to-purple-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 min-h-[500px]">
-					<AnimatePresence mode="wait">
+				<motion.div
+					initial={{ opacity: 0, scale: 0.9 }}
+					animate={inView ? { opacity: 1, scale: 1 } : {}}
+					transition={{ duration: 0.7, delay: 0.2 }}
+					className="relative bg-gradient-to-br from-indigo-900/30 to-purple-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-10 min-h-[350px] flex flex-col justify-center items-center overflow-hidden"
+				>
+					<Quote className="absolute top-6 left-6 w-16 h-16 text-purple-600/30" />
+					<AnimatePresence initial={false} custom={1}>
 						<motion.div
-							key={activeTab}
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.4 }}
-							className="h-full"
+							key={current}
+							custom={1}
+							variants={variants}
+							initial="enter"
+							animate="center"
+							exit="exit"
+							transition={{
+								x: { type: 'spring', stiffness: 300, damping: 30 },
+								opacity: { duration: 0.2 },
+							}}
+							className="w-full text-center"
 						>
-							{/* Ghostboard */}
-							{activeTab === 'ghostboard' && (
-								<div className="h-full flex flex-col">
-									<div className="mb-6">
-										<h3 className="text-2xl font-bold text-white mb-2">
-											Message Wall
-										</h3>
-										<p className="text-purple-200">
-											Share your experience anonymously
-										</p>
-									</div>
-
-									<form onSubmit={handleSubmit} className="mb-6 flex gap-3">
-										<input
-											type="text"
-											value={newMessage}
-											onChange={(e) => setNewMessage(e.target.value)}
-											placeholder="Leave your echo..."
-											className="flex-1 bg-indigo-900/30 backdrop-blur-sm border border-white/10 rounded-xl py-3 px-4 text-white placeholder-purple-300/70 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-											maxLength={100}
-										/>
-										<motion.button
-											type="submit"
-											className="px-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-medium"
-											whileHover={{ scale: 1.05 }}
-											whileTap={{ scale: 0.95 }}
-										>
-											Post
-										</motion.button>
-									</form>
-
-									<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 flex-grow overflow-auto max-h-[350px] pr-2">
-										{messages.length > 0 ? (
-											messages.map((message) => (
-												<motion.div
-													key={message.id}
-													initial={{ opacity: 0, scale: 0.8 }}
-													animate={{ opacity: 1, scale: 1 }}
-													className="bg-indigo-800/30 backdrop-blur-sm border border-white/10 rounded-2xl p-4"
-												>
-													<p className="text-white mb-2">
-														{message.text}
-													</p>
-													<div className="text-right text-purple-300 text-sm opacity-80">
-														{message.timestamp}
-													</div>
-												</motion.div>
-											))
-										) : (
-											<div className="col-span-full flex flex-col items-center justify-center h-full text-center py-12 text-purple-300">
-												<div className="text-5xl mb-4">👻</div>
-												<p>Be the first to leave a message!</p>
-												<p className="mt-2 text-sm opacity-80">
-													Your anonymous echo will appear here
-												</p>
-											</div>
-										)}
-									</div>
+							<p className="text-xl md:text-2xl font-light text-white leading-relaxed mb-8 max-w-3xl mx-auto">
+								"{testimonials[current].quote}"
+							</p>
+							<div className="flex items-center justify-center gap-4">
+								<img
+									src={testimonials[current].avatar}
+									alt={testimonials[current].name}
+									className="w-14 h-14 rounded-full border-2 border-purple-400/50 object-cover"
+								/>
+								<div>
+									<h4 className="text-lg font-bold text-white">
+										{testimonials[current].name}
+									</h4>
+									<p className="text-purple-300">{testimonials[current].role}</p>
 								</div>
-							)}
-
-							{/* Memory Game */}
-							{activeTab === 'arcade' && (
-								<div className="h-full">
-									<div className="mb-6">
-										<h3 className="text-2xl font-bold text-white mb-2">
-											Event Memory Game
-										</h3>
-										<p className="text-purple-200">
-											Flip cards to reveal fun facts about the event
-										</p>
-									</div>
-
-									<div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
-										{eventFacts.map((fact) => (
-											<motion.div
-												key={fact.id}
-												className="aspect-square cursor-pointer"
-												onClick={() => flipCard(fact.id)}
-												whileHover={{ y: -5 }}
-											>
-												<div className="relative w-full h-full perspective">
-													<motion.div
-														className={`absolute w-full h-full rounded-2xl backface-hidden ${
-															flippedCards.includes(fact.id)
-																? 'bg-gradient-to-br from-pink-600/30 to-purple-600/30'
-																: 'bg-gradient-to-br from-indigo-600/30 to-purple-600/30'
-														} border border-white/10 flex items-center justify-center p-4`}
-														animate={{
-															rotateY: flippedCards.includes(fact.id)
-																? 180
-																: 0,
-														}}
-														transition={{
-															duration: 0.6,
-															ease: 'easeInOut',
-														}}
-													>
-														{!flippedCards.includes(fact.id) ? (
-															<div className="text-4xl">❔</div>
-														) : (
-															<div className="rotate-y-180 text-center">
-																<div className="text-3xl mb-2">
-																	{fact.emoji}
-																</div>
-																<p className="text-white text-sm">
-																	{fact.content}
-																</p>
-															</div>
-														)}
-													</motion.div>
-												</div>
-											</motion.div>
-										))}
-									</div>
-								</div>
-							)}
-
-							{/* One-Liners */}
-							{activeTab === 'one-liners' && (
-								<div className="h-full flex flex-col items-center justify-center">
-									<div className="text-center max-w-2xl">
-										<h3 className="text-2xl font-bold text-white mb-2">
-											Crowd Reactions
-										</h3>
-										<p className="text-purple-200 mb-8">
-											What attendees said in one sentence
-										</p>
-
-										<div className="bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-lg border border-white/10 rounded-2xl p-8">
-											<AnimatePresence mode="wait">
-												<motion.div
-													key={oneLiners}
-													initial={{ opacity: 0, y: 20 }}
-													animate={{ opacity: 1, y: 0 }}
-													exit={{ opacity: 0, y: -20 }}
-													transition={{ duration: 0.5 }}
-													className="text-2xl md:text-3xl font-light text-white leading-relaxed"
-												>
-													"{testimonials[oneLiners]}"
-												</motion.div>
-											</AnimatePresence>
-										</div>
-
-										<div className="mt-8 flex justify-center gap-2">
-											{testimonials.map((_, idx) => (
-												<div
-													key={idx}
-													className={`w-2 h-2 rounded-full ${
-														idx === oneLiners
-															? 'bg-purple-400'
-															: 'bg-white/30'
-													}`}
-												/>
-											))}
-										</div>
-									</div>
-								</div>
-							)}
-
-							{/* Energy Meter */}
-							{activeTab === 'energy' && (
-								<div className="h-full">
-									<div className="mb-8 text-center">
-										<h3 className="text-2xl font-bold text-white mb-2">
-											Event Energy Meter
-										</h3>
-										<p className="text-purple-200">
-											Vibes measured throughout the night
-										</p>
-									</div>
-
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-										<div className="space-y-6">
-											{[
-												{
-													label: 'Crowd Hype',
-													value: energyLevels.crowdHype,
-													color: 'from-cyan-400 to-blue-500',
-												},
-												{
-													label: 'DJ Drops',
-													value: energyLevels.djDrops,
-													color: 'from-purple-400 to-fuchsia-500',
-												},
-												{
-													label: 'Lightshow',
-													value: energyLevels.lightshow,
-													color: 'from-amber-400 to-orange-500',
-												},
-												{
-													label: 'Food Wipeout',
-													value: energyLevels.foodWipeout,
-													color: 'from-green-400 to-emerald-500',
-												},
-											].map((metric, index) => (
-												<div key={index}>
-													<div className="flex justify-between mb-1">
-														<span className="text-purple-200">
-															{metric.label}
-														</span>
-														<span className="text-white font-bold">
-															{metric.value}%
-														</span>
-													</div>
-													<div className="h-3 bg-white/10 rounded-full overflow-hidden">
-														<motion.div
-															className={`h-full bg-gradient-to-r ${metric.color} rounded-full`}
-															initial={{ width: 0 }}
-															animate={{ width: `${metric.value}%` }}
-															transition={{
-																duration: 1,
-																ease: 'easeOut',
-															}}
-														/>
-													</div>
-												</div>
-											))}
-										</div>
-
-										<div className="flex items-center justify-center">
-											<div className="relative">
-												<div className="w-48 h-48 rounded-full border-4 border-purple-500/30 flex items-center justify-center">
-													<motion.div
-														className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600/20 to-pink-600/20"
-														animate={{
-															scale: [1, 1.1, 1],
-															opacity: [0.3, 0.5, 0.3],
-														}}
-														transition={{
-															duration: 3,
-															repeat: Infinity,
-														}}
-													/>
-													<div className="text-center z-10">
-														<div className="text-5xl mb-2">⚡</div>
-														<div className="text-white text-xl font-bold">
-															{energyLevels.crowdHype > 85
-																? 'EPIC VIBES'
-																: energyLevels.crowdHype > 70
-																	? 'HIGH ENERGY'
-																	: 'GOOD FLOW'}
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							)}
+							</div>
 						</motion.div>
 					</AnimatePresence>
-				</div>
+					<div className="absolute bottom-6 flex gap-2">
+						{testimonials.map((_, i) => (
+							<button
+								key={i}
+								onClick={() => setCurrent(i)}
+								className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+									current === i ? 'bg-purple-400 w-6' : 'bg-white/30'
+								}`}
+								aria-label={`Go to testimonial ${i + 1}`}
+							/>
+						))}
+					</div>
+				</motion.div>
 			</div>
-
-			{/* Floating elements */}
-			<motion.div
-				className="absolute top-1/3 left-10 w-24 h-24 rounded-full bg-gradient-to-r from-purple-600/10 to-pink-600/10 blur-xl -z-1"
-				animate={{
-					y: [0, -30, 0],
-					x: [0, 20, 0],
-				}}
-				transition={{
-					duration: 8,
-					repeat: Infinity,
-					ease: 'easeInOut',
-				}}
-			/>
 		</section>
 	);
 };
