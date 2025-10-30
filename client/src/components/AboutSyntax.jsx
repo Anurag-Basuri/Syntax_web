@@ -4,19 +4,11 @@ import { Users2, Target, GraduationCap, Lightbulb, Rocket, Quote } from 'lucide-
 
 const container = {
 	hidden: { opacity: 0 },
-	visible: {
-		opacity: 1,
-		transition: { staggerChildren: 0.12, delayChildren: 0.1 },
-	},
+	visible: { opacity: 1, transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
 };
-
 const item = {
 	hidden: { opacity: 0, y: 24 },
-	visible: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.5 },
-	},
+	visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 const AboutSyntax = () => {
@@ -50,7 +42,7 @@ const AboutSyntax = () => {
 					</p>
 				</motion.div>
 
-				{/* Feature row */}
+				{/* Pillars */}
 				<motion.div
 					variants={container}
 					initial="hidden"
@@ -58,7 +50,6 @@ const AboutSyntax = () => {
 					viewport={{ once: true, amount: 0.25 }}
 					className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6"
 				>
-					{/* Card 1 */}
 					<motion.div
 						variants={item}
 						className="bg-gradient-to-br from-blue-900/25 to-indigo-900/20 border border-white/10 rounded-2xl p-6 md:p-7 backdrop-blur-xl hover:border-white/20 transition-colors"
@@ -68,12 +59,10 @@ const AboutSyntax = () => {
 							<h3 className="text-xl font-semibold text-white">Learn, Build, Lead</h3>
 						</div>
 						<p className="text-indigo-100 text-sm sm:text-base">
-							Students learn, build, and lead through real experiences that go beyond
-							classroom learning.
+							Learn by doing, lead with initiative, share what you know.
 						</p>
 					</motion.div>
 
-					{/* Card 2 */}
 					<motion.div
 						variants={item}
 						className="bg-gradient-to-br from-indigo-900/25 to-purple-900/20 border border-white/10 rounded-2xl p-6 md:p-7 backdrop-blur-xl hover:border-white/20 transition-colors"
@@ -83,12 +72,10 @@ const AboutSyntax = () => {
 							<h3 className="text-xl font-semibold text-white">Ideas → Impact</h3>
 						</div>
 						<p className="text-indigo-100 text-sm sm:text-base">
-							We turn ideas into impactful projects and events through mentorship,
-							collaboration, and execution.
+							Turn ideas into projects, events, and tools that help others.
 						</p>
 					</motion.div>
 
-					{/* Card 3 */}
 					<motion.div
 						variants={item}
 						className="bg-gradient-to-br from-purple-900/25 to-pink-900/20 border border-white/10 rounded-2xl p-6 md:p-7 backdrop-blur-xl hover:border-white/20 transition-colors"
@@ -98,8 +85,7 @@ const AboutSyntax = () => {
 							<h3 className="text-xl font-semibold text-white">Hands-on Exposure</h3>
 						</div>
 						<p className="text-indigo-100 text-sm sm:text-base">
-							Everyone gains hands-on exposure through real-world challenges, teams,
-							and showcases.
+							Practice in teams, ship often, showcase your work.
 						</p>
 					</motion.div>
 				</motion.div>
@@ -128,7 +114,6 @@ const AboutSyntax = () => {
 					viewport={{ once: true, amount: 0.25 }}
 					className="mt-14 grid grid-cols-1 lg:grid-cols-2 gap-6"
 				>
-					{/* Why We Formed */}
 					<motion.div
 						variants={item}
 						className="relative bg-gradient-to-br from-blue-900/20 to-indigo-900/20 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl overflow-hidden"
@@ -139,13 +124,11 @@ const AboutSyntax = () => {
 							<h3 className="text-2xl font-bold text-white">Why We Formed Syntax</h3>
 						</div>
 						<p className="text-indigo-100/90 text-sm sm:text-base">
-							We started Syntax to empower peers beyond academics — a space to
-							experiment, initiate, and express ideas freely, supported by a community
-							of doers.
+							We created a space to experiment, initiate, and express ideas
+							freely—supported by a community of doers.
 						</p>
 					</motion.div>
 
-					{/* Our Purpose */}
 					<motion.div
 						variants={item}
 						className="relative bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur-xl overflow-hidden"
@@ -157,14 +140,11 @@ const AboutSyntax = () => {
 						</div>
 						<ul className="list-disc pl-5 space-y-2 text-indigo-100 text-sm sm:text-base">
 							<li>Bridge the gap between theory and real-world implementation.</li>
-							<li>
-								Help members discover strengths — technical, managerial, or
-								creative.
-							</li>
-							<li>Build a driven, supportive network working toward shared goals.</li>
+							<li>Help members find strengths—technical, managerial, or creative.</li>
+							<li>Build a supportive network working toward shared goals.</li>
 						</ul>
 						<p className="mt-4 text-indigo-100/90 text-sm sm:text-base italic">
-							“We are not just an organization — we are a community of doers.”
+							“We are not just a group—we are a community of builders.”
 						</p>
 					</motion.div>
 				</motion.div>
