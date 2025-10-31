@@ -9,50 +9,59 @@ html {
 
 /* THEME TOKENS */
 :root {
-	/* brand */
-	--brand-1: #a78bfa;
-	--brand-2: #60a5fa;
-	--brand-3: #34d399;
+	/* refreshed brand gradient (accessible and vibrant) */
+	--brand-1: #8b5cf6; /* violet-500 */
+	--brand-2: #06b6d4; /* cyan-500 */
+	--brand-3: #22c55e; /* emerald-500 */
 
-	/* base surface + grid (dark default) */
-	--bg-start: #0a0f1f;
-	--bg-mid: #0b1226;
-	--bg-end: #0a0f1f;
-	--grid-color: rgba(255, 255, 255, 0.05);
+	/* darker neutrals for better depth */
+	--bg-start: #0b1022;
+	--bg-mid: #0c1228;
+	--bg-end: #0b1022;
+	--grid-color: rgba(255, 255, 255, 0.055);
 
-	/* text + borders */
-	--text-primary: #e6edf6;
+	/* higher contrast text */
+	--text-primary: #eaf1ff;
 	--text-secondary: #b7c2d9;
-	--glass-bg: rgba(15, 23, 42, 0.22);
-	--glass-border: rgba(226, 232, 240, 0.14);
-	--shadow-lg: 0 8px 30px rgba(2, 6, 23, 0.25);
 
-	/* components */
+	/* clearer glass */
+	--glass-bg: rgba(10, 18, 35, 0.28);
+	--glass-border: rgba(180, 200, 235, 0.14);
+	--shadow-lg: 0 12px 40px rgba(2, 6, 23, 0.28);
+
 	--btn-primary-start: var(--brand-1);
 	--btn-primary-end: var(--brand-2);
-	--quote-bg: rgba(15, 23, 42, 0.18);
+	--quote-bg: rgba(10, 18, 35, 0.22);
 }
 
 /* LIGHT THEME OVERRIDES */
 :root[data-theme='light'] {
-	--brand-1: #7c3aed;
-	--brand-2: #2563eb;
-	--brand-3: #059669;
+	--brand-1: #7c3aed; /* violet-600 */
+	--brand-2: #0284c7; /* sky-600 */
+	--brand-3: #0d9488; /* teal-600 */
 
-	--bg-start: #f7f9ff;
-	--bg-mid: #eef3ff;
-	--bg-end: #f7fbff;
+	--bg-start: #f7faff;
+	--bg-mid: #eef4ff;
+	--bg-end: #f8fbff;
 	--grid-color: rgba(10, 23, 55, 0.06);
 
-	--text-primary: #0b1324;
-	--text-secondary: #334155;
-	--glass-bg: rgba(255, 255, 255, 0.6);
+	--text-primary: #0a1326;
+	--text-secondary: #3b4a66;
+
+	--glass-bg: rgba(255, 255, 255, 0.7);
 	--glass-border: rgba(10, 20, 35, 0.14);
-	--shadow-lg: 0 8px 30px rgba(10, 20, 35, 0.12);
+	--shadow-lg: 0 10px 28px rgba(10, 20, 35, 0.12);
 
 	--btn-primary-start: var(--brand-2);
 	--btn-primary-end: var(--brand-1);
-	--quote-bg: rgba(255, 255, 255, 0.65);
+	--quote-bg: rgba(255, 255, 255, 0.7);
+}
+
+/* optional smoother theme change */
+html[data-theme] body,
+html[data-theme] * {
+	transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease,
+		fill 180ms ease, stroke 180ms ease;
 }
 
 /* App background and grid overlay */
@@ -60,8 +69,7 @@ html {
 	background: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-mid) 50%, var(--bg-end) 100%);
 }
 .grid-overlay {
-	background-image:
-		linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+	background-image: linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
 		linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
 	background-size: 30px 30px;
 }
@@ -104,9 +112,7 @@ html {
 	-webkit-backdrop-filter: blur(12px);
 	backdrop-filter: blur(12px);
 	border: 1px solid rgba(59, 130, 246, 0.15);
-	box-shadow:
-		inset 0 1px 0 rgba(59, 130, 246, 0.1),
-		0 4px 24px rgba(59, 130, 246, 0.08);
+	box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.1), 0 4px 24px rgba(59, 130, 246, 0.08);
 }
 
 .glass-card-error {
@@ -114,9 +120,7 @@ html {
 	-webkit-backdrop-filter: blur(12px);
 	backdrop-filter: blur(12px);
 	border: 1px solid rgba(239, 68, 68, 0.15);
-	box-shadow:
-		inset 0 1px 0 rgba(239, 68, 68, 0.1),
-		0 4px 24px rgba(239, 68, 68, 0.08);
+	box-shadow: inset 0 1px 0 rgba(239, 68, 68, 0.1), 0 4px 24px rgba(239, 68, 68, 0.08);
 }
 
 .glass-card-success {
@@ -124,9 +128,7 @@ html {
 	-webkit-backdrop-filter: blur(12px);
 	backdrop-filter: blur(12px);
 	border: 1px solid rgba(34, 197, 94, 0.15);
-	box-shadow:
-		inset 0 1px 0 rgba(34, 197, 94, 0.1),
-		0 4px 24px rgba(34, 197, 94, 0.08);
+	box-shadow: inset 0 1px 0 rgba(34, 197, 94, 0.1), 0 4px 24px rgba(34, 197, 94, 0.08);
 }
 
 /* Typography System */
@@ -241,8 +243,7 @@ html.lenis body {
 
 /* Enhanced hover effects */
 .hover-lift {
-	transition:
-		transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
 		box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
