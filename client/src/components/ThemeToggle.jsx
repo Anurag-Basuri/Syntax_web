@@ -1,29 +1,42 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Sun, Moon } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext.jsx';
+import React from 'react';
+import { Sun, Moon, Laptop } from 'lucide-react';
+import { useTheme } from '../hooks/useTheme.js';
+
+const SegButton = ({ active, onClick, label, children }) => (
+	<button
+		type="button"
+		aria-pressed={active}
+		onClick={onClick}
+		className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-sm transition-colors ${
+			active ? 'bg-white/15 text-primary' : 'text-secondary hover:bg-white/10'
+		}`}
+	>
+		{children}
+		<span className="hidden sm:inline">{label}</span>
+	</button>
+);
 
 const ThemeToggle = () => {
-	const { theme, toggleTheme } = useTheme();
+	const { mode, setMode } = useTheme();
 
 	return (
-		<button
-			type="button"
-			aria-label="Toggle theme"
-			onClick={toggleTheme}
-			className="fixed right-4 top-4 z-50 glass-card p-2 rounded-xl hover-lift"
-		>
-			{theme === 'light' ? (
-				<div className="flex items-center gap-2">
-					<Moon className="w-5 h-5 text-secondary" />
-					<span className="text-sm text-secondary">Dark</span>
-				</div>
-			) : (
-				<div className="flex items-center gap-2">
-					<Sun className="w-5 h-5 text-secondary" />
-					<span className="text-sm text-secondary">Light</span>
-				</div>
-			)}
-		</button>
+		<div className="fixed right-4 top-4 z-50 glass-card rounded-xl">
+			<div className="flex items-center gap-1 p-1">
+				<SegButton active={mode === 'light'} onClick={() => setMode('light')} label="Light">
+					<Sun className="w-4 h-4" />
+				</SegButton>
+				<SegButton active={mode === 'dark'} onClick={() => setMode('dark')} label="Dark">
+					<Moon className="w-4 h-4" />
+				</SegButton>
+				<SegButton
+					active={mode === 'system'}
+					onClick={() => setMode('system')}
+					label="Auto"
+				>
+					<Laptop className="w-4 h-4" />
+				</SegButton>
+			</div>
+		</div>
 	);
 };
 
