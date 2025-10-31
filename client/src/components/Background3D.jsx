@@ -1,41 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
-import logo from '../assets/logo.png';
+import Logo from '../assets/logo.png';
 
-const Background3D = ({ logoUrl = '/logo.png' }) => {
+const Background3D = () => {
 	const canvasRef = useRef(null);
 	const mousePos = useRef({ x: 0.5, y: 0.5 });
-	const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+	const [prefersReducedMotion, setPRM] = useState(false);
 
 	useEffect(() => {
-		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-		setPrefersReducedMotion(mediaQuery.matches);
-
-		const handleChange = (e) => setPrefersReducedMotion(e.matches);
-		mediaQuery.addEventListener('change', handleChange);
-		return () => mediaQuery.removeEventListener('change', handleChange);
+		const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+		setPRM(mq.matches);
+		const onChange = (e) => setPRM(e.matches);
+		mq.addEventListener('change', onChange);
+		return () => mq.removeEventListener('change', onChange);
 	}, []);
 
 	useEffect(() => {
 		if (prefersReducedMotion) return;
-
-		const handleMouseMove = (e) => {
+		const onMove = (e) => {
 			mousePos.current = {
 				x: e.clientX / window.innerWidth,
 				y: e.clientY / window.innerHeight,
 			};
 		};
-
-		window.addEventListener('mousemove', handleMouseMove, { passive: true });
-		return () => window.removeEventListener('mousemove', handleMouseMove);
+		window.addEventListener('pointermove', onMove, { passive: true });
+		return () => window.removeEventListener('pointermove', onMove);
 	}, [prefersReducedMotion]);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
-
 		const ctx = canvas.getContext('2d');
-		let animationId;
-		let time = 0;
+
+		let raf;
+		let t = 0;
 
 		const resize = () => {
 			canvas.width = window.innerWidth;
@@ -44,164 +41,140 @@ const Background3D = ({ logoUrl = '/logo.png' }) => {
 		resize();
 		window.addEventListener('resize', resize);
 
-		const drawGrid = () => {
+		const getVar = (name, fallback) => {
+			const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+			return v || fallback;
+		};
+
+		const draw = () => {
 			const { width, height } = canvas;
 			const gridSize = 50;
 			const perspective = 600;
 			const horizonY = height * 0.65;
 
+			// theme-aware colors
+			const strong = getVar('--grid-stroke-strong', 'rgba(139, 92, 246, 0.18)');
+			const soft = getVar('--grid-line', 'rgba(255,255,255,0.07)');
+			const dot = getVar('--grid-dot', 'rgba(56, 189, 248, 0.55)');
+
 			ctx.clearRect(0, 0, width, height);
 
-			// Mouse parallax effect
-			const offsetX = prefersReducedMotion ? 0 : (mousePos.current.x - 0.5) * 40;
-			const offsetY = prefersReducedMotion ? 0 : (mousePos.current.y - 0.5) * 20;
-			const waveTime = prefersReducedMotion ? 0 : time * 0.0005;
+			const ox = prefersReducedMotion ? 0 : (mousePos.current.x - 0.5) * 40;
+			const oy = prefersReducedMotion ? 0 : (mousePos.current.y - 0.5) * 20;
+			const wtime = prefersReducedMotion ? 0 : t * 0.0005;
 
-			// Draw grid lines
-			ctx.strokeStyle = 'rgba(0, 200, 255, 0.15)';
+			// vertical lines (strong)
 			ctx.lineWidth = 1;
-
-			// Vertical lines
+			ctx.strokeStyle = strong;
 			for (let i = -10; i <= 10; i++) {
-				const x = width / 2 + i * gridSize + offsetX;
-
+				const x = width / 2 + i * gridSize + ox;
 				ctx.beginPath();
 				ctx.moveTo(x, horizonY);
-
 				for (let j = 0; j < 20; j++) {
 					const y = horizonY + j * gridSize;
 					const depth = j / 20;
 					const scale = perspective / (perspective + depth * 500);
-					const wave = prefersReducedMotion
-						? 0
-						: Math.sin(waveTime + i * 0.3 + j * 0.2) * 3;
-
-					const projX = width / 2 + (x - width / 2) * scale + wave + offsetX * depth;
-					const projY = horizonY + (y - horizonY) * scale + offsetY * depth;
-
-					ctx.lineTo(projX, projY);
+					const wave = prefersReducedMotion ? 0 : Math.sin(wtime + i * 0.3 + j * 0.2) * 3;
+					const px = width / 2 + (x - width / 2) * scale + wave + ox * depth;
+					const py = horizonY + (y - horizonY) * scale + oy * depth;
+					ctx.lineTo(px, py);
 				}
 				ctx.stroke();
 			}
 
-			// Horizontal lines
+			// horizontal lines (soft, fade with depth)
 			for (let j = 0; j < 20; j++) {
 				const depth = j / 20;
 				const scale = perspective / (perspective + depth * 500);
-				const alpha = 0.15 * (1 - depth * 0.5);
+				ctx.strokeStyle = soft;
+				ctx.globalAlpha = 1 - depth * 0.5;
 
-				ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`;
 				ctx.beginPath();
-
 				for (let i = -10; i <= 10; i++) {
 					const x = width / 2 + i * gridSize;
 					const y = horizonY + j * gridSize;
-					const wave = prefersReducedMotion
-						? 0
-						: Math.sin(waveTime + i * 0.3 + j * 0.2) * 3;
-
-					const projX = width / 2 + (x - width / 2) * scale + wave + offsetX * depth;
-					const projY = horizonY + (y - horizonY) * scale + offsetY * depth;
-
-					if (i === -10) {
-						ctx.moveTo(projX, projY);
-					} else {
-						ctx.lineTo(projX, projY);
-					}
+					const wave = prefersReducedMotion ? 0 : Math.sin(wtime + i * 0.3 + j * 0.2) * 3;
+					const px = width / 2 + (x - width / 2) * scale + wave + ox * depth;
+					const py = horizonY + (y - horizonY) * scale + oy * depth;
+					if (i === -10) ctx.moveTo(px, py);
+					else ctx.lineTo(px, py);
 				}
 				ctx.stroke();
+				ctx.globalAlpha = 1;
 			}
 
-			// Glowing dots at intersections
+			// glowing dots
 			if (!prefersReducedMotion) {
-				ctx.fillStyle = 'rgba(0, 200, 255, 0.6)';
+				ctx.fillStyle = dot;
 				for (let i = -10; i <= 10; i += 2) {
 					for (let j = 0; j < 20; j += 2) {
 						const x = width / 2 + i * gridSize;
 						const y = horizonY + j * gridSize;
 						const depth = j / 20;
 						const scale = perspective / (perspective + depth * 500);
-						const wave = Math.sin(waveTime + i * 0.3 + j * 0.2) * 3;
-
-						const projX = width / 2 + (x - width / 2) * scale + wave + offsetX * depth;
-						const projY = horizonY + (y - horizonY) * scale + offsetY * depth;
-						const pulse = Math.sin(time * 0.003 + i + j) * 0.5 + 0.5;
-
+						const wave = Math.sin(wtime + i * 0.3 + j * 0.2) * 3;
+						const px = width / 2 + (x - width / 2) * scale + wave + ox * depth;
+						const py = horizonY + (y - horizonY) * scale + oy * depth;
+						const pulse = Math.sin(t * 0.003 + i + j) * 0.5 + 0.5;
 						ctx.beginPath();
-						ctx.arc(projX, projY, 1.5 * pulse, 0, Math.PI * 2);
+						ctx.arc(px, py, 1.5 * pulse, 0, Math.PI * 2);
 						ctx.fill();
 					}
 				}
 			}
 
-			if (!prefersReducedMotion) {
-				time++;
-				animationId = requestAnimationFrame(drawGrid);
-			}
+			t++;
+			raf = prefersReducedMotion ? null : requestAnimationFrame(draw);
 		};
 
-		drawGrid();
-		if (prefersReducedMotion) {
-			// Draw once for static version
-			drawGrid();
-		}
+		draw();
+		if (prefersReducedMotion) draw();
 
 		return () => {
-			cancelAnimationFrame(animationId);
+			if (raf) cancelAnimationFrame(raf);
 			window.removeEventListener('resize', resize);
 		};
 	}, [prefersReducedMotion]);
 
 	return (
-		<div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-			{/* Base gradient background */}
-			<div className="absolute inset-0 bg-gradient-to-b from-black via-gray-950 to-black" />
+		<div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
+			{/* Next-like layered base */}
+			<div className="absolute inset-0 bg-next-base" />
+			<div className="absolute inset-0 next-spotlights" />
+			<div className="absolute inset-0 next-vignette" />
 
-			{/* Radial gradient spotlight */}
-			<div
-				className="absolute inset-0 opacity-40"
-				style={{
-					background:
-						'radial-gradient(ellipse 80% 50% at 50% 40%, rgba(0, 200, 255, 0.15), transparent)',
-				}}
-			/>
-
-			{/* Canvas for 3D grid */}
+			{/* Canvas grid */}
 			<canvas
 				ref={canvasRef}
 				className="absolute inset-0 w-full h-full"
 				style={{ mixBlendMode: 'screen' }}
 			/>
 
-			{/* Logo watermark */}
-			<div className="absolute inset-0 flex items-start justify-center pt-16 sm:pt-20 lg:pt-24">
+			{/* Gradient-masked logo watermark (theme-aware) */}
+			<div className="absolute inset-x-0 top-0 flex items-start justify-center pt-[10vh] sm:pt-[12vh] lg:pt-[14vh]">
 				<div
-					className="relative w-[min(85vw,900px)] aspect-[2.1/1] opacity-[0.03]"
+					className="logo-mask animate"
 					style={{
-						WebkitMaskImage: `url(${logoUrl})`,
-						maskImage: `url(${logoUrl})`,
-						WebkitMaskSize: 'contain',
-						maskSize: 'contain',
-						WebkitMaskRepeat: 'no-repeat',
-						maskRepeat: 'no-repeat',
-						WebkitMaskPosition: 'center',
-						maskPosition: 'center',
-						background:
-							'linear-gradient(180deg, rgba(0, 200, 255, 1) 0%, rgba(0, 150, 255, 0.6) 100%)',
+						WebkitMaskImage: `url(${Logo})`,
+						maskImage: `url(${Logo})`,
+						width: 'min(84vw, 880px)',
+						aspectRatio: '2.1 / 1',
 					}}
 				/>
 			</div>
 
-			{/* Floating particles */}
+			{/* Floating particles (soft) */}
 			{!prefersReducedMotion && (
 				<div className="absolute inset-0">
-					{[...Array(20)].map((_, i) => (
+					{Array.from({ length: 18 }).map((_, i) => (
 						<div
 							key={i}
-							className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-30 animate-float"
+							className="absolute w-1 h-1 rounded-full animate-float"
 							style={{
 								left: `${Math.random() * 100}%`,
 								top: `${Math.random() * 100}%`,
+								background: 'var(--brand-2)',
+								opacity: 0.3,
 								animationDelay: `${Math.random() * 5}s`,
 								animationDuration: `${10 + Math.random() * 10}s`,
 							}}
@@ -211,31 +184,7 @@ const Background3D = ({ logoUrl = '/logo.png' }) => {
 			)}
 
 			{/* Bottom fade */}
-			<div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black to-transparent" />
-
-			{/* CSS Animations */}
-			<style jsx>{`
-				@keyframes float {
-					0%,
-					100% {
-						transform: translateY(0) translateX(0);
-						opacity: 0;
-					}
-					10% {
-						opacity: 0.3;
-					}
-					90% {
-						opacity: 0.3;
-					}
-					50% {
-						transform: translateY(-100px) translateX(50px);
-					}
-				}
-
-				.animate-float {
-					animation: float linear infinite;
-				}
-			`}</style>
+			<div className="absolute inset-x-0 bottom-0 h-32 bg-bottom-fade" />
 		</div>
 	);
 };
