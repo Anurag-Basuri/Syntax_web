@@ -9,7 +9,6 @@ import AboutSyntax from '../components/AboutSyntax.jsx';
 const Home = () => {
 	return (
 		<div className="relative min-h-screen bg-transparent overflow-x-hidden text-primary">
-			{/* Content only; background is global */}
 			<div className="relative z-10">
 				<Hero />
 				<AboutSyntax />
