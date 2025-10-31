@@ -32,6 +32,9 @@ html {
 	--btn-primary-start: var(--brand-1);
 	--btn-primary-end: var(--brand-2);
 	--quote-bg: rgba(10, 18, 35, 0.22);
+
+	/* logo opacity */
+	--logo-opacity: 0.06;
 }
 
 /* LIGHT THEME OVERRIDES */
@@ -55,6 +58,9 @@ html {
 	--btn-primary-start: var(--brand-2);
 	--btn-primary-end: var(--brand-1);
 	--quote-bg: rgba(255, 255, 255, 0.7);
+
+	/* logo opacity */
+	--logo-opacity: 0.08;
 }
 
 /* optional smoother theme change */
@@ -358,4 +364,48 @@ textarea:focus-visible {
 /* Optional: slight tilt utility */
 .tilt-1 {
 	transform: rotate(-1.2deg);
+}
+
+/* Themed logo opacity tuning */
+:root {
+	/* ...existing tokens... */
+	--logo-opacity: 0.06;
+}
+:root[data-theme='light'] {
+	/* ...existing light tokens... */
+	--logo-opacity: 0.08;
+}
+
+/* Replace old watermark blending with simpler, consistent opacity */
+.logo-watermark {
+	opacity: var(--logo-opacity);
+}
+
+/* Gradient-filled logo masking (works with PNG via mask) */
+.logo-mask {
+	background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 50%, var(--brand-3) 100%);
+	/* mask sizing/placement */
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	/* subtle lift to keep edges crisp on all themes */
+	filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.08));
+}
+
+/* Optional: animate the gradient slightly for a premium feel */
+@keyframes logo-sheen {
+	0%,
+	100% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+}
+.logo-mask.animate {
+	background-size: 200% 200%;
+	animation: logo-sheen 18s ease-in-out infinite;
 }
