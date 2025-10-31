@@ -216,3 +216,151 @@ a:focus-visible {
 	outline-offset: 2px;
 	border-radius: 9999px;
 }
+
+/* Next-like base + spotlights + vignette */
+.bg-next-base {
+	background: radial-gradient(900px 420px at 50% -10%, rgba(139, 92, 246, 0.1), transparent 60%),
+		radial-gradient(800px 380px at 85% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
+		linear-gradient(180deg, var(--bg-base) 0%, var(--bg-soft) 50%, var(--bg-softer) 100%);
+}
+.next-spotlights {
+	background: radial-gradient(520px 260px at 20% 20%, rgba(34, 197, 94, 0.08), transparent 65%),
+		radial-gradient(520px 260px at 80% 18%, rgba(139, 92, 246, 0.1), transparent 65%);
+	mix-blend-mode: screen;
+}
+.next-vignette {
+	background: radial-gradient(1300px 700px at 50% 0%, transparent 40%, rgba(0, 0, 0, 0.18) 100%);
+}
+:root[data-theme='light'] .next-vignette {
+	background: radial-gradient(1300px 700px at 50% 0%, transparent 45%, rgba(0, 0, 0, 0.06) 100%);
+}
+
+/* Themed logo watermark */
+:root {
+	--logo-opacity: 0.06;
+}
+:root[data-theme='light'] {
+	--logo-opacity: 0.08;
+}
+
+.logo-mask {
+	background: linear-gradient(120deg, var(--brand-1) 0%, var(--brand-2) 50%, var(--brand-3) 100%);
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-position: center;
+	mask-position: center;
+	-webkit-mask-size: contain;
+	mask-size: contain;
+	opacity: var(--logo-opacity);
+	filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.08));
+}
+@keyframes logo-sheen {
+	0%,
+	100% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+}
+.logo-mask.animate {
+	background-size: 200% 200%;
+	animation: logo-sheen 18s ease-in-out infinite;
+}
+
+/* Subtle motto ticker */
+.motto-track {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	bottom: clamp(18vh, 24vh, 28vh);
+	width: 120vw;
+	overflow: hidden;
+	opacity: 0.5;
+}
+.motto-ticker {
+	display: inline-block;
+	white-space: nowrap;
+	will-change: transform;
+	animation: motto-marquee 24s linear infinite;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	background: linear-gradient(120deg, var(--brand-1), var(--brand-2), var(--brand-3));
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+@keyframes motto-marquee {
+	from {
+		transform: translateX(0%);
+	}
+	to {
+		transform: translateX(-50%);
+	}
+}
+
+/* 3D grid polish */
+.bg-3d-container {
+	background-color: var(--bg-base);
+}
+.bg-3d-stage {
+	position: absolute;
+	left: 50%;
+	bottom: -12vh;
+	transform: translateX(-50%);
+	width: 160vw;
+	height: 65vh;
+	perspective: 1400px;
+}
+.bg-3d-grid {
+	--tiltZ: 0deg;
+	--tiltY: 0deg;
+	--lift: 0px;
+	--grid-x: 0px;
+	--grid-y: 0px;
+	position: absolute;
+	left: 50%;
+	bottom: 0;
+	transform-origin: bottom center;
+	width: 200vw;
+	height: 110vh;
+	transform: translateX(-50%) translateY(var(--lift)) rotateX(62deg) rotateY(var(--tiltY))
+		rotateZ(var(--tiltZ));
+	background-image: repeating-linear-gradient(
+			to right,
+			var(--grid-line) 0 1px,
+			transparent 1px 40px
+		),
+		repeating-linear-gradient(to top, var(--grid-line) 0 1px, transparent 1px 40px);
+	background-position: var(--grid-x) var(--grid-y), var(--grid-x) var(--grid-y);
+	border-top: 1px solid var(--grid-line);
+	will-change: transform, background-position;
+	filter: drop-shadow(0 -4px 32px var(--grid-glow));
+	animation: grid-drift 28s linear infinite;
+}
+@keyframes grid-drift {
+	from {
+		background-position: 0px 0px, 0px 0px;
+	}
+	to {
+		background-position: 0px 80px, 0px 80px;
+	}
+}
+.bg-3d-horizon {
+	position: absolute;
+	left: 50%;
+	bottom: 24vh;
+	transform: translateX(-50%);
+	width: 120vw;
+	height: 36vh;
+	background: radial-gradient(55vw 18vh at 50% 85%, rgba(139, 92, 246, 0.18), transparent 70%);
+	pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.logo-mask.animate,
+	.motto-ticker,
+	.bg-3d-grid {
+		animation: none !important;
+	}
+}
