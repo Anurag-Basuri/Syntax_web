@@ -35,6 +35,14 @@ html {
 
 	/* logo opacity */
 	--logo-opacity: 0.06;
+
+	/* Next.js-like base tokens */
+	--next-bg-1: #000000;
+	--next-bg-2: #0a0a0a;
+	--next-spot-a: rgba(139, 92, 246, 0.14); /* violet */
+	--next-spot-b: rgba(6, 182, 212, 0.1); /* cyan */
+	--grid-line: rgba(255, 255, 255, 0.08);
+	--grid-glow: rgba(139, 92, 246, 0.35);
 }
 
 /* LIGHT THEME OVERRIDES */
@@ -61,6 +69,14 @@ html {
 
 	/* logo opacity */
 	--logo-opacity: 0.08;
+
+	/* Next.js-like base tokens */
+	--next-bg-1: #ffffff;
+	--next-bg-2: #f8fafc;
+	--next-spot-a: rgba(139, 92, 246, 0.12);
+	--next-spot-b: rgba(6, 182, 212, 0.1);
+	--grid-line: rgba(0, 0, 0, 0.07);
+	--grid-glow: rgba(139, 92, 246, 0.18);
 }
 
 /* optional smoother theme change */
@@ -409,3 +425,101 @@ textarea:focus-visible {
 	background-size: 200% 200%;
 	animation: logo-sheen 18s ease-in-out infinite;
 }
+
+/* Base background (Next-like) */
+.bg-next-base {
+	background: radial-gradient(600px 320px at 50% -10%, var(--next-spot-a), transparent 60%),
+		radial-gradient(800px 400px at 80% 0%, var(--next-spot-b), transparent 60%),
+		linear-gradient(180deg, var(--next-bg-1), var(--next-bg-2));
+}
+
+/* Soft colored spotlights */
+.next-spotlights {
+	background: radial-gradient(400px 220px at 15% 20%, rgba(34, 197, 94, 0.08), transparent 60%),
+		radial-gradient(420px 240px at 85% 25%, rgba(99, 102, 241, 0.1), transparent 60%);
+}
+
+/* Vignette edges */
+.next-vignette {
+	background: radial-gradient(1200px 600px at 50% 10%, transparent, rgba(0, 0, 0, 0.25) 80%);
+	mix-blend-mode: multiply;
+}
+:root[data-theme='light'] .next-vignette {
+	background: radial-gradient(1200px 600px at 50% 10%, transparent, rgba(0, 0, 0, 0.06) 80%);
+}
+
+/* 3D stage and grid */
+.bg-3d-stage {
+	position: absolute;
+	left: 50%;
+	bottom: -10vh;
+	transform: translateX(-50%);
+	width: 160vw;
+	height: 70vh;
+	perspective: 1200px;
+}
+
+.bg-3d-grid {
+	--tiltZ: 0deg;
+	--tiltY: 0deg;
+	--lift: 0px;
+	--grid-x: 0px;
+	--grid-y: 0px;
+
+	position: absolute;
+	left: 50%;
+	bottom: 0;
+	transform-origin: bottom center;
+	width: 200vw;
+	height: 120vh;
+	transform: translateX(-50%) translateY(var(--lift)) rotateX(60deg) rotateY(var(--tiltY))
+		rotateZ(var(--tiltZ));
+
+	background-image: repeating-linear-gradient(
+			to right,
+			var(--grid-line) 0 1px,
+			transparent 1px 30px
+		),
+		repeating-linear-gradient(to top, var(--grid-line) 0 1px, transparent 1px 30px);
+	background-position: var(--grid-x) var(--grid-y), var(--grid-x) var(--grid-y);
+	box-shadow: inset 0 12px 120px rgba(0, 0, 0, 0.35);
+	border-top: 1px solid var(--grid-line);
+	animation: grid-drift 22s linear infinite;
+	will-change: transform, background-position;
+	filter: drop-shadow(0 -2px 24px var(--grid-glow));
+}
+
+/* Horizon glow */
+.bg-3d-horizon {
+	position: absolute;
+	left: 50%;
+	bottom: 26vh;
+	transform: translateX(-50%);
+	width: 120vw;
+	height: 40vh;
+	background: radial-gradient(60vw 20vh at 50% 80%, rgba(99, 102, 241, 0.25), transparent 60%);
+	pointer-events: none;
+}
+
+/* Drift lines subtly downward; respect reduced motion */
+@keyframes grid-drift {
+	from {
+		background-position: 0px 0px, 0px 0px;
+	}
+	to {
+		background-position: 0px 60px, 0px 60px;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.bg-3d-grid {
+		animation: none;
+	}
+}
+
+/* Optional: make default fixed layer minimal for this theme */
+.bg-app {
+	background: linear-gradient(180deg, var(--next-bg-1), var(--next-bg-2));
+}
+.grid-overlay {
+	background: none;
+} /* we replace it with 3D grid */
