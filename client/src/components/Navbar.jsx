@@ -12,6 +12,7 @@ import {
 	LogOut,
 	ChevronDown,
 	QrCode,
+	Search,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
@@ -43,14 +44,16 @@ const Navbar = () => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [activeLink, setActiveLink] = useState('Home');
 	const { user, isAuthenticated, loading, logoutMember, logoutAdmin } = useAuth();
-	const [showNavbar, setShowNavbar] = useState(true);
 	const [isUserOpen, setIsUserOpen] = useState(false);
+	const [elevated, setElevated] = useState(false);
+	const [showNavbar, setShowNavbar] = useState(true);
+	const [progress, setProgress] = useState(0); // scroll progress
 	const userRef = useRef(null);
 	const menuButtonRef = useRef(null);
+	const drawerRef = useRef(null);
 	const lastScrollY = useRef(typeof window !== 'undefined' ? window.scrollY : 0);
 	const navigate = useNavigate();
 	const location = useLocation();
-	const drawerRef = useRef(null);
 
 	// Determine if user is member or admin
 	const isMember = Boolean(user?.memberID);
@@ -60,10 +63,15 @@ const Navbar = () => {
 		setActiveLink(pathToNavName(location.pathname));
 	}, [location.pathname]);
 
-	// Hide/show navbar on scroll
+	// Hide/show + elevate on scroll
 	useEffect(() => {
 		const handleScroll = () => {
 			const currentScrollY = window.scrollY;
+			const doc = document.documentElement;
+			const max = (doc.scrollHeight || 0) - (window.innerHeight || 1);
+			setProgress(Math.min(100, Math.max(0, (currentScrollY / Math.max(1, max)) * 100)));
+			setElevated(currentScrollY > 8);
+
 			if (currentScrollY <= 0) {
 				setShowNavbar(true);
 			} else if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
@@ -74,26 +82,27 @@ const Navbar = () => {
 			lastScrollY.current = currentScrollY;
 		};
 		window.addEventListener('scroll', handleScroll, { passive: true });
+		handleScroll();
 		return () => window.removeEventListener('scroll', handleScroll);
 	}, []);
 
 	// Close user dropdown on outside click
 	useEffect(() => {
-		const handleClickOutside = (event) => {
+		const onOutside = (e) => {
 			if (
 				userRef.current &&
-				!userRef.current.contains(event.target) &&
+				!userRef.current.contains(e.target) &&
 				menuButtonRef.current &&
-				!menuButtonRef.current.contains(event.target)
+				!menuButtonRef.current.contains(e.target)
 			) {
 				setIsUserOpen(false);
 			}
 		};
-		document.addEventListener('mousedown', handleClickOutside);
-		document.addEventListener('touchstart', handleClickOutside);
+		document.addEventListener('mousedown', onOutside);
+		document.addEventListener('touchstart', onOutside);
 		return () => {
-			document.removeEventListener('mousedown', handleClickOutside);
-			document.removeEventListener('touchstart', handleClickOutside);
+			document.removeEventListener('mousedown', onOutside);
+			document.removeEventListener('touchstart', onOutside);
 		};
 	}, []);
 
@@ -112,7 +121,7 @@ const Navbar = () => {
 		};
 	}, [isOpen]);
 
-	// Close drawer when clicked outside
+	// Close drawer on outside
 	useEffect(() => {
 		const handleClickOutside = (event) => {
 			if (drawerRef.current && !drawerRef.current.contains(event.target)) {
@@ -129,6 +138,18 @@ const Navbar = () => {
 		};
 	}, [isOpen]);
 
+	// ESC to close menus
+	useEffect(() => {
+		const onEsc = (e) => {
+			if (e.key === 'Escape') {
+				setIsOpen(false);
+				setIsUserOpen(false);
+			}
+		};
+		document.addEventListener('keydown', onEsc);
+		return () => document.removeEventListener('keydown', onEsc);
+	}, []);
+
 	// Navigation handlers
 	const handleLinkClick = (name) => {
 		setActiveLink(name);
@@ -139,11 +160,8 @@ const Navbar = () => {
 			navigate('/vib/qrscanner');
 			return;
 		}
-
 		const found = navSections.flatMap((s) => s.items).find((item) => item.name === name);
-		if (found) {
-			navigate(found.path);
-		}
+		if (found) navigate(found.path);
 	};
 
 	const handleLogoClick = () => {
@@ -168,11 +186,8 @@ const Navbar = () => {
 	const handleDashboardClick = () => {
 		setIsUserOpen(false);
 		setIsOpen(false);
-		if (isMember) {
-			navigate('/member/dashboard');
-		} else {
-			navigate('/admin/dashboard');
-		}
+		if (isMember) navigate('/member/dashboard');
+		else navigate('/admin/dashboard');
 	};
 
 	const handleQRScannerClick = () => {
@@ -198,84 +213,77 @@ const Navbar = () => {
 	return (
 		<>
 			<style>{`
-                @keyframes float {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-5px); }
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(-20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
                 @keyframes slideIn {
                     from { transform: translateX(-100%); }
                     to { transform: translateX(0); }
                 }
-                @keyframes fadeOut {
-                    from { opacity: 1; transform: translateX(0); }
-                    to { opacity: 0; transform: translateX(-100%); }
-                }
                 .navbar {
-                    transition: transform 0.4s ease, background 0.4s, box-shadow 0.4s, backdrop-filter 0.4s;
+                    transition: transform .4s cubic-bezier(.4,0,.2,1), background .35s, box-shadow .35s, border-color .35s, height .25s;
                 }
                 .nav-link {
-                    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
                     position: relative;
-                    overflow: hidden;
+                    transition: color .25s ease, background .25s ease, transform .2s ease;
                 }
-                .nav-link::after {
-                    content: '';
+                .nav-pill {
                     position: absolute;
-                    bottom: 0;
-                    left: 50%;
-                    width: 0;
-                    height: 2px;
-                    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
-                    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-                    transform: translateX(-50%);
+                    inset: 0;
+                    border-radius: 14px;
+                    background: linear-gradient(90deg, color-mix(in srgb, var(--accent-1) 12%, transparent), color-mix(in srgb, var(--accent-2) 12%, transparent));
+                    opacity: 0;
+                    transform: scale(.96);
+                    transition: opacity .25s, transform .25s;
                 }
-                .nav-link:hover::after,
-                .nav-link.active::after {
-                    width: 70%;
-                }
-                .logo-float { animation: float 4s ease-in-out infinite; }
-                .drawer-open {
-                    animation: slideIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-                }
-                .drawer-close {
-                    animation: fadeOut 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-                }
-                .fade-in { animation: fadeIn 0.6s ease-out forwards; }
+                .nav-link:hover .nav-pill { opacity: .6; transform: scale(1); }
+                .nav-link.active .nav-pill { opacity: .9; transform: scale(1); }
                 .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb {
                     background: linear-gradient(to bottom, var(--accent-1), var(--accent-2));
-                    border-radius: 6px;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 6px; border: 1px solid rgba(255,255,255,.1);
                 }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: rgba(0, 0, 0, 0.2);
-                    border-radius: 6px;
-                }
-                .custom-scrollbar { scrollbar-width: thin; scrollbar-color: var(--accent-1) rgba(0,0,0,0.2); }
-                @media (max-width: 1024px) {
-                    .navbar { padding-left: 0 !important; padding-right: 0 !important; }
-                }
+                .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,.2); border-radius: 6px; }
+                .custom-scrollbar { scrollbar-width: thin; scrollbar-color: var(--accent-1) rgba(0,0,0,.2); }
             `}</style>
 
-			<div data-navbar>
-				<nav
-					className="fixed top-0 left-0 w-full z-50 navbar backdrop-blur-xl"
+			{/* Skip link for accessibility */}
+			<a
+				href="#main"
+				className="sr-only focus:not-sr-only fixed top-2 left-2 z-[1000] px-3 py-2 rounded-lg"
+				style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}
+			>
+				Skip to content
+			</a>
+
+			<nav
+				role="navigation"
+				aria-label="Primary"
+				className="fixed top-0 left-0 w-full z-50 navbar"
+				style={{
+					height: elevated ? '4.5rem' : '5rem',
+					borderBottom: elevated
+						? '1px solid rgba(255,255,255,0.10)'
+						: '1px solid rgba(255,255,255,0.06)',
+					boxShadow: elevated
+						? '0 8px 28px rgba(0,0,0,0.35)'
+						: '0 8px 32px rgba(10,17,32,0.18), 0 1.5px 8px #1e293b',
+					background: elevated
+						? 'linear-gradient(90deg, rgba(7,12,20,0.9) 55%, rgba(18,28,43,0.88) 100%)'
+						: 'linear-gradient(90deg, rgba(10,17,32,0.92) 60%, rgba(30,41,59,0.85) 100%)',
+					backdropFilter: 'blur(16px)',
+					transform: showNavbar ? 'translateY(0)' : 'translateY(-100%)',
+				}}
+			>
+				{/* Scroll progress bar */}
+				<div
+					aria-hidden="true"
+					className="absolute top-0 left-0 h-[2px]"
 					style={{
-						height: '5rem',
-						boxShadow: '0 8px 32px 0 rgba(10,17,32,0.18), 0 1.5px 8px 0 #1e293b',
-						borderBottom: '1px solid rgba(255,255,255,0.06)',
-						background:
-							'linear-gradient(90deg, rgba(10,17,32,0.92) 60%, rgba(30,41,59,0.85) 100%)',
-						backdropFilter: 'blur(16px)',
-						transform: showNavbar ? 'translateY(0)' : 'translateY(-100%)',
-						transition: 'transform 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s',
+						width: `${progress}%`,
+						background: 'linear-gradient(90deg, var(--accent-1), var(--accent-2))',
+						boxShadow: '0 0 12px rgba(0,200,255,0.55)',
 					}}
-				>
-					<div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 flex items-center justify-between h-full w-full">
+				/>
+				<div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 h-full">
+					<div className="flex items-center justify-between h-full w-full">
 						{/* Brand */}
 						<button
 							onClick={handleLogoClick}
@@ -283,15 +291,15 @@ const Navbar = () => {
 							aria-label="Go to home"
 						>
 							<div
-								className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-lg border relative overflow-hidden"
+								className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center border relative overflow-hidden"
 								style={{
 									borderColor: 'rgba(255,255,255,0.08)',
 									background: 'rgba(10,17,32,0.85)',
-									boxShadow:
-										'0 4px 24px 0 rgba(0,200,255,0.7), 0 1.5px 8px 0 #1e293b',
+									boxShadow: elevated
+										? '0 2px 16px rgba(0,200,255,0.4)'
+										: '0 4px 24px rgba(0,200,255,0.7)',
 								}}
 							>
-								{/* Ambient glow using theme accents */}
 								<div className="absolute inset-0 pointer-events-none z-0">
 									<div
 										style={{
@@ -299,7 +307,7 @@ const Navbar = () => {
 											inset: 0,
 											background:
 												'radial-gradient(circle at 60% 40%, var(--accent-1) 16%, transparent 70%), radial-gradient(circle at 30% 70%, var(--accent-2) 14%, transparent 70%)',
-											opacity: 0.28,
+											opacity: 0.25,
 											filter: 'blur(12px)',
 										}}
 									/>
@@ -309,7 +317,7 @@ const Navbar = () => {
 											inset: 0,
 											background:
 												'radial-gradient(circle at 70% 60%, var(--accent-2) 14%, transparent 70%), radial-gradient(circle at 40% 80%, var(--accent-1) 12%, transparent 70%)',
-											opacity: 0.2,
+											opacity: 0.18,
 											filter: 'blur(18px)',
 										}}
 									/>
@@ -323,20 +331,19 @@ const Navbar = () => {
 									style={{
 										background: '#0a0e17',
 										borderRadius: '0.75rem',
-										width: '80%',
-										height: '80%',
+										width: '78%',
+										height: '78%',
 										objectFit: 'contain',
-										boxShadow: '0 2px 12px rgba(0,200,255,0.25)',
+										boxShadow: '0 2px 10px rgba(0,200,255,0.25)',
 									}}
 								/>
 							</div>
 							<h1
-								className="font-extrabold text-lg sm:text-xl md:text-2xl lg:text-3xl bg-clip-text text-transparent tracking-wide"
+								className="font-extrabold text-lg sm:text-xl md:text-2xl bg-clip-text text-transparent tracking-wide"
 								style={{
 									letterSpacing: '0.04em',
 									background:
 										'linear-gradient(90deg, var(--accent-1), var(--accent-2))',
-									textShadow: '0 2px 12px #0b1220',
 									color: 'transparent',
 								}}
 							>
@@ -344,53 +351,64 @@ const Navbar = () => {
 							</h1>
 						</button>
 
-						{/* Navigation Links */}
+						{/* Center Nav */}
 						<div className="hidden lg:flex items-center gap-1 xl:gap-2">
 							{navSections.flatMap((section) =>
-								section.items.map((item) => (
-									<button
-										key={item.name}
-										onClick={() => handleLinkClick(item.name)}
-										className={`nav-link flex items-center gap-2 px-2 md:px-3 xl:px-4 py-2.5 rounded-xl font-medium text-sm xl:text-base transition-all duration-300 ${
-											activeLink === item.name
-												? 'active text-white'
-												: 'text-slate-200 hover:text-white'
-										}`}
-										aria-current={activeLink === item.name ? 'page' : undefined}
-									>
-										<item.icon
-											size={18}
-											className="transition-all duration-300"
-											style={
-												activeLink === item.name
-													? { color: 'var(--accent-1)' }
-													: {}
-											}
-										/>
-										<span className="whitespace-nowrap">{item.name}</span>
-										{activeLink === item.name && (
-											<div
-												className="w-1 h-1 rounded-full ml-1 animate-pulse"
-												style={{ background: 'var(--accent-1)' }}
+								section.items.map((item) => {
+									const isActive = activeLink === item.name;
+									return (
+										<button
+											key={item.name}
+											onClick={() => handleLinkClick(item.name)}
+											className={`nav-link relative flex items-center gap-2 px-2.5 md:px-3 xl:px-4 py-2 rounded-[14px] font-medium text-sm xl:text-base ${
+												isActive
+													? 'active text-white'
+													: 'text-slate-200 hover:text-white'
+											}`}
+											aria-current={isActive ? 'page' : undefined}
+										>
+											<span className="nav-pill" />
+											<item.icon
+												size={18}
+												className="transition-all duration-300"
+												style={isActive ? { color: 'var(--accent-1)' } : {}}
 											/>
-										)}
-									</button>
-								))
+											<span className="whitespace-nowrap">{item.name}</span>
+										</button>
+									);
+								})
 							)}
 						</div>
 
-						{/* Right Side Actions */}
-						<div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-							{/* Theme toggle on navbar (desktop) */}
-							<div className="hidden sm:flex items-center">
-								<ThemeToggle />
+						{/* Right cluster */}
+						<div className="flex items-center gap-2 sm:gap-3">
+							{/* Inline theme toggle */}
+							<div className="hidden sm:flex">
+								<ThemeToggle variant="inline" />
 							</div>
+
+							{/* Optional: subtle search affordance (disabled/placeholder) */}
+							<button
+								type="button"
+								className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+								title="Search (coming soon)"
+								disabled
+								style={{
+									background: 'var(--glass-bg)',
+									border: '1px solid var(--glass-border)',
+									opacity: 0.7,
+									cursor: 'not-allowed',
+								}}
+							>
+								<Search className="w-4 h-4" />
+								<span className="text-secondary">Search</span>
+							</button>
 
 							{isAuthenticated ? (
 								<div className="relative" ref={userRef}>
 									<button
 										onClick={() => setIsUserOpen((v) => !v)}
-										className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-4 py-2 rounded-full transition-all duration-300 group"
+										className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 md:px-3.5 py-2 rounded-full transition-all"
 										style={{
 											background: 'var(--glass-bg)',
 											border: '1px solid var(--glass-border)',
@@ -398,6 +416,7 @@ const Navbar = () => {
 										}}
 										aria-haspopup="menu"
 										aria-expanded={isUserOpen}
+										aria-controls="user-menu"
 									>
 										<div
 											className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-lg"
@@ -420,10 +439,12 @@ const Navbar = () => {
 											}}
 										/>
 									</button>
+
 									{/* User Dropdown */}
 									{isUserOpen && (
 										<div
-											className="absolute right-0 mt-3 w-56 sm:w-64 md:w-72 rounded-2xl backdrop-blur-lg border shadow-2xl overflow-hidden z-50"
+											id="user-menu"
+											className="absolute right-0 mt-3 w-56 sm:w-64 rounded-2xl backdrop-blur-lg border shadow-2xl overflow-hidden z-50"
 											style={{
 												background: 'rgba(2,6,12,0.9)',
 												borderColor: 'rgba(255,255,255,0.12)',
@@ -433,11 +454,11 @@ const Navbar = () => {
 											<div className="py-2">
 												<button
 													onClick={handleDashboardClick}
-													className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-all duration-300 text-white group"
+													className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-all text-white"
 													role="menuitem"
 												>
 													<LayoutDashboard
-														className="h-5 w-5 transition-transform"
+														className="h-5 w-5"
 														style={{ color: 'var(--accent-1)' }}
 													/>
 													<span>
@@ -448,7 +469,7 @@ const Navbar = () => {
 												</button>
 												<button
 													onClick={() => navigate('/show')}
-													className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-all duration-300 text-white group"
+													className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-all text-white"
 													role="menuitem"
 												>
 													<QrCode
@@ -459,7 +480,7 @@ const Navbar = () => {
 												</button>
 												<button
 													onClick={handleQRScannerClick}
-													className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-all duration-300 text-white group"
+													className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-all text-white"
 													role="menuitem"
 												>
 													<QrCode
@@ -474,7 +495,7 @@ const Navbar = () => {
 												style={{ borderColor: 'rgba(255,255,255,0.1)' }}
 											>
 												<button
-													className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-white transition-all duration-300"
+													className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-white transition-all"
 													onClick={handleLogout}
 													style={{
 														background:
@@ -512,9 +533,11 @@ const Navbar = () => {
 							{/* Mobile menu button */}
 							<button
 								ref={menuButtonRef}
-								className="lg:hidden p-2 sm:p-3 rounded-xl text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+								className="lg:hidden p-2 sm:p-3 rounded-xl text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
 								onClick={() => setIsOpen(true)}
 								aria-label="Open menu"
+								aria-controls="mobile-drawer"
+								aria-expanded={isOpen}
 								style={{
 									background:
 										'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
@@ -525,25 +548,30 @@ const Navbar = () => {
 							</button>
 						</div>
 					</div>
-				</nav>
-			</div>
+				</div>
+			</nav>
 
 			{/* Mobile Drawer */}
 			{isOpen && (
-				<div className="fixed inset-0 z-[100] lg:hidden">
-					{/* Backdrop */}
+				<div
+					className="fixed inset-0 z-[100] lg:hidden"
+					role="dialog"
+					aria-modal="true"
+					id="mobile-drawer"
+				>
 					<div
 						className="fixed inset-0 bg-black/60 backdrop-blur-sm"
 						onClick={() => setIsOpen(false)}
 						style={{ zIndex: 90 }}
+						aria-hidden="true"
 					/>
-					{/* Drawer */}
 					<div
 						ref={drawerRef}
-						className="fixed top-0 left-0 h-[100dvh] w-72 max-w-[90vw] backdrop-blur-lg border-r shadow-2xl overflow-hidden z-[100] drawer-open"
+						className="fixed top-0 left-0 h-[100dvh] w-72 max-w-[90vw] backdrop-blur-lg border-r shadow-2xl overflow-hidden z-[100]"
 						style={{
 							background: 'rgba(2,6,12,0.92)',
 							borderColor: 'rgba(255,255,255,0.12)',
+							animation: 'slideIn .3s ease-out',
 						}}
 					>
 						<div className="h-full flex flex-col">
@@ -577,10 +605,9 @@ const Navbar = () => {
 									</h1>
 								</div>
 								<div className="flex items-center gap-2">
-									{/* Theme toggle in mobile drawer header */}
-									<ThemeToggle />
+									<ThemeToggle variant="inline" />
 									<button
-										className="p-2 rounded-xl text-white transition-all duration-300"
+										className="p-2 rounded-xl text-white transition-all"
 										onClick={() => setIsOpen(false)}
 										aria-label="Close menu"
 										style={{
@@ -598,46 +625,48 @@ const Navbar = () => {
 							<div className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar">
 								<div className="space-y-6">
 									{navSections.map((section, idx) => (
-										<div key={section.title || idx}>
+										<div key={idx}>
 											<ul className="space-y-2">
-												{section.items.map((item) => (
-													<button
-														key={item.name}
-														onClick={() => handleLinkClick(item.name)}
-														className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl text-left transition-all duration-300 ${
-															activeLink === item.name
-																? 'active text-white'
-																: 'text-slate-300 hover:text-white'
-														}`}
-													>
-														<div
-															className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center transition-all duration-300 border"
-															style={{
-																background:
-																	activeLink === item.name
+												{section.items.map((item) => {
+													const isActive = activeLink === item.name;
+													return (
+														<button
+															key={item.name}
+															onClick={() =>
+																handleLinkClick(item.name)
+															}
+															className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl text-left transition-all duration-300 ${
+																isActive
+																	? 'active text-white'
+																	: 'text-slate-300 hover:text-white'
+															}`}
+														>
+															<div
+																className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center transition-all duration-300 border"
+																style={{
+																	background: isActive
 																		? 'linear-gradient(90deg, color-mix(in srgb, var(--accent-1) 20%, transparent), color-mix(in srgb, var(--accent-2) 20%, transparent))'
 																		: 'rgba(255,255,255,0.05)',
-																borderColor:
-																	activeLink === item.name
+																	borderColor: isActive
 																		? 'color-mix(in srgb, var(--accent-1) 30%, rgba(255,255,255,0.15))'
 																		: 'rgba(255,255,255,0.1)',
-															}}
-														>
-															<item.icon
-																size={20}
-																style={{
-																	color:
-																		activeLink === item.name
+																}}
+															>
+																<item.icon
+																	size={20}
+																	style={{
+																		color: isActive
 																			? 'var(--accent-1)'
 																			: 'inherit',
-																}}
-															/>
-														</div>
-														<span className="font-medium">
-															{item.name}
-														</span>
-													</button>
-												))}
+																	}}
+																/>
+															</div>
+															<span className="font-medium">
+																{item.name}
+															</span>
+														</button>
+													);
+												})}
 											</ul>
 										</div>
 									))}
