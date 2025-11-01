@@ -23,7 +23,7 @@ function App() {
 		'/policy',
 		'/privacy',
 		'/cookie',
-	].some((path) => location.pathname.startsWith(path));
+	].some((p) => location.pathname.startsWith(p));
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -31,23 +31,17 @@ function App() {
 			const docHeight = document.documentElement.scrollHeight - window.innerHeight;
 			const progress = (currentScrollY / Math.max(docHeight, 1)) * 100;
 
-			// Update scroll progress
 			setScrollProgress(Math.min(100, Math.max(0, progress)));
 
-			// Smart navbar show/hide logic
-			if (currentScrollY < 100) {
-				setShowNavbar(true);
-			} else if (currentScrollY > lastScrollY.current + 20) {
-				setShowNavbar(false);
-			} else if (currentScrollY < lastScrollY.current - 20) {
-				setShowNavbar(true);
-			}
+			// Slide-away / slide-in with threshold
+			if (currentScrollY < 100) setShowNavbar(true);
+			else if (currentScrollY > lastScrollY.current + 22) setShowNavbar(false);
+			else if (currentScrollY < lastScrollY.current - 18) setShowNavbar(true);
 
 			lastScrollY.current = currentScrollY;
 
-			// Reset scroll timeout
 			if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-			scrollTimeout.current = setTimeout(() => setShowNavbar(true), 1000);
+			scrollTimeout.current = setTimeout(() => setShowNavbar(true), 900);
 		};
 
 		if (!hideNavbar) {
@@ -63,12 +57,11 @@ function App() {
 		<ReactLenis
 			root
 			options={{
-				lerp: 0.1,
-				duration: 1.2,
+				lerp: 0.12,
+				duration: 1.1,
 				smoothWheel: true,
 				smoothTouch: true,
-				touchMultiplier: 2,
-				infinite: false,
+				touchMultiplier: 1.8,
 			}}
 		>
 			<Toaster
@@ -81,13 +74,7 @@ function App() {
 			/>
 
 			{!hideNavbar && (
-				<header
-					className="fixed top-0 left-0 w-full z-50 transition-all duration-500 ease-out-expo"
-					style={{
-						transform: `translateY(${showNavbar ? '0' : '-100%'})`,
-						opacity: showNavbar ? 1 : 0,
-					}}
-				>
+				<header className={`nav-shell ${showNavbar ? 'show' : 'hide'}`}>
 					{/* Progress bar */}
 					<div
 						className="absolute top-0 left-0 h-[2px] transition-all duration-300"
@@ -109,16 +96,15 @@ function App() {
 					!hideNavbar ? 'pt-20' : ''
 				}`}
 			>
-				{/* Page transition wrapper */}
 				<div className="page-transition-wrapper">
 					<AppRoutes />
 				</div>
 			</main>
 
-			{/* Scroll progress indicator (optional) */}
+			{/* Optional scroll % */}
 			<div
-				className="fixed right-4 bottom-4 w-12 h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center font-mono text-sm"
-				style={{ opacity: scrollProgress > 2 ? 0.8 : 0 }}
+				className="fixed right-3 sm:right-4 bottom-3 sm:bottom-4 w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center font-mono text-[11px] sm:text-sm"
+				style={{ opacity: scrollProgress > 2 ? 0.85 : 0, transition: 'opacity .25s ease' }}
 			>
 				{Math.round(scrollProgress)}%
 			</div>

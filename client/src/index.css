@@ -769,3 +769,40 @@ html {
 	outline: 2px solid var(--accent-1);
 	outline-offset: 2px;
 }
+
+.nav-shell {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	z-index: 50;
+	will-change: transform, opacity, filter;
+	transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms ease, filter 320ms ease;
+}
+.nav-shell.show {
+	transform: translateY(0);
+	opacity: 1;
+	filter: none;
+}
+.nav-shell.hide {
+	transform: translateY(calc(-100% - 12px));
+	opacity: 0.98;
+	filter: saturate(0.98) blur(0.7px);
+}
+
+/* Responsive paddings for navbar container */
+@media (max-width: 640px) {
+	.navbar .max-w-7xl,
+	.navbar .max-w-\[92rem\] {
+		padding-left: 0.5rem;
+		padding-right: 0.5rem;
+	}
+}
+
+/* Slightly reduce nav link padding on very wide screens to keep it tight */
+@media (min-width: 1440px) {
+	.navbar .nav-link {
+		padding-left: 0.75rem;
+		padding-right: 0.75rem;
+	}
+}
