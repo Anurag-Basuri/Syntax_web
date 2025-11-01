@@ -119,7 +119,7 @@ function App() {
 			{/* Global themed background (toggle moved into Navbar) */}
 			<Background3D />
 
-			<main className={`relative z-10 ${!hideNavbar ? 'pt-20' : ''}`}>
+			<main id="main" className={`relative z-10 ${!hideNavbar ? 'pt-20' : ''}`}>
 				<AppRoutes />
 			</main>
 		</ReactLenis>
