@@ -19,7 +19,6 @@ import { useAuth } from '../hooks/useAuth.js';
 import ThemeToggle from './ThemeToggle.jsx';
 import logo from '../assets/logo.png';
 
-// Navigation sections config
 const navSections = [
 	{
 		items: [
@@ -31,7 +30,6 @@ const navSections = [
 	},
 ];
 
-// Map path to nav name
 const pathToNavName = (pathname) => {
 	if (pathname === '/') return 'Home';
 	if (pathname.startsWith('/event')) return 'Events';
@@ -47,7 +45,7 @@ const Navbar = () => {
 	const [isUserOpen, setIsUserOpen] = useState(false);
 	const [elevated, setElevated] = useState(false);
 	const [showNavbar, setShowNavbar] = useState(true);
-	const [progress, setProgress] = useState(0); // scroll progress
+	const [progress, setProgress] = useState(0);
 	const userRef = useRef(null);
 	const menuButtonRef = useRef(null);
 	const drawerRef = useRef(null);
@@ -55,15 +53,12 @@ const Navbar = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
 
-	// Determine if user is member or admin
 	const isMember = Boolean(user?.memberID);
 
-	// Sync active link with route
 	useEffect(() => {
 		setActiveLink(pathToNavName(location.pathname));
 	}, [location.pathname]);
 
-	// Hide/show + elevate on scroll
 	useEffect(() => {
 		const handleScroll = () => {
 			const currentScrollY = window.scrollY;
@@ -86,7 +81,6 @@ const Navbar = () => {
 		return () => window.removeEventListener('scroll', handleScroll);
 	}, []);
 
-	// Close user dropdown on outside click
 	useEffect(() => {
 		const onOutside = (e) => {
 			if (
@@ -106,7 +100,6 @@ const Navbar = () => {
 		};
 	}, []);
 
-	// Prevent background scroll when drawer is open
 	useEffect(() => {
 		if (isOpen) {
 			document.body.style.overflow = 'hidden';
@@ -121,7 +114,6 @@ const Navbar = () => {
 		};
 	}, [isOpen]);
 
-	// Close drawer on outside
 	useEffect(() => {
 		const handleClickOutside = (event) => {
 			if (drawerRef.current && !drawerRef.current.contains(event.target)) {
@@ -138,7 +130,6 @@ const Navbar = () => {
 		};
 	}, [isOpen]);
 
-	// ESC to close menus
 	useEffect(() => {
 		const onEsc = (e) => {
 			if (e.key === 'Escape') {
@@ -150,7 +141,6 @@ const Navbar = () => {
 		return () => document.removeEventListener('keydown', onEsc);
 	}, []);
 
-	// Navigation handlers
 	const handleLinkClick = (name) => {
 		setActiveLink(name);
 		setIsOpen(false);
@@ -244,7 +234,6 @@ const Navbar = () => {
                 .custom-scrollbar { scrollbar-width: thin; scrollbar-color: var(--accent-1) rgba(0,0,0,.2); }
             `}</style>
 
-			{/* Skip link for accessibility */}
 			<a
 				href="#main"
 				className="sr-only focus:not-sr-only fixed top-2 left-2 z-[1000] px-3 py-2 rounded-lg"
@@ -272,7 +261,6 @@ const Navbar = () => {
 					transform: showNavbar ? 'translateY(0)' : 'translateY(-100%)',
 				}}
 			>
-				{/* Scroll progress bar */}
 				<div
 					aria-hidden="true"
 					className="absolute top-0 left-0 h-[2px]"
@@ -284,7 +272,6 @@ const Navbar = () => {
 				/>
 				<div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 h-full">
 					<div className="flex items-center justify-between h-full w-full">
-						{/* Brand */}
 						<button
 							onClick={handleLogoClick}
 							className="flex items-center gap-2 sm:gap-3 flex-shrink-0 relative select-none"
@@ -351,7 +338,6 @@ const Navbar = () => {
 							</h1>
 						</button>
 
-						{/* Center Nav */}
 						<div className="hidden lg:flex items-center gap-1 xl:gap-2">
 							{navSections.flatMap((section) =>
 								section.items.map((item) => {
@@ -380,14 +366,11 @@ const Navbar = () => {
 							)}
 						</div>
 
-						{/* Right cluster */}
 						<div className="flex items-center gap-2 sm:gap-3">
-							{/* Inline theme toggle */}
 							<div className="hidden sm:flex">
 								<ThemeToggle variant="inline" />
 							</div>
 
-							{/* Optional: subtle search affordance (disabled/placeholder) */}
 							<button
 								type="button"
 								className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
@@ -440,7 +423,6 @@ const Navbar = () => {
 										/>
 									</button>
 
-									{/* User Dropdown */}
 									{isUserOpen && (
 										<div
 											id="user-menu"
@@ -530,7 +512,6 @@ const Navbar = () => {
 								</div>
 							)}
 
-							{/* Mobile menu button */}
 							<button
 								ref={menuButtonRef}
 								className="lg:hidden p-2 sm:p-3 rounded-xl text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
@@ -551,7 +532,6 @@ const Navbar = () => {
 				</div>
 			</nav>
 
-			{/* Mobile Drawer */}
 			{isOpen && (
 				<div
 					className="fixed inset-0 z-[100] lg:hidden"
@@ -575,7 +555,6 @@ const Navbar = () => {
 						}}
 					>
 						<div className="h-full flex flex-col">
-							{/* Header */}
 							<div
 								className="flex justify-between items-center p-4 sm:p-6 border-b"
 								style={{
@@ -621,7 +600,6 @@ const Navbar = () => {
 								</div>
 							</div>
 
-							{/* Navigation */}
 							<div className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar">
 								<div className="space-y-6">
 									{navSections.map((section, idx) => (
@@ -635,14 +613,14 @@ const Navbar = () => {
 															onClick={() =>
 																handleLinkClick(item.name)
 															}
-															className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl text-left transition-all duration-300 ${
+															className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl text-left transition-all ${
 																isActive
-																	? 'active text-white'
+																	? 'text-white'
 																	: 'text-slate-300 hover:text-white'
 															}`}
 														>
 															<div
-																className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center transition-all duration-300 border"
+																className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center transition-all border"
 																style={{
 																	background: isActive
 																		? 'linear-gradient(90deg, color-mix(in srgb, var(--accent-1) 20%, transparent), color-mix(in srgb, var(--accent-2) 20%, transparent))'
@@ -673,7 +651,6 @@ const Navbar = () => {
 								</div>
 							</div>
 
-							{/* Auth Section for Mobile */}
 							{!isAuthenticated && (
 								<div
 									className="p-4 sm:p-6 border-t space-y-3"
@@ -685,7 +662,7 @@ const Navbar = () => {
 								>
 									<button
 										onClick={handleAlreadyMember}
-										className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all duration-300 text-sm"
+										className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm"
 										style={{
 											background: 'var(--glass-bg)',
 											border: '1px solid var(--glass-border)',
@@ -698,7 +675,7 @@ const Navbar = () => {
 									</button>
 									<button
 										onClick={handleJoinClub}
-										className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white transition-all duration-300 text-sm"
+										className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white text-sm"
 										style={{
 											background:
 												'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
