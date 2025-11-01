@@ -1,4 +1,3 @@
-import './App.css';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { ReactLenis } from 'lenis/react';
@@ -6,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import AppRoutes from './routes/AppRoutes.jsx';
 import Navbar from './components/Navbar.jsx';
 import Background3D from './components/Background3D.jsx';
+import './App.css';
 
 function App() {
 	const location = useLocation();
