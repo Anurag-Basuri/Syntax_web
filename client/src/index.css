@@ -886,3 +886,114 @@ html {
 	outline: 2px solid var(--accent-1);
 	outline-offset: 2px;
 }
+
+/* Make glass lighter for hero badges/cards */
+.hero-badge {
+	background: color-mix(in srgb, var(--glass-bg) 85%, transparent);
+	border-color: var(--glass-border);
+}
+
+/* Visuals container scales fluidly and keeps transparent backdrop */
+.hero-visuals-container {
+	position: relative;
+	transform-style: preserve-3d;
+	perspective: 1000px;
+}
+
+/* Softer card background for true transparency */
+.hero-card {
+	background: color-mix(in srgb, var(--glass-bg) 92%, transparent);
+	border: 1px solid var(--glass-border);
+	border-radius: 16px;
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	box-shadow: var(--shadow-xl);
+	transition: transform 0.35s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Card positions (desktop default) */
+.hero-card:nth-child(1) {
+	width: 240px;
+	top: 8%;
+	left: 6%;
+}
+.hero-card:nth-child(2) {
+	width: 260px;
+	bottom: 12%;
+	right: 2%;
+	z-index: 10;
+}
+.hero-card:nth-child(3) {
+	width: 220px;
+	top: 46%;
+	left: 30%;
+}
+
+/* Large tablets */
+@media (max-width: 1200px) {
+	.hero-card:nth-child(1) {
+		top: 6%;
+		left: 4%;
+		width: 220px;
+	}
+	.hero-card:nth-child(2) {
+		bottom: 10%;
+		right: 2%;
+		width: 240px;
+	}
+	.hero-card:nth-child(3) {
+		top: 44%;
+		left: 28%;
+		width: 210px;
+	}
+}
+
+/* Tablets */
+@media (max-width: 1024px) {
+	.hero-card:nth-child(1) {
+		top: 2%;
+		left: 2%;
+		width: 210px;
+	}
+	.hero-card:nth-child(2) {
+		bottom: 8%;
+		right: 1%;
+		width: 220px;
+	}
+	.hero-card:nth-child(3) {
+		top: 42%;
+		left: 24%;
+		width: 200px;
+	}
+}
+
+/* Mobile: keep inside viewport and scale down a bit */
+@media (max-width: 640px) {
+	.hero-visuals-container {
+		transform: scale(0.92);
+	}
+	.hero-card:nth-child(1) {
+		top: 4%;
+		left: 4%;
+		width: 200px;
+	}
+	.hero-card:nth-child(2) {
+		bottom: 6%;
+		right: 4%;
+		width: 210px;
+	}
+	.hero-card:nth-child(3) {
+		top: 46%;
+		left: 16%;
+		width: 190px;
+	}
+}
+
+/* Softer, transparent-friendly glows */
+.hero-grid-glow {
+	opacity: 0.45;
+}
+.hero-mesh {
+	filter: blur(90px);
+	opacity: 0.55;
+}
