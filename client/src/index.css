@@ -777,7 +777,7 @@ html {
 	width: 100%;
 	z-index: 50;
 	will-change: transform, opacity, filter;
-	transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms ease, filter 320ms ease;
+	transition: transform 560ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms ease, filter 340ms ease;
 }
 .nav-shell.show {
 	transform: translateY(0);
@@ -790,16 +790,20 @@ html {
 	filter: saturate(0.98) blur(0.7px);
 }
 
-/* Responsive paddings for navbar container */
+/* Better small-screen spacing for the three sections */
 @media (max-width: 640px) {
-	.navbar .max-w-7xl,
+	.navbar .mx-auto,
 	.navbar .max-w-\[92rem\] {
 		padding-left: 0.5rem;
 		padding-right: 0.5rem;
 	}
+	/* reserve a bit more space for the logo on tiny screens */
+	.navbar .min-w-\[150px\] {
+		min-width: 130px !important;
+	}
 }
 
-/* Slightly reduce nav link padding on very wide screens to keep it tight */
+/* Tighten link padding on very wide screens */
 @media (min-width: 1440px) {
 	.navbar .nav-link {
 		padding-left: 0.75rem;
