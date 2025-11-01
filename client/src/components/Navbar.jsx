@@ -247,15 +247,11 @@ const Navbar = () => {
 				className="fixed top-0 left-0 w-full z-50 navbar"
 				style={{
 					height: elevated ? '4.5rem' : '5rem',
-					borderBottom: elevated
-						? '1px solid rgba(255,255,255,0.10)'
-						: '1px solid rgba(255,255,255,0.06)',
-					boxShadow: elevated
-						? '0 8px 28px rgba(0,0,0,0.35)'
-						: '0 8px 32px rgba(10,17,32,0.18), 0 1.5px 8px #1e293b',
-					background: elevated
-						? 'linear-gradient(90deg, rgba(7,12,20,0.9) 55%, rgba(18,28,43,0.88) 100%)'
-						: 'linear-gradient(90deg, rgba(10,17,32,0.92) 60%, rgba(30,41,59,0.85) 100%)',
+					borderBottom: `1px solid ${
+						elevated ? 'var(--nav-border-elevated)' : 'var(--nav-border)'
+					}`,
+					boxShadow: elevated ? 'var(--nav-shadow-elevated)' : 'var(--nav-shadow)',
+					background: elevated ? 'var(--nav-bg-elevated)' : 'var(--nav-bg)',
 					backdropFilter: 'blur(16px)',
 					transform: showNavbar ? 'translateY(0)' : 'translateY(-100%)',
 				}}
@@ -288,7 +284,7 @@ const Navbar = () => {
 									draggable="false"
 									decoding="async"
 								/>
-								{/* Glow derived from the logo silhouette (not container) */}
+								{/* Logo-emitted glow (theme-aware opacity via CSS vars) */}
 								<div
 									className="absolute inset-0 pointer-events-none"
 									aria-hidden="true"
@@ -307,7 +303,9 @@ const Navbar = () => {
 											background:
 												'linear-gradient(90deg, rgba(0,200,255,0.0) 0%, rgba(0,200,255,0.45) 30%, rgba(0,150,255,0.45) 70%, rgba(0,150,255,0.0) 100%)',
 											filter: 'blur(8px)',
-											opacity: elevated ? 0.55 : 0.8,
+											opacity: elevated
+												? 'var(--logo-glow-opacity-elevated)'
+												: 'var(--logo-glow-opacity)',
 											transform: 'translateZ(0)',
 										}}
 									/>
@@ -346,8 +344,9 @@ const Navbar = () => {
 
 						{/* Right cluster */}
 						<div className="flex items-center justify-end gap-2 sm:gap-3">
+							{/* Inline two-mode toggle (bright/dark) */}
 							<div className="hidden sm:flex">
-								<ThemeToggle />
+								<ThemeToggle size="sm" />
 							</div>
 
 							{isAuthenticated ? (
@@ -524,7 +523,7 @@ const Navbar = () => {
 							<div
 								className="flex justify-between items-center p-4 sm:p-6 border-b"
 								style={{
-									borderColor: 'rgba(255,255,255,0.1)',
+									borderColor: 'var(--nav-border)',
 									background:
 										'linear-gradient(90deg, color-mix(in srgb, var(--accent-1) 12%, transparent), color-mix(in srgb, var(--accent-2) 12%, transparent))',
 								}}
@@ -554,13 +553,13 @@ const Navbar = () => {
 												background:
 													'linear-gradient(90deg, rgba(0,200,255,0.0) 0%, rgba(0,200,255,0.45) 30%, rgba(0,150,255,0.45) 70%, rgba(0,150,255,0.0) 100%)',
 												filter: 'blur(8px)',
-												opacity: 0.8,
+												opacity: 'var(--logo-glow-opacity)',
 											}}
 										/>
 									</div>
 								</div>
 								<div className="flex items-center gap-2">
-									<ThemeToggle />
+									<ThemeToggle size="sm" />
 									<button
 										className="p-2 rounded-xl text-white transition-all"
 										onClick={() => setIsOpen(false)}
