@@ -269,51 +269,84 @@ const Navbar = () => {
 
 				<div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 h-full">
 					<div className="flex items-center justify-between h-full w-full">
-						{/* Logo (natural aspect) with masked side glow */}
+						{/* Logo (natural aspect) with improved size & glow */}
 						<button
 							onClick={handleLogoClick}
-							className="group px-2 py-1.5 rounded-xl transition-transform select-none"
+							className="group px-2 py-1.5 rounded-xl transition-all duration-300 select-none transform-gpu"
 							aria-label="Go to home"
-							style={{ background: 'transparent' }}
 						>
 							<div className="relative inline-flex items-center">
+								{/* Soft radial halo behind the logo */}
+								<div
+									aria-hidden="true"
+									className="absolute rounded-full pointer-events-none transition-opacity duration-500 -z-10"
+									style={{
+										width: 88,
+										height: 88,
+										left: -8,
+										top: -8,
+										background:
+											'radial-gradient(40% 40% at 30% 35%, rgba(14,165,233,0.45), rgba(99,102,241,0.18) 30%, transparent 60%)',
+										filter: 'blur(18px)',
+										opacity: elevated ? 0.85 : 0.7,
+										transform: 'translateZ(0)',
+									}}
+								/>
+
+								{/* Subtle long side glow (masked to the logo shape) */}
+								<div
+									aria-hidden="true"
+									className="absolute inset-0 pointer-events-none -z-5"
+									style={{
+										WebkitMaskImage: `url(${logo})`,
+										maskImage: `url(${logo})`,
+										WebkitMaskRepeat: 'no-repeat',
+										maskRepeat: 'no-repeat',
+										WebkitMaskSize: 'contain',
+										maskSize: 'contain',
+										WebkitMaskPosition: 'left center',
+										maskPosition: 'left center',
+										background:
+											'linear-gradient(90deg, rgba(14,165,233,0.00) 0%, rgba(14,165,233,0.28) 25%, rgba(99,102,241,0.28) 65%, rgba(99,102,241,0.00) 100%)',
+										opacity: elevated ? 0.6 : 0.8,
+										filter: 'blur(10px)',
+										transition: 'opacity .35s ease, transform .35s ease',
+										transform: 'scale(1.02)',
+									}}
+								/>
+
+								{/* Main logo — increased size and interactive subtle scale + stronger drop shadow on hover */}
 								<img
 									src={logo}
 									alt="Logo"
-									className="h-8 sm:h-9 md:h-10 w-auto block pointer-events-none select-none"
-									draggable="false"
-									decoding="async"
+									className="h-12 sm:h-14 md:h-16 w-auto relative z-10 transition-transform duration-300 group-hover:scale-105"
+									style={{
+										filter: `drop-shadow(0 10px 22px rgba(2,6,23,0.55))`,
+										WebkitFilter: `drop-shadow(0 10px 22px rgba(2,6,23,0.55))`,
+										transition: 'filter .3s ease, transform .3s ease',
+									}}
 								/>
-								{/* Logo-emitted glow (theme-aware opacity via CSS vars) */}
+
+								{/* Thin glossy sheen mask over the logo for a polished look */}
 								<div
-									className="absolute inset-0 pointer-events-none"
-									aria-hidden="true"
-								>
-									<div
-										className="w-full h-full transition-opacity duration-300"
-										style={{
-											WebkitMaskImage: `url(${logo})`,
-											maskImage: `url(${logo})`,
-											WebkitMaskRepeat: 'no-repeat',
-											maskRepeat: 'no-repeat',
-											WebkitMaskSize: 'contain',
-											maskSize: 'contain',
-											WebkitMaskPosition: 'left center',
-											maskPosition: 'left center',
-											background:
-												'linear-gradient(90deg, rgba(0,200,255,0.0) 0%, rgba(0,200,255,0.45) 30%, rgba(0,150,255,0.45) 70%, rgba(0,150,255,0.0) 100%)',
-											filter: 'blur(8px)',
-											opacity: elevated
-												? 'var(--logo-glow-opacity-elevated)'
-												: 'var(--logo-glow-opacity)',
-											transform: 'translateZ(0)',
-										}}
-									/>
-								</div>
+									className="absolute inset-0 pointer-events-none z-20 transition-opacity duration-400"
+									style={{
+										WebkitMaskImage: `url(${logo})`,
+										maskImage: `url(${logo})`,
+										WebkitMaskRepeat: 'no-repeat',
+										maskRepeat: 'no-repeat',
+										WebkitMaskSize: 'contain',
+										maskSize: 'contain',
+										WebkitMaskPosition: 'left center',
+										maskPosition: 'left center',
+										background:
+											'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0.00) 70%)',
+										opacity: elevated ? 0.65 : 0.5,
+										filter: 'blur(2px)',
+									}}
+								/>
 							</div>
 						</button>
-
-						{/* Center Nav */}
 						<div className="hidden lg:flex items-center gap-1 xl:gap-2">
 							{navSections.flatMap((section) =>
 								section.items.map((item) => {
@@ -322,20 +355,40 @@ const Navbar = () => {
 										<button
 											key={item.name}
 											onClick={() => handleLinkClick(item.name)}
-											className={`nav-link relative flex items-center gap-2 px-2.5 md:px-3 xl:px-4 py-2 rounded-[14px] font-medium text-sm xl:text-base ${
-												isActive
-													? 'active text-white'
-													: 'text-slate-200 hover:text-white'
-											}`}
+											className={`nav-link relative flex items-center gap-2 px-3 py-2 
+    rounded-xl font-medium text-sm xl:text-base
+    transition-all duration-300
+    ${isActive ? 'text-primary' : 'text-secondary hover:text-primary'}
+  `}
 											aria-current={isActive ? 'page' : undefined}
+											style={{
+												background: isActive
+													? 'var(--glass-bg)'
+													: 'transparent',
+												borderColor: isActive
+													? 'var(--glass-border)'
+													: 'transparent',
+												boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+											}}
 										>
-											<span className="nav-pill" />
 											<item.icon
 												size={18}
-												className="transition-all duration-300"
-												style={isActive ? { color: 'var(--accent-1)' } : {}}
+												style={{
+													color: isActive
+														? 'var(--accent-1)'
+														: 'currentColor',
+												}}
 											/>
-											<span className="whitespace-nowrap">{item.name}</span>
+											<span>{item.name}</span>
+											{isActive && (
+												<span
+													className="absolute inset-0 rounded-xl opacity-20"
+													style={{
+														background: `linear-gradient(135deg, var(--accent-1), var(--accent-2))`,
+														filter: 'blur(1px)',
+													}}
+												/>
+											)}
 										</button>
 									);
 								})
