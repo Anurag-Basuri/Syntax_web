@@ -17,6 +17,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import ThemeToggle from './ThemeToggle.jsx';
 import logo from '../assets/logo.png';
+import NavLogo from './NavLogo';
 
 const navSections = [
 	{
@@ -256,82 +257,27 @@ const Navbar = () => {
 					transform: showNavbar ? 'translateY(0)' : 'translateY(-100%)',
 				}}
 			>
-				{/* Scroll progress bar */}
+				{/* Progress bar */}
 				<div
 					aria-hidden="true"
-					className="absolute top-0 left-0 h-[2px]"
+					className="absolute top-0 left-0 h-[2px] transition-all duration-300"
 					style={{
 						width: `${progress}%`,
 						background: 'linear-gradient(90deg, var(--accent-1), var(--accent-2))',
-						boxShadow: '0 0 12px rgba(0,200,255,0.55)',
+						boxShadow: '0 0 12px var(--accent-1)',
 					}}
 				/>
 
+				{/* Main navbar content */}
 				<div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 h-full">
-					<div className="flex items-center justify-between h-full w-full">
-						{/* Logo (natural aspect) with improved size & glow */}
-						<button
-							onClick={handleLogoClick}
-							className="group relative px-3 py-2 transition-all duration-300 select-none"
-							aria-label="Go to home"
-						>
-							<div className="relative inline-flex items-center">
-								{/* Ambient glow behind logo */}
-								<div
-									aria-hidden="true"
-									className="absolute inset-0 pointer-events-none transition-opacity duration-500"
-									style={{
-										background: `radial-gradient(80% 120% at 50% 50%, ${
-											elevated
-												? 'rgba(0,200,255,0.12)'
-												: 'rgba(0,200,255,0.18)'
-										} 0%, ${
-											elevated
-												? 'rgba(0,150,255,0.08)'
-												: 'rgba(0,150,255,0.12)'
-										} 45%, transparent 100%)`,
-										filter: 'blur(20px)',
-										opacity: elevated ? 0.8 : 1,
-										transform: 'translateZ(0)',
-									}}
-								/>
+					<div className="flex items-center justify-between h-full w-full gap-4">
+						{/* Left section - Logo */}
+						<div className="flex-shrink-0">
+							<NavLogo onClick={handleLogoClick} elevated={elevated} />
+						</div>
 
-								{/* Main logo with enhanced size */}
-								<div className="relative transform-gpu transition-transform duration-300 group-hover:scale-[1.02]">
-									<img
-										src={logo}
-										alt="Logo"
-										className="h-10 md:h-12 w-auto relative z-10"
-										style={{
-											filter: `drop-shadow(0 4px 12px rgba(0,200,255,0.3)) drop-shadow(0 8px 24px rgba(0,150,255,0.2))`,
-											transition: 'filter 0.3s ease, transform 0.3s ease',
-										}}
-									/>
-
-									{/* Edge glow effect */}
-									<div
-										className="absolute inset-0 pointer-events-none"
-										style={{
-											WebkitMaskImage: `url(${logo})`,
-											maskImage: `url(${logo})`,
-											WebkitMaskSize: 'contain',
-											maskSize: 'contain',
-											WebkitMaskRepeat: 'no-repeat',
-											maskRepeat: 'no-repeat',
-											WebkitMaskPosition: 'center',
-											maskPosition: 'center',
-											background:
-												'linear-gradient(90deg, rgba(0,200,255,0.00) 0%, rgba(0,200,255,0.35) 30%, rgba(0,150,255,0.35) 70%, rgba(0,150,255,0.00) 100%)',
-											filter: 'blur(8px)',
-											opacity: elevated ? 0.6 : 0.8,
-											transform: 'scale(1.1)',
-											transition: 'opacity 0.35s ease, transform 0.35s ease',
-										}}
-									/>
-								</div>
-							</div>
-						</button>
-						<div className="hidden lg:flex items-center gap-1 xl:gap-2">
+						{/* Center section - Navigation */}
+						<div className="hidden lg:flex items-center justify-center flex-1 gap-1 xl:gap-2 px-4">
 							{navSections.flatMap((section) =>
 								section.items.map((item) => {
 									const isActive = activeLink === item.name;
@@ -339,11 +285,12 @@ const Navbar = () => {
 										<button
 											key={item.name}
 											onClick={() => handleLinkClick(item.name)}
-											className={`nav-link relative flex items-center gap-2 px-3 py-2 
-    rounded-xl font-medium text-sm xl:text-base
-    transition-all duration-300
-    ${isActive ? 'text-primary' : 'text-secondary hover:text-primary'}
-  `}
+											className={`
+                        nav-link relative flex items-center gap-2 
+                        px-3 py-2 rounded-xl font-medium text-sm xl:text-base
+                        transition-all duration-300
+                        ${isActive ? 'text-primary' : 'text-secondary hover:text-primary'}
+                      `}
 											aria-current={isActive ? 'page' : undefined}
 											style={{
 												background: isActive
@@ -368,7 +315,8 @@ const Navbar = () => {
 												<span
 													className="absolute inset-0 rounded-xl opacity-20"
 													style={{
-														background: `linear-gradient(135deg, var(--accent-1), var(--accent-2))`,
+														background:
+															'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
 														filter: 'blur(1px)',
 													}}
 												/>
@@ -379,13 +327,14 @@ const Navbar = () => {
 							)}
 						</div>
 
-						{/* Right cluster */}
-						<div className="flex items-center justify-end gap-2 sm:gap-3">
-							{/* Inline two-mode toggle (bright/dark) */}
+						{/* Right section - Auth & Theme */}
+						<div className="flex items-center justify-end gap-3 sm:gap-4 flex-shrink-0">
+							{/* Theme Toggle */}
 							<div className="hidden sm:flex">
 								<ThemeToggle size="sm" />
 							</div>
 
+							{/* Auth Buttons or User Menu */}
 							{isAuthenticated ? (
 								<div className="relative" ref={userRef}>
 									<button
@@ -491,30 +440,28 @@ const Navbar = () => {
 									)}
 								</div>
 							) : (
-								<div className="hidden sm:flex gap-2 items-center">
+								<div className="hidden sm:flex items-center gap-3">
 									<button
 										onClick={handleAlreadyMember}
-										className="btn btn-secondary rounded-xl text-sm"
-										style={{ padding: '0.5rem 0.9rem' }}
+										className="btn btn-secondary rounded-xl text-sm px-4 py-2"
 									>
 										<LogIn className="h-4 w-4" />
-										<span>Already a member</span>
+										<span>Login</span>
 									</button>
 									<button
 										onClick={handleJoinClub}
-										className="btn btn-primary rounded-xl text-sm"
-										style={{ padding: '0.5rem 0.9rem' }}
+										className="btn btn-primary rounded-xl text-sm px-4 py-2"
 									>
 										<UserPlus className="h-4 w-4" />
-										<span>Join Club</span>
+										<span>Join</span>
 									</button>
 								</div>
 							)}
 
-							{/* Mobile menu button */}
+							{/* Mobile Menu Button */}
 							<button
 								ref={menuButtonRef}
-								className="lg:hidden p-2 sm:p-3 rounded-xl text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
+								className="lg:hidden p-2 sm:p-2.5 rounded-xl text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
 								onClick={() => setIsOpen(true)}
 								aria-label="Open menu"
 								aria-controls="mobile-drawer"
@@ -525,7 +472,7 @@ const Navbar = () => {
 									zIndex: 60,
 								}}
 							>
-								<Menu className="w-6 h-6 sm:w-7 sm:h-7" />
+								<Menu className="w-6 h-6" />
 							</button>
 						</div>
 					</div>
