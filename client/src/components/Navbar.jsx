@@ -272,71 +272,31 @@ const Navbar = () => {
 				/>
 				<div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 h-full">
 					<div className="flex items-center justify-between h-full w-full">
-						<button
-							onClick={handleLogoClick}
-							className="flex items-center gap-2 sm:gap-3 flex-shrink-0 relative select-none"
-							aria-label="Go to home"
-						>
-							<div
-								className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center border relative overflow-hidden"
-								style={{
-									borderColor: 'rgba(255,255,255,0.08)',
-									background: 'rgba(10,17,32,0.85)',
-									boxShadow: elevated
-										? '0 2px 16px rgba(0,200,255,0.4)'
-										: '0 4px 24px rgba(0,200,255,0.7)',
-								}}
+						{/* New Logo-only Design */}
+						<div className="flex items-center justify-start">
+							<button
+								onClick={handleLogoClick}
+								className="flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 group"
+								aria-label="Go to home"
 							>
-								<div className="absolute inset-0 pointer-events-none z-0">
-									<div
-										style={{
-											position: 'absolute',
-											inset: 0,
-											background:
-												'radial-gradient(circle at 60% 40%, var(--accent-1) 16%, transparent 70%), radial-gradient(circle at 30% 70%, var(--accent-2) 14%, transparent 70%)',
-											opacity: 0.25,
-											filter: 'blur(12px)',
-										}}
-									/>
-									<div
-										style={{
-											position: 'absolute',
-											inset: 0,
-											background:
-												'radial-gradient(circle at 70% 60%, var(--accent-2) 14%, transparent 70%), radial-gradient(circle at 40% 80%, var(--accent-1) 12%, transparent 70%)',
-											opacity: 0.18,
-											filter: 'blur(18px)',
-										}}
+								<div
+									className="relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 transform group-hover:scale-110"
+									style={{
+										background: 'var(--glass-bg)',
+										border: '1px solid var(--glass-border)',
+										boxShadow: elevated
+											? '0 0 12px rgba(0,200,255,0.2)'
+											: '0 0 24px rgba(0,200,255,0.3)',
+									}}
+								>
+									<img
+										src={logo}
+										alt="Syntax Club Logo"
+										className="w-6 h-6 transition-transform duration-300"
 									/>
 								</div>
-								<img
-									src={logo}
-									alt="Syntax Logo"
-									loading="lazy"
-									decoding="async"
-									className="relative z-10"
-									style={{
-										background: '#0a0e17',
-										borderRadius: '0.75rem',
-										width: '78%',
-										height: '78%',
-										objectFit: 'contain',
-										boxShadow: '0 2px 10px rgba(0,200,255,0.25)',
-									}}
-								/>
-							</div>
-							<h1
-								className="font-extrabold text-lg sm:text-xl md:text-2xl bg-clip-text text-transparent tracking-wide"
-								style={{
-									letterSpacing: '0.04em',
-									background:
-										'linear-gradient(90deg, var(--accent-1), var(--accent-2))',
-									color: 'transparent',
-								}}
-							>
-								Syntax
-							</h1>
-						</button>
+							</button>
+						</div>
 
 						<div className="hidden lg:flex items-center gap-1 xl:gap-2">
 							{navSections.flatMap((section) =>
@@ -366,9 +326,9 @@ const Navbar = () => {
 							)}
 						</div>
 
-						<div className="flex items-center gap-2 sm:gap-3">
+						<div className="flex items-center justify-end gap-2 sm:gap-3">
 							<div className="hidden sm:flex">
-								<ThemeToggle variant="inline" />
+								<ThemeToggle />
 							</div>
 
 							<button
@@ -571,20 +531,12 @@ const Navbar = () => {
 												'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
 										}}
 									>
-										<LayoutDashboard size={22} />
+										{/* Replaced text with logo in mobile drawer header */}
+										<img src={logo} alt="Syntax Logo" className="w-6 h-6" />
 									</div>
-									<h1
-										className="font-bold text-lg sm:text-xl bg-clip-text text-transparent"
-										style={{
-											background:
-												'linear-gradient(90deg, var(--accent-1), var(--accent-2))',
-										}}
-									>
-										Syntax
-									</h1>
 								</div>
 								<div className="flex items-center gap-2">
-									<ThemeToggle variant="inline" />
+									<ThemeToggle />
 									<button
 										className="p-2 rounded-xl text-white transition-all"
 										onClick={() => setIsOpen(false)}
