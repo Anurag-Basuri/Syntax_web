@@ -7,241 +7,180 @@ const Hero = () => {
 	const navigate = useNavigate();
 	const prefersReducedMotion = useReducedMotion();
 
-	const quotes = [
-		'Make. Share. Iterate.',
-		'Design bravely. Build kindly.',
-		'Start small. Ship often. Grow together.',
-		'Real learning happens when you ship.',
-		'Ideas are drafts—shipping is the edit.',
-	];
-	const [qIndex, setQIndex] = useState(0);
-
-	useEffect(() => {
-		const t = setInterval(() => setQIndex((p) => (p + 1) % quotes.length), 4500);
-		return () => clearInterval(t);
-	}, []);
-
-	const fadeUp = (delay = 0) => ({
+	const fadeUp = (delay = 0, duration = 0.6) => ({
 		initial: { opacity: 0, y: 20 },
-		animate: { opacity: 1, y: 0, transition: { duration: 0.6, delay } },
+		animate: { opacity: 1, y: 0, transition: { duration, delay, ease: [0.16, 1, 0.3, 1] } },
 	});
 
 	return (
 		<section className="relative overflow-hidden">
-			{/* Decorative mesh */}
+			{/* Background elements */}
 			<div className="pointer-events-none absolute inset-0 -z-10">
-				<div className="hero-mesh top-[-15%] left-[-10%]" />
-				<div className="hero-mesh bottom-[-20%] right-[-15%]" />
+				<div className="hero-grid-glow" />
+				<div className="hero-mesh top-[-20%] left-[-25%]" />
+				<div
+					className="hero-mesh bottom-[-25%] right-[-20%]"
+					style={{ animationDelay: '2s' }}
+				/>
 			</div>
 
 			<div className="page-container section-padding">
-				<div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-					{/* Left: Copy */}
-					<div className="text-center lg:text-left lg:col-span-7">
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-16 items-center">
+					{/* Left Column: Content */}
+					<div className="text-center lg:text-left">
 						<motion.div {...fadeUp(0)} className="mb-6 inline-flex">
-							<div className="glass-card px-4 py-2 inline-flex items-center gap-2 text-sm">
-								<Sparkles className="w-4 h-4 text-primary" />
-								<span className="text-secondary font-medium">
-									Builder-first club for designers & developers
-								</span>
+							<div className="hero-badge">
+								<Sparkles className="w-4 h-4 text-accent-1" />
+								<span className="font-medium">From Idea to Impact</span>
 							</div>
 						</motion.div>
 
 						<motion.h1
-							{...fadeUp(0.05)}
-							className="font-display font-extrabold tracking-tight leading-[1.05] text-4xl sm:text-6xl md:text-7xl"
+							{...fadeUp(0.1)}
+							className="font-display font-extrabold tracking-tighter leading-[1.05] text-5xl sm:text-6xl md:text-7xl"
 						>
-							<span className="block brand-text">Ship real projects.</span>
+							<span className="block brand-text">Build What's Next.</span>
 							<span className="block mt-1 text-primary">Together.</span>
 						</motion.h1>
 
 						<motion.p
-							{...fadeUp(0.12)}
-							className="mt-5 text-base sm:text-lg md:text-xl text-secondary max-w-2xl mx-auto lg:mx-0"
+							{...fadeUp(0.2)}
+							className="mt-6 text-base sm:text-lg md:text-xl text-secondary max-w-xl mx-auto lg:mx-0"
 						>
-							Hands-on pods, peer reviews, and mentorship to help you design, code,
-							and ship production-grade work—then showcase it with the community.
+							Syntax is a hands-on community for builders. Join project pods, get peer
+							feedback, and ship work that matters.
 						</motion.p>
 
 						<motion.div
-							{...fadeUp(0.2)}
-							className="mt-8 flex flex-col sm:flex-row items-center lg:items-start gap-3.5 sm:gap-4"
+							{...fadeUp(0.3)}
+							className="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
 						>
 							<motion.button
 								whileHover={{ scale: 1.03 }}
 								whileTap={{ scale: 0.97 }}
-								onClick={() => navigate('/event')}
-								className="btn btn-primary group inline-flex items-center gap-2"
+								onClick={() => navigate('/auth', { state: { tab: 'register' } })}
+								className="btn btn-primary group w-full sm:w-auto"
 							>
-								<span>Explore Events</span>
+								<span>Join the Club</span>
 								<ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
 							</motion.button>
 
 							<motion.button
 								whileHover={{ scale: 1.03 }}
 								whileTap={{ scale: 0.97 }}
-								onClick={() => navigate('/auth', { state: { tab: 'register' } })}
-								className="btn btn-secondary"
-							>
-								Join Syntax
-							</motion.button>
-
-							<button
 								onClick={() =>
 									document
 										.getElementById('about-syntax')
-										?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+										?.scrollIntoView({ behavior: 'smooth' })
 								}
-								className="inline-flex items-center gap-2 text-sm text-secondary hover:text-primary transition-colors"
-								aria-label="See how it works"
+								className="btn btn-secondary w-full sm:w-auto"
 							>
-								<PlayCircle className="w-4 h-4" />
-								How it works
-							</button>
-						</motion.div>
-
-						{/* Feature chips */}
-						<motion.div
-							{...fadeUp(0.28)}
-							className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3"
-						>
-							<div className="glass-card px-3.5 py-2 inline-flex items-center gap-2 text-xs sm:text-sm">
-								<Users className="w-4 h-4 text-primary" />
-								<span className="text-secondary">Peer-led pods</span>
-							</div>
-							<div className="glass-card px-3.5 py-2 inline-flex items-center gap-2 text-xs sm:text-sm">
-								<Code2 className="w-4 h-4 text-primary" />
-								<span className="text-secondary">Design × Code collabs</span>
-							</div>
-							<div className="glass-card px-3.5 py-2 inline-flex items-center gap-2 text-xs sm:text-sm">
-								<Rocket className="w-4 h-4 text-primary" />
-								<span className="text-secondary">Ship + showcase</span>
-							</div>
-							<div className="glass-card px-3.5 py-2 inline-flex items-center gap-2 text-xs sm:text-sm">
-								<CalendarDays className="w-4 h-4 text-primary" />
-								<span className="text-secondary">Weekly sprints</span>
-							</div>
-						</motion.div>
-
-						{/* Stats + rotating quote */}
-						<motion.div {...fadeUp(0.35)} className="mt-8 space-y-6">
-							<div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 text-sm sm:text-base text-muted">
-								<div className="flex items-center gap-2">
-									<div className="w-2 h-2 rounded-full bg-accent animate-pulse-soft" />
-									<span>
-										<strong className="text-primary">200+</strong> members
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<div
-										className="w-2 h-2 rounded-full bg-accent animate-pulse-soft"
-										style={{ animationDelay: '0.6s' }}
-									/>
-									<span>
-										<strong className="text-primary">60+</strong> projects
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<div
-										className="w-2 h-2 rounded-full bg-accent animate-pulse-soft"
-										style={{ animationDelay: '1.2s' }}
-									/>
-									<span>
-										<strong className="text-primary">15+</strong> pods
-									</span>
-								</div>
-							</div>
-
-							<div className="flex justify-center lg:justify-start">
-								<div className="glass-card px-5 py-3 max-w-xl w-full">
-									<div className="relative h-6 sm:h-7 overflow-hidden text-center">
-										<AnimatePresence mode="wait">
-											<motion.p
-												key={qIndex}
-												initial={{ y: 20, opacity: 0 }}
-												animate={{ y: 0, opacity: 1 }}
-												exit={{ y: -20, opacity: 0 }}
-												transition={{ duration: 0.4 }}
-												className="text-xs sm:text-sm text-secondary font-medium italic"
-											>
-												"{quotes[qIndex]}"
-											</motion.p>
-										</AnimatePresence>
-									</div>
-								</div>
-							</div>
+								<PlayCircle className="w-5 h-5" />
+								<span>How It Works</span>
+							</motion.button>
 						</motion.div>
 					</div>
 
-					{/* Right: Media card */}
-					<motion.div {...fadeUp(0.15)} className="lg:col-span-5">
-						<div className="relative">
-							{/* Soft spotlight */}
-							<div
-								className="absolute -inset-8 rounded-[28px] blur-2xl opacity-70"
-								style={{
-									background:
-										'radial-gradient(60% 60% at 60% 40%, var(--spotlight), transparent 70%)',
-								}}
-								aria-hidden
-							/>
-							{/* Card */}
-							<div
-								className="relative glass-card overflow-hidden rounded-3xl p-4 sm:p-5 md:p-6 tilt-card animate-float"
-								style={{ animationDuration: prefersReducedMotion ? '0s' : '16s' }}
+					{/* Right Column: Visual */}
+					<motion.div
+						{...fadeUp(0.25)}
+						className="relative h-full min-h-[380px] lg:min-h-[500px]"
+					>
+						<div className="hero-visuals-container">
+							{/* Floating Card 1: Team Pod */}
+							<motion.div
+								className="hero-card"
+								initial={{ y: 0, x: 0, rotate: -8 }}
+								animate={
+									prefersReducedMotion
+										? {}
+										: {
+												y: [0, -12, 0],
+												transition: {
+													duration: 8,
+													repeat: Infinity,
+													ease: 'easeInOut',
+												},
+										  }
+								}
 							>
-								{/* Window bar */}
-								<div className="flex items-center gap-1.5 mb-4">
-									<span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-									<span className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
-									<span className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
-									<span className="ml-3 text-xs text-muted">app.jsx — demo</span>
-								</div>
-
-								{/* Mock code lines with shimmer */}
-								<div className="space-y-2.5">
-									<div className="code-line w-[76%]" />
-									<div className="code-line w-[58%]" />
-									<div className="code-line w-[88%]" />
-									<div className="code-line w-[65%]" />
-									<div className="code-line w-[42%]" />
-									<div className="code-block mt-3">
-										<div className="code-line w-[82%]" />
-										<div className="code-line w-[72%]" />
-										<div className="code-line w-[54%]" />
+								<div className="flex items-center gap-3 p-3">
+									<div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20">
+										<Users className="w-5 h-5 text-blue-400" />
+									</div>
+									<div>
+										<p className="font-bold text-sm text-primary">
+											Project Pod: 'Aura'
+										</p>
+										<p className="text-xs text-secondary">Weekly Sync</p>
 									</div>
 								</div>
+							</motion.div>
 
-								{/* Sheen */}
-								<div className="sheen" aria-hidden />
-							</div>
+							{/* Floating Card 2: Code Snippet */}
+							<motion.div
+								className="hero-card"
+								initial={{ y: 0, x: 0, rotate: 6 }}
+								animate={
+									prefersReducedMotion
+										? {}
+										: {
+												y: [0, 15, 0],
+												transition: {
+													duration: 10,
+													repeat: Infinity,
+													ease: 'easeInOut',
+													delay: 1,
+												},
+										  }
+								}
+							>
+								<div className="p-3">
+									<p className="font-mono text-xs text-secondary mb-2">
+										// Deploying to production...
+									</p>
+									<div className="flex items-center gap-2">
+										<div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />
+										<p className="font-mono text-xs text-green-300">
+											<span className="text-secondary">status:</span> success
+										</p>
+									</div>
+								</div>
+							</motion.div>
+
+							{/* Floating Card 3: Design Component */}
+							<motion.div
+								className="hero-card"
+								initial={{ y: 0, x: 0, rotate: -2 }}
+								animate={
+									prefersReducedMotion
+										? {}
+										: {
+												y: [0, -10, 0],
+												transition: {
+													duration: 9,
+													repeat: Infinity,
+													ease: 'easeInOut',
+													delay: 0.5,
+												},
+										  }
+								}
+							>
+								<div className="flex items-center gap-3 p-3">
+									<div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20">
+										<Rocket className="w-5 h-5 text-purple-400" />
+									</div>
+									<div>
+										<p className="font-bold text-sm text-primary">
+											New Component
+										</p>
+										<p className="text-xs text-secondary">Ready to ship</p>
+									</div>
+								</div>
+							</motion.div>
 						</div>
 					</motion.div>
 				</div>
-
-				{/* Scroll cue */}
-				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					transition={{ delay: 0.5 }}
-					className="mt-12 md:mt-16 flex justify-center"
-				>
-					<div
-						className="h-12 w-7 rounded-full border flex items-start justify-center p-2"
-						style={{ borderColor: 'var(--glass-border)' }}
-					>
-						<motion.div
-							className="h-2.5 w-2.5 rounded-full"
-							style={{ background: 'var(--accent-1)' }}
-							animate={
-								prefersReducedMotion
-									? {}
-									: { y: [0, 20, 0], opacity: [0.8, 0.3, 0.8] }
-							}
-							transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-						/>
-					</div>
-				</motion.div>
 			</div>
 		</section>
 	);
