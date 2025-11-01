@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sun, Moon, Laptop } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme.js';
 
 const ThemeToggle = () => {
@@ -8,12 +8,27 @@ const ThemeToggle = () => {
 	const buttonsRef = useRef([]);
 	const containerRef = useRef(null);
 
+	// Only two modes: bright (light) and dark
 	const options = [
-		{ value: 'light', icon: Sun },
-		{ value: 'dark', icon: Moon },
-		{ value: 'system', icon: Laptop },
+		{ value: 'light', icon: Sun, aria: 'Bright' },
+		{ value: 'dark', icon: Moon, aria: 'Dark' },
 	];
 
+	// On first load, if the theme is 'system' or unknown, initialize
+	// according to the device preference. After this, the user selection
+	// (via setMode) will persist/useTheme's storage behavior.
+	useEffect(() => {
+		if (!mode || mode === 'system' || !['light', 'dark'].includes(mode)) {
+			const prefersDark =
+				typeof window !== 'undefined' &&
+				window.matchMedia &&
+				window.matchMedia('(prefers-color-scheme: dark)').matches;
+			setMode(prefersDark ? 'dark' : 'light');
+		}
+		// run when mode or setMode change; setMode is stable in most hooks but included for safety
+	}, [mode, setMode]);
+
+	// position the sliding pill over the active button
 	useEffect(() => {
 		const activeIndex = options.findIndex((opt) => opt.value === mode);
 		const activeButton = buttonsRef.current[activeIndex];
@@ -53,6 +68,7 @@ const ThemeToggle = () => {
 					ref={(el) => (buttonsRef.current[index] = el)}
 					type="button"
 					aria-pressed={mode === option.value}
+					aria-label={option.aria}
 					onClick={() => setMode(option.value)}
 					className={`relative z-10 rounded-lg inline-flex items-center justify-center transition-colors duration-300 w-9 h-7 text-sm ${
 						mode === option.value ? 'text-primary' : 'text-secondary hover:text-primary'
