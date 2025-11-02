@@ -173,13 +173,13 @@ const Navbar = () => {
 	const handleAlreadyMember = () => {
 		setIsOpen(false);
 		setIsUserOpen(false);
-		navigate('/auth', { state: { tab: 'login' } });
+		navigate('/auth/login');
 	};
 
 	const handleJoinClub = () => {
 		setIsOpen(false);
 		setIsUserOpen(false);
-		navigate('/auth', { state: { tab: 'register' } });
+		navigate('/auth/register');
 	};
 
 	if (loading) return null;
