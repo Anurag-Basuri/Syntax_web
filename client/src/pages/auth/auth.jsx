@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../hooks/useAuth.js';
-import { publicClient } from '../services/api.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { publicClient } from '../../services/api.js';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../assets/logo.png';
 

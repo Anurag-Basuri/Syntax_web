@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth.js';
-import { memberRegister } from '../services/authServices.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { memberRegister } from '../../services/authServices.js';
 
 const AdminAuthPage = () => {
 	const [activeTab, setActiveTab] = useState('admin');
