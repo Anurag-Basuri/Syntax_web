@@ -212,6 +212,15 @@
 	}
 }
 
+/* New hover-lift utility */
+.hover-lift {
+	transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+	transform: translateY(-6px);
+	box-shadow: var(--shadow-lg), var(--glow-blue);
+}
+
 /* ===== 3. Auth Pages (Login & Join) ===== */
 .auth-container {
 	display: flex;
