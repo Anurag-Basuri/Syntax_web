@@ -11,10 +11,11 @@ const Home = () => {
 		<div className="relative min-h-screen bg-transparent overflow-x-hidden text-primary">
 			<div className="relative z-10">
 				<Hero />
-				<div id="about-syntax">
+				<main className="relative">
+					{/* The Guiding Line will be rendered inside the sections */}
 					<AboutSyntax />
-				</div>
-				<ClubDescription />
+					<ClubDescription />
+				</main>
 				<EventsPreview />
 				<TeamPreview />
 				<Footer />

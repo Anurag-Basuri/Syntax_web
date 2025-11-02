@@ -159,8 +159,9 @@
 	transition: transform 0.3s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 .hero-card:hover {
-	transform: translateY(-6px) scale(1.03);
+	transform: translateY(-8px) scale(1.04);
 	box-shadow: var(--shadow-lg);
+	border-color: color-mix(in srgb, var(--glass-border) 50%, var(--accent-1) 40%);
 }
 .hero-card:nth-child(1) {
 	width: 240px;
@@ -212,12 +213,52 @@
 }
 
 /* ===== New Styles for Narrative Flow ===== */
+.narrative-section {
+	position: relative;
+	padding-block: clamp(5rem, 12vh, 9rem);
+}
+
+.guiding-line-wrapper {
+	position: absolute;
+	top: 0;
+	left: calc((100% - 80rem) / 2 + 1.25rem + 1.5rem); /* Aligns with page-container + offset */
+	height: 100%;
+	width: 2px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
 .guiding-line {
 	width: 2px;
-	margin-left: 1rem;
-	border-radius: 2px;
-	background: linear-gradient(to bottom, var(--accent-1), var(--accent-2));
-	box-shadow: 0 0 12px color-mix(in srgb, var(--accent-1) 50%, transparent);
+	height: 100%;
+	background: linear-gradient(to bottom, var(--accent-1), var(--accent-2) 80%);
+	box-shadow: 0 0 15px var(--accent-1);
+	flex-shrink: 1;
+}
+
+.line-node {
+	width: 12px;
+	height: 12px;
+	border-radius: 99px;
+	border: 2px solid var(--accent-1);
+	background-color: var(--bg-base);
+	box-shadow: 0 0 10px var(--accent-1);
+	flex-shrink: 0;
+	margin-block: 2rem;
+}
+
+.narrative-block {
+	margin-left: calc(1.5rem + 2px + 1.5rem); /* line-offset + line-width + content-gap */
+}
+
+@media (max-width: 1024px) {
+	.guiding-line-wrapper {
+		display: none;
+	}
+	.narrative-block {
+		margin-left: 0;
+	}
 }
 
 .culture-card {
@@ -281,6 +322,7 @@
 	transform: translateY(-4px);
 	background: var(--glass-hover);
 	box-shadow: var(--shadow-sm);
+	border-color: color-mix(in srgb, var(--glass-border), var(--accent-1) 25%);
 }
 
 .offering-icon-wrapper {
