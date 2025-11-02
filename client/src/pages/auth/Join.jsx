@@ -122,9 +122,9 @@ const JoinPage = () => {
 		<div className="auth-container">
 			<div className="auth-card">
 				<div className="text-center">
-					<h1 className="text-3xl font-bold text-primary">Join the Club</h1>
+					<h1 className="text-3xl font-bold text-primary">Become a Syntax Builder</h1>
 					<p className="mt-2 text-secondary">
-						Start your journey by telling us a bit about yourself.
+						Join a community of creators, innovators, and developers.
 					</p>
 				</div>
 
@@ -140,84 +140,107 @@ const JoinPage = () => {
 					</div>
 				)}
 
-				<form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-6" noValidate>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						<InputField
-							icon={<User size={18} />}
-							name="fullName"
-							placeholder="Full Name"
-							value={formData.fullName}
-							onChange={handleChange}
-							error={errors.fullName}
-						/>
-						<InputField
-							icon={<User size={18} />}
-							name="LpuId"
-							placeholder="LPU ID (e.g., 12345678)"
-							value={formData.LpuId}
-							onChange={handleChange}
-							error={errors.LpuId}
-						/>
-					</div>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						<InputField
-							icon={<Mail size={18} />}
-							type="email"
-							name="email"
-							placeholder="Email Address"
-							value={formData.email}
-							onChange={handleChange}
-							error={errors.email}
-						/>
-						<InputField
-							icon={<Phone size={18} />}
-							type="tel"
-							name="phone"
-							placeholder="Phone Number"
-							value={formData.phone}
-							onChange={handleChange}
-							error={errors.phone}
-						/>
-					</div>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						<InputField
-							icon={<BookOpen size={18} />}
-							name="course"
-							placeholder="Your Course (e.g., B.Tech CSE)"
-							value={formData.course}
-							onChange={handleChange}
-							error={errors.course}
-						/>
-						<div className="relative w-full">
-							<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-muted">
-								<Users size={18} />
-							</div>
-							<select
-								name="gender"
-								value={formData.gender}
+				<form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-10" noValidate>
+					{/* Step 1: Personal Info */}
+					<fieldset className="auth-fieldset">
+						<legend className="auth-legend">
+							<span className="auth-legend-step">1</span>
+							Personal Information
+						</legend>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+							<InputField
+								icon={<User size={18} />}
+								name="fullName"
+								placeholder="Full Name"
+								value={formData.fullName}
 								onChange={handleChange}
-								className={`auth-input ${errors.gender ? 'border-red-500/50' : ''}`}
-							>
-								<option value="" disabled>
-									Select Gender
-								</option>
-								<option value="male">Male</option>
-								<option value="female">Female</option>
-								<option value="other">Other</option>
-							</select>
-							{errors.gender && (
-								<p className="mt-1.5 text-sm text-red-400">{errors.gender}</p>
-							)}
+								error={errors.fullName}
+							/>
+							<InputField
+								icon={<Mail size={18} />}
+								type="email"
+								name="email"
+								placeholder="Email Address"
+								value={formData.email}
+								onChange={handleChange}
+								error={errors.email}
+							/>
 						</div>
-					</div>
-					<InputField
-						icon={<Info size={18} />}
-						name="bio"
-						placeholder="A short bio about your interests..."
-						value={formData.bio}
-						onChange={handleChange}
-						error={errors.bio}
-					/>
+					</fieldset>
+
+					{/* Step 2: Academic Info */}
+					<fieldset className="auth-fieldset">
+						<legend className="auth-legend">
+							<span className="auth-legend-step">2</span>
+							Academic Details
+						</legend>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+							<InputField
+								icon={<User size={18} />}
+								name="LpuId"
+								placeholder="LPU ID (e.g., 12345678)"
+								value={formData.LpuId}
+								onChange={handleChange}
+								error={errors.LpuId}
+							/>
+							<InputField
+								icon={<BookOpen size={18} />}
+								name="course"
+								placeholder="Your Course (e.g., B.Tech CSE)"
+								value={formData.course}
+								onChange={handleChange}
+								error={errors.course}
+							/>
+							<InputField
+								icon={<Phone size={18} />}
+								type="tel"
+								name="phone"
+								placeholder="Phone Number"
+								value={formData.phone}
+								onChange={handleChange}
+								error={errors.phone}
+							/>
+							<div className="relative w-full">
+								<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-muted">
+									<Users size={18} />
+								</div>
+								<select
+									name="gender"
+									value={formData.gender}
+									onChange={handleChange}
+									className={`auth-input ${
+										errors.gender ? 'border-red-500/50' : ''
+									}`}
+								>
+									<option value="" disabled>
+										Select Gender
+									</option>
+									<option value="male">Male</option>
+									<option value="female">Female</option>
+									<option value="other">Other</option>
+								</select>
+								{errors.gender && (
+									<p className="mt-1.5 text-sm text-red-400">{errors.gender}</p>
+								)}
+							</div>
+						</div>
+					</fieldset>
+
+					{/* Step 3: About You */}
+					<fieldset className="auth-fieldset">
+						<legend className="auth-legend">
+							<span className="auth-legend-step">3</span>
+							About You
+						</legend>
+						<InputField
+							icon={<Info size={18} />}
+							name="bio"
+							placeholder="A short bio about your interests and skills..."
+							value={formData.bio}
+							onChange={handleChange}
+							error={errors.bio}
+						/>
+					</fieldset>
 
 					<GradientButton isLoading={loading}>Submit Application</GradientButton>
 				</form>
