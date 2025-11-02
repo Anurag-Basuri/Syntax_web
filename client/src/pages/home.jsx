@@ -11,9 +11,7 @@ const Home = () => {
 		<div className="relative min-h-screen bg-transparent overflow-x-hidden text-primary">
 			<div className="relative z-10">
 				<Hero />
-				<div id="about-syntax">
-					<AboutSyntax />
-				</div>
+				<AboutSyntax />
 				<ClubDescription />
 				<EventsPreview />
 				<TeamPreview />

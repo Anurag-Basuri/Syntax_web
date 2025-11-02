@@ -212,6 +212,66 @@
 	}
 }
 
+/* ===== New Styles for About & Description Sections ===== */
+.culture-icon-wrapper {
+	width: 3.5rem;
+	height: 3.5rem;
+	border-radius: 1.25rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-inline: auto;
+	margin-bottom: 1.25rem;
+	background: linear-gradient(
+		135deg,
+		color-mix(in srgb, var(--accent-1) 18%, transparent),
+		color-mix(in srgb, var(--accent-2) 18%, transparent)
+	);
+}
+
+.vision-mission-card {
+	padding: 3rem;
+	border-radius: 1.5rem;
+	background: linear-gradient(145deg, var(--bg-soft), var(--bg-base));
+	border: 1px solid var(--glass-border);
+	box-shadow: var(--shadow-lg);
+}
+
+.vision-mission-divider {
+	height: 1px;
+	width: 4rem;
+	background: var(--glass-border);
+	margin: 2rem auto;
+}
+
+.offering-card {
+	background: var(--glass-bg);
+	border: 1px solid var(--glass-border);
+	padding: 1.5rem;
+	border-radius: 1.25rem;
+	display: flex;
+	align-items: flex-start;
+	gap: 1.25rem;
+	transition: all 0.3s ease;
+}
+.offering-card:hover {
+	transform: translateY(-4px);
+	background: var(--glass-hover);
+	border-color: color-mix(in srgb, var(--accent-1) 20%, transparent);
+}
+
+.offering-icon-wrapper {
+	flex-shrink: 0;
+	width: 3rem;
+	height: 3rem;
+	border-radius: 0.75rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: color-mix(in srgb, var(--accent-1) 15%, transparent);
+	border: 1px solid color-mix(in srgb, var(--accent-1) 25%, transparent);
+}
+
 /* New hover-lift utility */
 .hover-lift {
 	transition: transform 0.3s ease, box-shadow 0.3s ease;
