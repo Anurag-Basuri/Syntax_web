@@ -132,31 +132,6 @@
 }
 
 /* ===== 2. Hero Section ===== */
-.hero-mesh {
-	position: absolute;
-	width: 36rem;
-	height: 36rem;
-	border-radius: 9999px;
-	filter: blur(100px);
-	background: radial-gradient(
-		circle,
-		color-mix(in srgb, var(--accent-1) 25%, transparent) 0%,
-		transparent 70%
-	);
-	animation: hero-mesh-pulse 12s ease-in-out infinite;
-	will-change: transform, opacity;
-}
-@keyframes hero-mesh-pulse {
-	0%,
-	100% {
-		transform: scale(1);
-		opacity: 0.4;
-	}
-	50% {
-		transform: scale(1.15);
-		opacity: 0.6;
-	}
-}
 .hero-badge {
 	display: inline-flex;
 	align-items: center;

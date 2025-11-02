@@ -1,10 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
 const Background3D = () => {
 	const canvasRef = useRef(null);
 	const mousePos = useRef({ x: 0.5, y: 0.5 });
 	const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+	const location = useLocation();
+
+	// Determine if the background should be in a "calm" state for auth pages
+	const isAuthPage =
+		location.pathname.startsWith('/login') || location.pathname.startsWith('/join');
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -32,158 +38,128 @@ const Background3D = () => {
 
 		const ctx = canvas.getContext('2d');
 		let animationId;
-		let time = 0;
+		let particles = [];
+		const particleCount = window.innerWidth < 768 ? 150 : 300;
+
+		// Particle class
+		class Particle {
+			constructor() {
+				this.x = (Math.random() - 0.5) * canvas.width * 2;
+				this.y = (Math.random() - 0.5) * canvas.height * 2;
+				this.z = Math.random() * 2000;
+				this.pz = this.z; // Previous Z
+			}
+
+			update() {
+				this.z -= isAuthPage ? 3 : 8; // Slower speed on auth pages
+				if (this.z < 1) {
+					this.z = Math.random() * 2000;
+					this.x = (Math.random() - 0.5) * canvas.width * 2;
+					this.y = (Math.random() - 0.5) * canvas.height * 2;
+					this.pz = this.z;
+				}
+			}
+
+			draw() {
+				const fov = 300;
+				const scale = fov / (fov + this.z);
+				const x2d = this.x * scale + canvas.width / 2;
+				const y2d = this.y * scale + canvas.height / 2;
+
+				const pScale = fov / (fov + this.pz);
+				const pX2d = this.x * pScale + canvas.width / 2;
+				const pY2d = this.y * pScale + canvas.height / 2;
+
+				const alpha = Math.min(1, (2000 - this.z) / 1000);
+				const size = scale * 2;
+
+				ctx.beginPath();
+				ctx.moveTo(pX2d, pY2d);
+				ctx.lineTo(x2d, y2d);
+				ctx.strokeStyle = `rgba(14, 165, 233, ${alpha})`; // Use accent-1 color
+				ctx.lineWidth = size;
+				ctx.stroke();
+
+				this.pz = this.z;
+			}
+		}
 
 		const resize = () => {
 			canvas.width = window.innerWidth;
 			canvas.height = window.innerHeight;
+			particles = [];
+			for (let i = 0; i < particleCount; i++) {
+				particles.push(new Particle());
+			}
 		};
+
+		const animate = () => {
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+			// Parallax effect
+			const targetX = (0.5 - mousePos.current.x) * 0.1;
+			const targetY = (0.5 - mousePos.current.y) * 0.1;
+			ctx.translate(canvas.width / 2, canvas.height / 2);
+			ctx.rotateX(targetY);
+			ctx.rotateY(targetX);
+			ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+			particles.forEach((p) => {
+				p.update();
+				p.draw();
+			});
+
+			animationId = requestAnimationFrame(animate);
+		};
+
 		resize();
 		window.addEventListener('resize', resize);
 
-		const drawGrid = () => {
-			const { width, height } = canvas;
-			const gridSize = 50;
-			const perspective = 600;
-			const horizonY = height * 0.65;
-
-			ctx.clearRect(0, 0, width, height);
-
-			// Parallax
-			const offsetX = prefersReducedMotion ? 0 : (mousePos.current.x - 0.5) * 40;
-			const offsetY = prefersReducedMotion ? 0 : (mousePos.current.y - 0.5) * 20;
-			const waveTime = prefersReducedMotion ? 0 : time * 0.0005;
-
-			// Vertical lines (cyan strong)
-			ctx.strokeStyle = 'rgba(0, 200, 255, 0.15)';
-			ctx.lineWidth = 1;
-			for (let i = -10; i <= 10; i++) {
-				const x = width / 2 + i * gridSize + offsetX;
-				ctx.beginPath();
-				ctx.moveTo(x, horizonY);
-				for (let j = 0; j < 20; j++) {
-					const y = horizonY + j * gridSize;
-					const depth = j / 20;
-					const scale = perspective / (perspective + depth * 500);
-					const wave = prefersReducedMotion
-						? 0
-						: Math.sin(waveTime + i * 0.3 + j * 0.2) * 3;
-					const projX = width / 2 + (x - width / 2) * scale + wave + offsetX * depth;
-					const projY = horizonY + (y - horizonY) * scale + offsetY * depth;
-					ctx.lineTo(projX, projY);
-				}
-				ctx.stroke();
-			}
-
-			// Horizontal lines (fade by depth)
-			for (let j = 0; j < 20; j++) {
-				const depth = j / 20;
-				const scale = perspective / (perspective + depth * 500);
-				const alpha = 0.15 * (1 - depth * 0.5);
-				ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`;
-				ctx.beginPath();
-				for (let i = -10; i <= 10; i++) {
-					const x = width / 2 + i * gridSize;
-					const y = horizonY + j * gridSize;
-					const wave = prefersReducedMotion
-						? 0
-						: Math.sin(waveTime + i * 0.3 + j * 0.2) * 3;
-					const projX = width / 2 + (x - width / 2) * scale + wave + offsetX * depth;
-					const projY = horizonY + (y - horizonY) * scale + offsetY * depth;
-					if (i === -10) ctx.moveTo(projX, projY);
-					else ctx.lineTo(projX, projY);
-				}
-				ctx.stroke();
-			}
-
-			// Glowing dots
-			if (!prefersReducedMotion) {
-				ctx.fillStyle = 'rgba(0, 200, 255, 0.6)';
-				for (let i = -10; i <= 10; i += 2) {
-					for (let j = 0; j < 20; j += 2) {
-						const x = width / 2 + i * gridSize;
-						const y = horizonY + j * gridSize;
-						const depth = j / 20;
-						const scale = perspective / (perspective + depth * 500);
-						const wave = Math.sin(waveTime + i * 0.3 + j * 0.2) * 3;
-						const projX = width / 2 + (x - width / 2) * scale + wave + offsetX * depth;
-						const projY = horizonY + (y - horizonY) * scale + offsetY * depth;
-						const pulse = Math.sin(time * 0.003 + i + j) * 0.5 + 0.5;
-						ctx.beginPath();
-						ctx.arc(projX, projY, 1.5 * pulse, 0, Math.PI * 2);
-						ctx.fill();
-					}
-				}
-			}
-
-			if (!prefersReducedMotion) {
-				time++;
-				animationId = requestAnimationFrame(drawGrid);
-			}
-		};
-
-		drawGrid();
-		if (prefersReducedMotion) drawGrid();
+		if (!prefersReducedMotion) {
+			animate();
+		}
 
 		return () => {
 			cancelAnimationFrame(animationId);
 			window.removeEventListener('resize', resize);
 		};
-	}, [prefersReducedMotion]);
+	}, [prefersReducedMotion, isAuthPage]);
 
 	return (
 		<div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
-			{/* Cyan/blue base layers */}
-			<div className="absolute inset-0 bg-next-base" />
-			<div className="absolute inset-0 next-spotlights" />
+			{/* Base gradient layers */}
+			<div className="absolute inset-0 bg-gradient-to-b from-gray-950 via-slate-900 to-gray-950" />
 			<div
-				className="absolute inset-0 opacity-40"
+				className="absolute inset-0 opacity-20"
 				style={{
 					background:
-						'radial-gradient(ellipse 80% 50% at 50% 40%, var(--spotlight), transparent)',
+						'radial-gradient(ellipse 80% 50% at 50% 40%, var(--accent-1), transparent)',
 				}}
 			/>
 
-			{/* Grid */}
-			<canvas
-				ref={canvasRef}
-				className="absolute inset-0 w-full h-full"
-				style={{ mixBlendMode: 'screen' }}
-			/>
+			{/* 3D Particle Canvas */}
+			<canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-60" />
 
-			{/* Logo watermark (uses shared logo-mask gradient) */}
-			<div className="absolute inset-0 flex items-start justify-center pt-16 sm:pt-20 lg:pt-24">
+			{/* Logo watermark - positioned lower and responsive */}
+			<div className="absolute inset-0 flex items-start justify-center pt-28 sm:pt-32 lg:pt-40">
 				<div
-					className="relative w-[min(85vw,900px)] aspect-[2.1/1] logo-mask animate"
+					className="relative w-[min(80vw,800px)] aspect-[2/1] opacity-5"
 					style={{
 						WebkitMaskImage: `url(${logo})`,
 						maskImage: `url(${logo})`,
+						WebkitMaskSize: 'contain',
+						maskSize: 'contain',
+						WebkitMaskRepeat: 'no-repeat',
+						maskRepeat: 'no-repeat',
+						WebkitMaskPosition: 'center',
+						maskPosition: 'center',
+						background: 'linear-gradient(45deg, var(--accent-1), var(--accent-2))',
 					}}
 				/>
 			</div>
 
-			{/* Floating particles */}
-			{!prefersReducedMotion && (
-				<div className="absolute inset-0">
-					{Array.from({ length: 20 }).map((_, i) => (
-						<div
-							key={i}
-							className="absolute w-1 h-1 rounded-full animate-float"
-							style={{
-								left: `${Math.random() * 100}%`,
-								top: `${Math.random() * 100}%`,
-								background: 'var(--accent-1)',
-								opacity: 0.3,
-								animationDelay: `${Math.random() * 5}s`,
-								animationDuration: `${10 + Math.random() * 10}s`,
-							}}
-						/>
-					))}
-				</div>
-			)}
-
-			{/* Bottom fade */}
-			<div className="absolute inset-x-0 bottom-0 h-32 bg-bottom-fade" />
+			{/* Bottom fade to blend with content */}
+			<div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-bg-base to-transparent" />
 		</div>
 	);
 };
