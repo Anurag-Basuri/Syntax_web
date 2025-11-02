@@ -14,17 +14,6 @@ const Hero = () => {
 
 	return (
 		<section className="relative overflow-hidden bg-transparent">
-			{/* Background glows (transparent-friendly) */}
-			<div className="pointer-events-none absolute inset-0 -z-10">
-				<div className="hero-grid-glow" aria-hidden />
-				<div className="hero-mesh top-[-22%] left-[-26%]" aria-hidden />
-				<div
-					className="hero-mesh bottom-[-24%] right-[-18%]"
-					style={{ animationDelay: '2s' }}
-					aria-hidden
-				/>
-			</div>
-
 			<div className="page-container section-padding">
 				<div className="grid grid-cols-1 lg:grid-cols-12 gap-y-12 lg:gap-x-12 items-center">
 					{/* Left Column: Content (First on mobile) */}
@@ -46,7 +35,7 @@ const Hero = () => {
 
 						<motion.p
 							{...fadeUp(0.14)}
-							className="mt-5 text-[0.98rem] sm:text-lg md:text-xl text-secondary max-w-2xl mx-auto lg:mx-0"
+							className="mt-5 text-lg md:text-xl text-secondary max-w-2xl mx-auto lg:mx-0"
 						>
 							A hands-on community for builders. Join project pods, get peer feedback,
 							and ship work that matters.
@@ -59,7 +48,7 @@ const Hero = () => {
 							<motion.button
 								whileHover={{ scale: 1.03 }}
 								whileTap={{ scale: 0.97 }}
-								onClick={() => navigate('/auth', { state: { tab: 'register' } })}
+								onClick={() => navigate('/join')}
 								className="btn btn-primary w-full sm:w-auto"
 							>
 								Join the Club
