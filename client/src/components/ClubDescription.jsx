@@ -1,160 +1,101 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { Layers, Code, Cloud, Bot, Palette, Rocket, Zap, Mic } from 'lucide-react';
 
 const ClubDescription = () => {
 	const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
 
 	const containerVariants = {
 		hidden: { opacity: 0 },
-		visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
+		visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
 	};
 	const itemVariants = {
-		hidden: { opacity: 0, y: 30 },
-		visible: { opacity: 1, y: 0, transition: { duration: 0.6, type: 'spring', damping: 12 } },
+		hidden: { opacity: 0, y: 20 },
+		visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.4, 0, 0.2, 1] } },
 	};
-	const statVariants = {
-		hidden: { opacity: 0, scale: 0.8 },
-		visible: {
-			opacity: 1,
-			scale: 1,
-			transition: { duration: 0.6, type: 'spring', stiffness: 300 },
+
+	const tracks = [
+		{ name: 'Web Dev', icon: Code },
+		{ name: 'AI/ML', icon: Bot },
+		{ name: 'Cloud/DevOps', icon: Cloud },
+		{ name: 'UI/UX Design', icon: Palette },
+		{ name: 'Product', icon: Rocket },
+		{ name: 'Core Infra', icon: Layers },
+	];
+
+	const journey = [
+		{
+			title: 'Build Sprints',
+			desc: 'Two-week sprints with async reviews and demos.',
+			icon: Zap,
 		},
-	};
+		{
+			title: 'Demo Day',
+			desc: 'Showcase your work, get feedback, and celebrate wins.',
+			icon: Mic,
+		},
+	];
 
 	return (
-		<section className="section-container py-normal px-4 bg-transparent relative z-10 overflow-hidden">
-			{/* Decorative floating elements (cyan/blue only) */}
+		<section ref={ref} className="section-padding page-container">
 			<motion.div
-				className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full -z-10"
-				style={{ background: 'color-mix(in srgb, var(--accent-2) 10%, transparent)' }}
-				animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.5, 0.3] }}
-				transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-			/>
-			<motion.div
-				className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full -z-10"
-				style={{ background: 'color-mix(in srgb, var(--accent-1) 10%, transparent)' }}
-				animate={{ scale: [1, 1.1, 1], opacity: [0.25, 0.45, 0.25] }}
-				transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 1.2 }}
-			/>
-			<div className="max-w-7xl mx-auto">
-				<motion.div
-					ref={ref}
-					variants={containerVariants}
-					initial="hidden"
-					animate={inView ? 'visible' : 'hidden'}
-					className="grid grid-cols-1 lg:grid-cols-2 gap-8"
-				>
-					{/* Programs & Tracks */}
-					<motion.div variants={itemVariants} className="relative group">
-						<div className="glass-card p-6 md:p-8 h-full hover-lift transition-all">
-							<div className="relative z-10">
-								<h2 className="text-display-sm mb-4 accent-gradient-text">
-									Programs & Tracks
-								</h2>
-								<p className="text-base md:text-lg text-secondary leading-relaxed mb-6">
-									Pick a track, join a pod, and start shipping. We keep cohorts
-									small and focused.
-								</p>
-								<div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-									{['Web', 'AI/ML', 'Cloud', 'DevOps', 'Design', 'Product'].map(
-										(t) => (
-											<span
-												key={t}
-												className="text-center text-sm text-secondary glass-card rounded-lg py-2 border border-white/10"
-											>
-												{t}
-											</span>
-										)
-									)}
-								</div>
-								<div className="mt-8 grid grid-cols-3 gap-4">
-									{[
-										{ value: '200+', label: 'Members' },
-										{ value: '60+', label: 'Projects' },
-										{ value: '15+', label: 'Pods' },
-									].map((stat, i) => (
-										<motion.div
-											key={i}
-											variants={statVariants}
-											className="glass-card text-center py-4"
-										>
-											<div
-												className="text-2xl font-bold"
-												style={{ color: 'var(--accent-1)' }}
-											>
-												{stat.value}
-											</div>
-											<div className="text-sm text-secondary mt-1">
-												{stat.label}
-											</div>
-										</motion.div>
-									))}
-								</div>
+				variants={containerVariants}
+				initial="hidden"
+				animate={inView ? 'visible' : 'hidden'}
+				className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start"
+			>
+				{/* Left Card: Tracks */}
+				<motion.div variants={itemVariants} className="glass-card p-8 hover-lift">
+					<h2 className="text-3xl font-bold font-display mb-6 brand-text">
+						Programs & Tracks
+					</h2>
+					<p className="text-secondary leading-relaxed mb-6">
+						Pick a track that ignites your curiosity. Join a small, focused pod and
+						start shipping real-world projects from day one.
+					</p>
+					<div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+						{tracks.map((track) => (
+							<div
+								key={track.name}
+								className="glass-card p-3 rounded-lg flex items-center gap-2 text-sm text-secondary border-white/10"
+							>
+								<track.icon className="w-4 h-4 text-accent-1" />
+								<span>{track.name}</span>
 							</div>
-						</div>
-					</motion.div>
-
-					{/* The Build Journey */}
-					<motion.div variants={itemVariants} className="relative group">
-						<div className="glass-card p-6 md:p-8 h-full hover-lift transition-all">
-							<div className="relative z-10">
-								<h2 className="text-display-sm mb-6 accent-gradient-text">
-									The Build Journey
-								</h2>
-
-								<motion.div
-									variants={containerVariants}
-									initial="hidden"
-									animate={inView ? 'visible' : 'hidden'}
-									className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-								>
-									{[
-										{
-											title: 'Starter Labs',
-											desc: 'Foundations and tools to get you shipping fast.',
-											icon: '🧩',
-										},
-										{
-											title: 'Build Sprints',
-											desc: 'Two-week sprints with async reviews and demos.',
-											icon: '⚡',
-										},
-										{
-											title: 'Open Source Hours',
-											desc: 'Pair on issues and learn the flow.',
-											icon: '🌐',
-										},
-										{
-											title: 'Demo Day',
-											desc: 'Showcase, get feedback, celebrate.',
-											icon: '🎤',
-										},
-									].map((item, idx) => (
-										<motion.div
-											key={idx}
-											variants={itemVariants}
-											className="glass-card p-5 hover-lift"
-										>
-											<div className="flex gap-4 items-start">
-												<div className="text-3xl mt-1">{item.icon}</div>
-												<div>
-													<h3 className="text-lg font-semibold text-primary mb-1">
-														{item.title}
-													</h3>
-													<p className="text-secondary text-sm">
-														{item.desc}
-													</p>
-												</div>
-											</div>
-										</motion.div>
-									))}
-								</motion.div>
-							</div>
-						</div>
-					</motion.div>
+						))}
+					</div>
 				</motion.div>
-			</div>
+
+				{/* Right Card: Journey */}
+				<motion.div variants={itemVariants} className="glass-card p-8 hover-lift">
+					<h2 className="text-3xl font-bold font-display mb-6 brand-text">
+						The Build Journey
+					</h2>
+					<p className="text-secondary leading-relaxed mb-6">
+						Our entire process is built around a simple, powerful loop: build, ship, and
+						learn.
+					</p>
+					<div className="flex flex-col gap-4">
+						{journey.map((item) => (
+							<div
+								key={item.title}
+								className="glass-card p-5 rounded-lg flex items-start gap-4 border-white/10"
+							>
+								<div className="w-10 h-10 flex-shrink-0 rounded-lg flex items-center justify-center bg-slate-700/50">
+									<item.icon className="w-5 h-5 text-accent-1" />
+								</div>
+								<div>
+									<h3 className="font-semibold text-primary mb-1">
+										{item.title}
+									</h3>
+									<p className="text-secondary text-sm">{item.desc}</p>
+								</div>
+							</div>
+						))}
+					</div>
+				</motion.div>
+			</motion.div>
 		</section>
 	);
 };
