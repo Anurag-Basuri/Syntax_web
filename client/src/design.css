@@ -212,21 +212,40 @@
 	}
 }
 
-/* ===== New Styles for About & Description Sections ===== */
+/* ===== New Styles for Narrative Flow ===== */
+.guiding-line {
+	width: 2px;
+	margin-left: 1rem;
+	background: linear-gradient(to bottom, var(--accent-1), var(--accent-2));
+	box-shadow: 0 0 15px var(--accent-1);
+}
+
+.culture-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 1.25rem;
+	padding: 1.5rem;
+	border-radius: 1.25rem;
+	background: transparent;
+	border: 1px solid transparent;
+	transition: all 0.3s ease;
+}
+.culture-card:hover {
+	background: var(--glass-bg);
+	border-color: var(--glass-border);
+	transform: translateY(-4px);
+}
+
 .culture-icon-wrapper {
+	flex-shrink: 0;
 	width: 3.5rem;
 	height: 3.5rem;
 	border-radius: 1.25rem;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	margin-inline: auto;
-	margin-bottom: 1.25rem;
-	background: linear-gradient(
-		135deg,
-		color-mix(in srgb, var(--accent-1) 18%, transparent),
-		color-mix(in srgb, var(--accent-2) 18%, transparent)
-	);
+	background: color-mix(in srgb, var(--bg-soft) 50%, transparent);
+	border: 1px solid var(--glass-border);
 }
 
 .vision-mission-card {
@@ -257,7 +276,7 @@
 .offering-card:hover {
 	transform: translateY(-4px);
 	background: var(--glass-hover);
-	border-color: color-mix(in srgb, var(--accent-1) 20%, transparent);
+	border-color: color-mix(in srgb, var(--glass-border), var(--accent-1) 20%);
 }
 
 .offering-icon-wrapper {
