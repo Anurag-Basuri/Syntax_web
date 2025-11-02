@@ -1,7 +1,19 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowRight, Users, Code2, Rocket, Palette, PlayCircle } from 'lucide-react';
+import {
+	Sparkles,
+	ArrowRight,
+	Users,
+	Code2,
+	Rocket,
+	Palette,
+	PlayCircle,
+	Calendar,
+	Lightbulb,
+	Handshake,
+	BarChart,
+} from 'lucide-react';
 
 const Hero = () => {
 	const navigate = useNavigate();
@@ -12,6 +24,13 @@ const Hero = () => {
 		animate: { opacity: 1, y: 0, transition: { duration, delay, ease: [0.16, 1, 0.3, 1] } },
 	});
 
+	const pillars = [
+		{ name: 'Events', icon: Calendar },
+		{ name: 'Projects', icon: Lightbulb },
+		{ name: 'Community', icon: Handshake },
+		{ name: 'Growth', icon: BarChart },
+	];
+
 	return (
 		<section className="relative overflow-hidden bg-transparent">
 			<div className="page-container section-padding">
@@ -21,7 +40,7 @@ const Hero = () => {
 						<motion.div {...fadeUp(0)} className="mb-5 inline-flex">
 							<div className="hero-badge">
 								<Sparkles className="w-4 h-4 text-accent-1" />
-								<span className="font-medium">From Idea to Impact</span>
+								<span className="font-medium">Learn. Build. Lead.</span>
 							</div>
 						</motion.div>
 
@@ -29,20 +48,39 @@ const Hero = () => {
 							{...fadeUp(0.06)}
 							className="font-display font-extrabold tracking-tighter leading-[1.05] text-4xl sm:text-5xl md:text-6xl"
 						>
-							<span className="block brand-text">Build What’s Next.</span>
-							<span className="block mt-1 text-primary">Together.</span>
+							<span className="block text-primary">Empowering Students To</span>
+							<span className="block mt-1 brand-text">Build, Lead & Innovate.</span>
 						</motion.h1>
 
 						<motion.p
 							{...fadeUp(0.14)}
 							className="mt-5 text-lg md:text-xl text-secondary max-w-2xl mx-auto lg:mx-0"
 						>
-							A hands-on community for builders. Join project pods, get peer feedback,
-							and ship work that matters.
+							Syntax is a multidisciplinary student-driven community at LPU where
+							ideas turn into real-world impact.
 						</motion.p>
 
+						{/* Pillars */}
 						<motion.div
-							{...fadeUp(0.22)}
+							{...fadeUp(0.2)}
+							className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-2"
+						>
+							{pillars.map((pillar, i) => (
+								<div
+									key={i}
+									className="flex items-center gap-2 text-sm text-secondary"
+								>
+									<pillar.icon className="w-4 h-4 text-accent-1" />
+									<span>{pillar.name}</span>
+									{i < pillars.length - 1 && (
+										<span className="hidden sm:inline text-muted">|</span>
+									)}
+								</div>
+							))}
+						</motion.div>
+
+						<motion.div
+							{...fadeUp(0.28)}
 							className="mt-8 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 sm:gap-4 w-full"
 						>
 							<motion.button
@@ -51,7 +89,7 @@ const Hero = () => {
 								onClick={() => navigate('/join')}
 								className="btn btn-primary w-full sm:w-auto"
 							>
-								Join the Club
+								Join Syntax
 								<ArrowRight className="w-4 h-4" />
 							</motion.button>
 
@@ -66,7 +104,7 @@ const Hero = () => {
 								className="btn btn-secondary w-full sm:w-auto"
 							>
 								<PlayCircle className="w-5 h-5" />
-								How It Works
+								What is Syntax?
 							</motion.button>
 						</motion.div>
 					</div>
