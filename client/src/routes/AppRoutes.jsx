@@ -3,8 +3,8 @@ import { ProtectedRoute, PublicRoute } from './protectedRoutes.jsx';
 
 // Import your page components
 import Home from '../pages/home.jsx';
-import AuthPage from '../pages/auth.jsx';
-import AdminAuth from '../pages/adminAuth.jsx';
+import AuthPage from '../pages/auth/auth.jsx';
+import AdminAuth from '../pages/auth/adminAuth.jsx';
 import AdminDash from '../pages/adminDash.jsx';
 import MemberDashboard from '../pages/member.jsx';
 import Event from '../pages/event.jsx';
@@ -13,10 +13,10 @@ import Contact from '../pages/contact.jsx';
 import QrScanner from '../components/QrScanner.jsx';
 import Show from '../pages/show.jsx';
 import Socials from '../pages/socials.jsx';
-import Cookie from '../pages/cookie.jsx';
-import Privacy from '../pages/privacy.jsx';
-import Terms from '../pages/terms.jsx';
-import Refund from '../pages/refund.jsx';
+import Cookie from '../pages/policies/cookie.jsx';
+import Privacy from '../pages/policies/privacy.jsx';
+import Terms from '../pages/policies/terms.jsx';
+import Refund from '../pages/policies/refund.jsx';
 
 const AppRoutes = () => {
 	return (
@@ -34,7 +34,7 @@ const AppRoutes = () => {
 
 			{/* Auth routes */}
 			<Route
-				path="/auth"
+				path="/auth/*"
 				element={
 					<PublicRoute>
 						<AuthPage />
