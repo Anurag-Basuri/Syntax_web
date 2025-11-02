@@ -93,11 +93,11 @@ const LoginPage = () => {
 
 	return (
 		<div className="auth-container">
-			<div className="auth-card">
+			<div className="auth-card max-w-md">
 				<div className="text-center">
-					<h1 className="text-3xl font-bold text-primary">Welcome Back</h1>
+					<h1 className="text-3xl font-bold text-primary">Welcome Back, Builder</h1>
 					<p className="mt-2 text-secondary">
-						Log in to continue your journey with Syntax.
+						Log in to access your dashboard and projects.
 					</p>
 				</div>
 
@@ -117,24 +117,31 @@ const LoginPage = () => {
 						onChange={handleChange}
 						error={errors.identifier}
 					/>
-					<div className="relative w-full">
-						<InputField
-							icon={<Lock size={18} />}
-							type={showPassword ? 'text' : 'password'}
-							name="password"
-							placeholder="Password"
-							value={loginData.password}
-							onChange={handleChange}
-							error={errors.password}
-						/>
-						<button
-							type="button"
-							onClick={() => setShowPassword(!showPassword)}
-							className="absolute right-4 top-3.5 text-muted hover:text-primary transition-colors"
-							aria-label={showPassword ? 'Hide password' : 'Show password'}
-						>
-							{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-						</button>
+					<div>
+						<div className="relative w-full">
+							<InputField
+								icon={<Lock size={18} />}
+								type={showPassword ? 'text' : 'password'}
+								name="password"
+								placeholder="Password"
+								value={loginData.password}
+								onChange={handleChange}
+								error={errors.password}
+							/>
+							<button
+								type="button"
+								onClick={() => setShowPassword(!showPassword)}
+								className="absolute right-4 top-3.5 text-muted hover:text-primary transition-colors"
+								aria-label={showPassword ? 'Hide password' : 'Show password'}
+							>
+								{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+							</button>
+						</div>
+						<div className="text-right mt-2">
+							<button type="button" className="auth-link">
+								Forgot Password?
+							</button>
+						</div>
 					</div>
 					<GradientButton isLoading={loading}>Login</GradientButton>
 				</form>
