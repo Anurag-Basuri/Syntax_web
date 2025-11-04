@@ -139,7 +139,7 @@ const Logo3D = () => {
 								uTolerance: { value: theme === 'light' ? 0.55 : 0.45 },
 								uSmoothness: { value: 0.12 },
 								uAlphaCutoff: { value: 0.02 },
-								uOpacity: { value: 0.64 }, // decreased logo opacity further
+								uOpacity: { value: 0.75 }, // Increased logo opacity for better presence
 							}}
 							vertexShader={`
                                 varying vec2 vUv;
@@ -312,11 +312,10 @@ const WaveMesh = ({ segments }) => {
                         vec3 c = mix(uColorBase, uColorAccentMid, smoothstep(0.2, 0.7, e));
                         c = mix(c, uColorAccent2, smoothstep(0.65, 1.0, e));
 
-                        // Center focus and vertical vignette
-                        float center = 1.0 - smoothstep(0.22, 0.7, distance(vUv, vec2(0.5)));
+                        // Vertical vignette ONLY (removed central focus)
                         float vfade = smoothstep(0.06, 0.95, vUv.y);
 
-                        float alpha = (0.2 + vfade * 0.22) * center;
+                        float alpha = (0.2 + vfade * 0.22); // Removed 'center' multiplication
                         alpha *= mix(0.65, 1.0, grid * uGridStrength);
 
                         gl_FragColor = vec4(c, alpha * uMeshOpacity);
@@ -384,33 +383,6 @@ const ParticleNebula = ({ count, radius }) => {
 				depthWrite={false}
 			/>
 		</points>
-	);
-};
-
-// Subtle cursor glow
-const CursorGlow = () => {
-	const glowRef = useRef();
-	const theme = useTheme();
-	const color = useMemo(() => getThemeColor('--accent-1'), [theme]);
-
-	useFrame(({ viewport, pointer }) => {
-		if (!glowRef.current) return;
-		const { width, height } = viewport.getCurrentViewport();
-		glowRef.current.position.set((pointer.x * width) / 2, (pointer.y * height) / 2, -5);
-		glowRef.current.material.color.copy(color);
-	});
-
-	return (
-		<mesh ref={glowRef}>
-			<sphereGeometry args={[7, 32, 32]} />
-			<meshBasicMaterial
-				color={color}
-				transparent
-				opacity={0.05}
-				blending={THREE.AdditiveBlending}
-				depthWrite={false}
-			/>
-		</mesh>
 	);
 };
 
@@ -489,7 +461,7 @@ const SceneContent = ({ perfLevel }) => {
 	return (
 		<>
 			<DynamicLights />
-			{/* Removed CursorGlow to eliminate center circle */}
+			{/* CursorGlow is removed, ensuring no central circle */}
 			<Logo3D />
 			<WaveMesh segments={segments} />
 			<ParticleNebula count={particleCount} radius={particleRadius} />
