@@ -1,44 +1,15 @@
 import { useRef, Suspense, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Plane, Float } from '@react-three/drei';
+import { Plane, Float, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import logo from '../assets/logo.png';
 
 // Component for the 3D Logo Geometry
 const Logo3D = () => {
 	const ref = useRef();
-	const { chevronRight, chevronLeft } = useMemo(() => {
-		const right = new THREE.Shape();
-		right.moveTo(0, 0.75);
-		right.lineTo(0.5, 0);
-		right.lineTo(0, -0.75);
-		right.lineTo(0.25, -0.75);
-		right.lineTo(0.75, 0);
-		right.lineTo(0.25, 0.75);
-		right.closePath();
-
-		const left = new THREE.Shape();
-		left.moveTo(0, 0.75);
-		left.lineTo(-0.5, 0);
-		left.lineTo(0, -0.75);
-		left.lineTo(-0.25, -0.75);
-		left.lineTo(-0.75, 0);
-		left.lineTo(-0.25, 0.75);
-		left.closePath();
-
-		return { chevronRight: right, chevronLeft: left };
-	}, []);
-
-	const extrudeSettings = useMemo(
-		() => ({
-			depth: 0.2,
-			bevelEnabled: true,
-			bevelThickness: 0.03,
-			bevelSize: 0.02,
-			bevelSegments: 3,
-		}),
-		[]
-	);
+	const texture = useTexture(logo);
+	const aspect = texture.image ? texture.image.width / texture.image.height : 1;
+	const scale = 3.5;
 
 	useFrame((state) => {
 		const pointer = state.pointer ?? { x: 0, y: 0 };
@@ -58,26 +29,42 @@ const Logo3D = () => {
 
 	return (
 		<Float speed={1.5} rotationIntensity={0.5} floatIntensity={0.8}>
-			<group ref={ref} position={[0, 0.2, 0]} scale={1.8}>
-				<mesh position={[-0.5, 0, 0]}>
-					<extrudeGeometry args={[chevronLeft, extrudeSettings]} />
-					<meshStandardMaterial color="var(--accent-1)" metalness={0.7} roughness={0.3} />
-				</mesh>
-				<mesh position={[0.5, 0, 0]}>
-					<extrudeGeometry args={[chevronRight, extrudeSettings]} />
-					<meshStandardMaterial color="var(--accent-2)" metalness={0.7} roughness={0.3} />
-				</mesh>
-			</group>
+			<mesh ref={ref} position={[0, 0.2, 0]} scale={[scale * aspect, scale, 1]}>
+				<planeGeometry />
+				<meshStandardMaterial
+					map={texture}
+					transparent={true}
+					metalness={0.6}
+					roughness={0.4}
+					// Add a subtle emissive color to make the logo pop without post-processing
+					emissive="#0ea5e9"
+					emissiveIntensity={0.2}
+					// Ensure the logo always renders on top of the grid
+					depthTest={false}
+				/>
+			</mesh>
 		</Float>
 	);
 };
 
-// Component for the infinite grid background
+// Component for the interactive, infinite grid background
 const InfiniteGrid = () => {
 	const gridRef = useRef();
-	useFrame(() => {
+	const uniforms = useMemo(
+		() => ({
+			uMouse: { value: new THREE.Vector2() },
+		}),
+		[]
+	);
+
+	useFrame((state) => {
 		if (gridRef.current) {
 			gridRef.current.position.z = (gridRef.current.position.z + 0.015) % 10;
+		}
+		// Update the mouse uniform with the current pointer position
+		if (state.pointer) {
+			uniforms.uMouse.value.x = state.pointer.x;
+			uniforms.uMouse.value.y = state.pointer.y;
 		}
 	});
 
@@ -99,6 +86,7 @@ const InfiniteGrid = () => {
         `}
 				fragmentShader={`
           varying vec2 vUv;
+          uniform vec2 uMouse;
           void main() {
             vec2 grid = abs(fract(vUv * 15.0 - 0.5) - 0.5) / fwidth(vUv * 15.0);
             float line = min(grid.x, grid.y);
@@ -106,6 +94,10 @@ const InfiniteGrid = () => {
             
             float dist = distance(vUv, vec2(0.5));
             opacity *= 1.0 - smoothstep(0.4, 0.5, dist);
+
+            // Create a mouse interaction effect
+            float mouseDist = distance(vUv, uMouse);
+            opacity *= smoothstep(0.1, 0.3, mouseDist);
 
             gl_FragColor = vec4(vec3(0.2, 0.4, 0.8), opacity * 0.25);
           }
@@ -154,7 +146,7 @@ const Background3D = () => {
 			<div className="absolute inset-0 bg-bg-base" />
 			<Suspense fallback={null}>
 				<Canvas camera={{ position: [0, 0, 8], fov: 45 }} style={{ pointerEvents: 'auto' }}>
-					{/* New, more direct lighting setup */}
+					{/* Lighting setup */}
 					<hemisphereLight
 						skyColor={new THREE.Color(0x0ea5e9)}
 						groundColor={new THREE.Color(0x030712)}
