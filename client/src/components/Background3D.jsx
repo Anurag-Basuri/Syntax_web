@@ -177,29 +177,29 @@ const LineMesh = ({ segments }) => {
 
 		return {
 			uTime: { value: 0 },
-			uAmplitude: { value: breakpoint === 'mobile' ? 0.8 : 1.2 }, // Reduced height
-			uFrequency: { value: 0.02 }, // Lower frequency for larger, squarer waves
-			uSpeed: { value: 0.12 }, // Slower motion
+			uAmplitude: { value: breakpoint === 'mobile' ? 0.6 : 0.9 }, // Lowered height
+			uFrequency: { value: 0.015 }, // Lower frequency for larger waves
+			uSpeed: { value: 0.1 }, // Slower, more deliberate motion
 			uColorStart: { value: accent1 },
 			uColorEnd: { value: accent2 },
-			uLineOpacity: { value: theme === 'light' ? 0.25 : 0.35 },
+			uLineOpacity: { value: theme === 'light' ? 0.2 : 0.3 },
 		};
 	}, [theme, breakpoint]);
 
 	useFrame((state) => {
 		uniforms.uTime.value = state.clock.elapsedTime;
 
-		// More responsive to pointer movement
-		const pointerInfluence = (Math.abs(state.pointer.x) + Math.abs(state.pointer.y)) * 0.25;
-		const targetAmp = (breakpoint === 'mobile' ? 0.8 : 1.2) + pointerInfluence;
+		// Improved responsiveness
+		const pointerInfluence = (Math.abs(state.pointer.x) + Math.abs(state.pointer.y)) * 0.3;
+		const targetAmp = (breakpoint === 'mobile' ? 0.6 : 0.9) + pointerInfluence;
 		uniforms.uAmplitude.value = THREE.MathUtils.lerp(
 			uniforms.uAmplitude.value,
 			targetAmp,
-			0.08 // Faster response
+			0.1 // Faster response
 		);
 	});
 
-	const size = breakpoint === 'mobile' ? 240 : 320; // Larger mesh
+	const size = breakpoint === 'mobile' ? 280 : 360; // Made the mesh even larger
 
 	return (
 		<mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -9, 0]}>
@@ -235,8 +235,8 @@ const LineMesh = ({ segments }) => {
                         // Combine waves for checkerboard-like pattern
                         float combined = waveX * waveY;
                         
-                        // Add subtle smoothing to avoid harsh edges
-                        float smoothWave = smoothstep(-0.8, -0.6, combined) - smoothstep(0.6, 0.8, combined);
+                        // Sharper smoothing for a more defined square look
+                        float smoothWave = smoothstep(-0.9, -0.8, combined) - smoothstep(0.8, 0.9, combined);
                         
                         vElevation = smoothWave * uAmplitude;
                         pos.z += vElevation;
@@ -354,20 +354,20 @@ const SceneContent = ({ perfLevel }) => {
 		const isMobile = breakpoint === 'mobile';
 		if (perfLevel === 'low') {
 			return {
-				segments: isMobile ? 40 : 50, // Increased for better square waves
+				segments: isMobile ? 50 : 60, // Increased segments for better square waves
 				particleCount: isMobile ? 150 : 250,
 				particleRadius: 25,
 			};
 		}
 		if (perfLevel === 'medium') {
 			return {
-				segments: isMobile ? 60 : 80,
+				segments: isMobile ? 70 : 90,
 				particleCount: isMobile ? 300 : 500,
 				particleRadius: 30,
 			};
 		}
 		return {
-			segments: isMobile ? 80 : 120, // Higher segments for smoother square waves
+			segments: isMobile ? 90 : 140, // Higher segments for smoother square waves
 			particleCount: isMobile ? 500 : 900,
 			particleRadius: 35,
 		};
