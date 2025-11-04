@@ -1,5 +1,5 @@
 import React, { Suspense, useMemo, useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import logo from '../assets/logo.png';
@@ -205,62 +205,174 @@ const Glows = ({ theme }) => {
 	);
 };
 
-// Subtle, blended logo with parallax (fades in when texture ready, preserves aspect)
-const SubtleLogo = ({ breakpoint }) => {
-	const ref = useRef();
-	const [opacity, setOpacity] = useState(0);
-	const [aspect, setAspect] = useState(1);
+// Subtle, enhanced logo with halo + sheen (replaces SubtleLogo)
+const EnhancedLogo = ({ breakpoint }) => {
+	const group = useRef();
+	const mesh = useRef();
 	const texture = useTexture(logo);
 	const theme = useTheme();
 	const isLight = theme === 'light';
 
+	// Texture quality
 	useEffect(() => {
 		if (!texture) return;
 		texture.colorSpace = THREE.SRGBColorSpace;
-		texture.anisotropy = 4;
-		if (texture.image?.width && texture.image?.height) {
+		texture.anisotropy = 8;
+		texture.minFilter = THREE.LinearMipmapLinearFilter;
+		texture.magFilter = THREE.LinearFilter;
+		texture.generateMipmaps = true;
+		texture.needsUpdate = true;
+	}, [texture]);
+
+	// Get aspect from image when ready
+	const [aspect, setAspect] = useState(1);
+	useEffect(() => {
+		if (texture?.image?.width && texture?.image?.height) {
 			setAspect(texture.image.width / texture.image.height);
 		}
-		// fade-in target opacity
-		setOpacity(isLight ? 0.06 : 0.08);
-	}, [texture, isLight]);
+	}, [texture]);
 
-	const scale = useMemo(
-		() => (breakpoint === 'mobile' ? 14 : breakpoint === 'tablet' ? 18 : 22),
-		[breakpoint]
+	// Responsive screen-based sizing (world units from camera fov)
+	const { camera } = useThree();
+	const targetZ = -15; // same depth as before
+	const frac = breakpoint === 'mobile' ? 0.34 : breakpoint === 'tablet' ? 0.3 : 0.26; // screen height fraction
+	const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+	const scaleXY = useMemo(() => {
+		const dist = Math.abs(targetZ - (camera?.position?.z ?? 5));
+		const worldH = 2 * Math.tan(THREE.MathUtils.degToRad((camera?.fov ?? 60) / 2)) * dist;
+		const h = clamp(worldH * frac, 8, 22); // safe bounds
+		return [h * aspect, h];
+	}, [camera?.fov, camera?.position?.z, aspect, frac]);
+
+	// Subtle parallax + gentle float/tilt
+	const prefersReduced =
+		typeof window !== 'undefined' &&
+		window.matchMedia &&
+		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	useFrame((state) => {
+		if (!group.current) return;
+		const { pointer, clock } = state;
+		const t = clock.elapsedTime;
+
+		// Parallax & tilt
+		const px = prefersReduced ? 0 : (breakpoint === 'mobile' ? 0.2 : 0.35) * pointer.x;
+		const py = prefersReduced ? 0 : (breakpoint === 'mobile' ? 0.2 : 0.35) * pointer.y;
+
+		group.current.position.x = THREE.MathUtils.damp(group.current.position.x, px, 4, 0.12);
+		group.current.position.y = THREE.MathUtils.damp(group.current.position.y, py, 4, 0.12);
+
+		const tiltX = prefersReduced ? 0 : THREE.MathUtils.degToRad(py * 2.5);
+		const tiltY = prefersReduced ? 0 : THREE.MathUtils.degToRad(px * -3.0);
+		group.current.rotation.x = THREE.MathUtils.damp(group.current.rotation.x, tiltX, 4, 0.12);
+		group.current.rotation.y = THREE.MathUtils.damp(group.current.rotation.y, tiltY, 4, 0.12);
+
+		// Gentle breathing scale
+		const s = 1 + (prefersReduced ? 0 : Math.sin(t * 0.35) * 0.008);
+		group.current.scale.setScalar(s);
+	});
+
+	// Halo size (slightly larger than logo)
+	const haloColor = readCssVar('--accent-1');
+	const haloSize = useMemo(() => [scaleXY[0] * 1.25, scaleXY[1] * 1.25], [scaleXY]);
+
+	// Animated sheen shader
+	const uniforms = useMemo(
+		() => ({
+			uMap: { value: texture ?? null },
+			uTime: { value: 0 },
+			uOpacity: { value: isLight ? 0.1 : 0.12 }, // a bit more visible than before, still subtle
+			uSheen: { value: prefersReduced ? 0.0 : 0.12 },
+		}),
+		[texture, isLight, prefersReduced]
 	);
 
 	useFrame((state) => {
-		if (!ref.current) return;
-		const { pointer } = state;
-		const t = state.clock.elapsedTime;
-		const strength = breakpoint === 'mobile' ? 0.2 : 0.4;
-
-		ref.current.position.x = THREE.MathUtils.lerp(
-			ref.current.position.x,
-			pointer.x * strength,
-			0.1
-		);
-		ref.current.position.y = THREE.MathUtils.lerp(
-			ref.current.position.y,
-			pointer.y * strength,
-			0.1
-		);
-		ref.current.position.z = -15 + Math.sin(t * 0.3) * 0.2;
+		uniforms.uTime.value = state.clock.elapsedTime;
 	});
 
 	return (
-		<mesh ref={ref} position={[0, 0, -15]} scale={[scale * aspect, scale, 1]} renderOrder={-1}>
-			<planeGeometry args={[1, 1]} />
-			<meshBasicMaterial
-				map={texture}
-				transparent
-				alphaTest={0.1}
-				opacity={opacity}
-				blending={THREE.NormalBlending}
-				depthWrite={false}
-			/>
-		</mesh>
+		<group ref={group} position={[0, 0, 0]} renderOrder={-1}>
+			{/* Soft halo behind the logo */}
+			<mesh position={[0, 0, targetZ - 0.8]}>
+				<planeGeometry args={haloSize} />
+				<shaderMaterial
+					transparent
+					blending={THREE.AdditiveBlending}
+					depthWrite={false}
+					uniforms={{
+						uColor: { value: new THREE.Color(haloColor) },
+						uOpacity: { value: isLight ? 0.1 : 0.12 },
+					}}
+					vertexShader={`
+            varying vec2 vUv;
+            void main(){
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `}
+					fragmentShader={`
+            uniform vec3 uColor;
+            uniform float uOpacity;
+            varying vec2 vUv;
+            void main(){
+              vec2 p = vUv - 0.5;
+              float r = length(p) * 2.0;
+              float a = smoothstep(1.0, 0.0, r);
+              gl_FragColor = vec4(uColor, a * uOpacity);
+            }
+          `}
+				/>
+			</mesh>
+
+			{/* Logo with subtle sheen and edge softening */}
+			<mesh ref={mesh} position={[0, 0, targetZ]}>
+				<planeGeometry args={[1, 1]} />
+				<shaderMaterial
+					transparent
+					depthWrite={false}
+					uniforms={uniforms}
+					vertexShader={`
+            varying vec2 vUv;
+            void main(){
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `}
+					fragmentShader={`
+            precision mediump float;
+            uniform sampler2D uMap;
+            uniform float uTime;
+            uniform float uOpacity;
+            uniform float uSheen;
+            varying vec2 vUv;
+
+            // narrow moving band along a diagonal for a soft sheen
+            float band(float x, float c, float w){
+              return smoothstep(c - w, c, x) * (1.0 - smoothstep(c, c + w, x));
+            }
+
+            void main(){
+              vec4 tex = texture2D(uMap, vUv);
+              if (tex.a < 0.01) discard;
+
+              // edge softening (vignette-like alpha falloff)
+              vec2 p = vUv - 0.5;
+              float r = length(p) * 2.0;
+              float edge = smoothstep(1.05, 0.7, r); // 1 at center, fades near edges
+
+              // animated sheen
+              float sweepCenter = fract(uTime * 0.045);
+              float diag = (vUv.x + vUv.y) * 0.5;
+              float sweep = band(diag, sweepCenter, 0.05);
+              vec3 color = tex.rgb + uSheen * sweep;
+
+              gl_FragColor = vec4(color, tex.a * edge * uOpacity);
+            }
+          `}
+				/>
+			</mesh>
+		</group>
 	);
 };
 
@@ -348,10 +460,12 @@ const Background3D = () => {
 					style={{ position: 'absolute', inset: 0 }}
 					gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
 					dpr={[1, Math.min(1.5, window.devicePixelRatio || 1)]}
+					// Allow pointer parallax without intercepting page interactions
+					eventSource={typeof window !== 'undefined' ? document.body : undefined}
+					eventPrefix="client"
 					onCreated={({ gl }) => {
 						gl.setClearColor(0x000000, 0); // transparent
 						gl.outputColorSpace = THREE.SRGBColorSpace;
-						// mark ready on first frame
 						requestAnimationFrame(() => setReady(true));
 						const el = gl.domElement;
 						const onLost = (e) => {
@@ -366,7 +480,7 @@ const Background3D = () => {
 					<Glows theme={theme} />
 					<Grid theme={theme} />
 					<Suspense fallback={null}>
-						<SubtleLogo breakpoint={breakpoint} />
+						<EnhancedLogo breakpoint={breakpoint} />
 					</Suspense>
 				</Canvas>
 			)}
