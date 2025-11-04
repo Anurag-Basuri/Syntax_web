@@ -168,7 +168,7 @@ const Logo3D = () => {
 	);
 };
 
-// Enhanced wave mesh: cleaner colors, smoother motion
+// Enhanced wave mesh: now a clean, cloth-like texture
 const WaveMesh = ({ segments }) => {
 	const meshRef = useRef();
 	const theme = useTheme();
@@ -182,22 +182,23 @@ const WaveMesh = ({ segments }) => {
 
 		return {
 			uTime: { value: 0 },
-			uAmplitude: { value: breakpoint === 'mobile' ? 0.7 : 1.0 },
-			uFreq1: { value: 0.05 },
-			uFreq2: { value: 0.03 },
-			uFreq3: { value: 0.022 },
-			uSpeed1: { value: 0.38 },
-			uSpeed2: { value: 0.24 },
-			uSpeed3: { value: 0.16 },
-			uDir1: { value: new THREE.Vector2(1.0, 0.2).normalize() },
-			uDir2: { value: new THREE.Vector2(-0.6, 1.0).normalize() },
-			uDir3: { value: new THREE.Vector2(0.2, -1.0).normalize() },
+			// Gentler amplitude for a softer, cloth-like feel
+			uAmplitude: { value: breakpoint === 'mobile' ? 0.4 : 0.6 },
+			uFreq1: { value: 0.04 },
+			uFreq2: { value: 0.025 },
+			uFreq3: { value: 0.018 },
+			uSpeed1: { value: 0.25 },
+			uSpeed2: { value: 0.18 },
+			uSpeed3: { value: 0.12 },
+			uDir1: { value: new THREE.Vector2(1.0, 0.5).normalize() },
+			uDir2: { value: new THREE.Vector2(-0.5, 1.0).normalize() },
+			uDir3: { value: new THREE.Vector2(0.8, -0.3).normalize() },
 			uColorBase: { value: bgSoft },
 			uColorAccent1: { value: accent1 },
 			uColorAccentMid: { value: accentMid },
 			uColorAccent2: { value: accent2 },
-			uMeshOpacity: { value: theme === 'light' ? 0.75 : 0.85 },
-			uGridStrength: { value: theme === 'light' ? 0.15 : 0.2 },
+			uMeshOpacity: { value: theme === 'light' ? 0.6 : 0.75 },
+			uWeaveStrength: { value: theme === 'light' ? 0.08 : 0.12 },
 		};
 	}, [theme, breakpoint]);
 
@@ -206,25 +207,26 @@ const WaveMesh = ({ segments }) => {
 		const dt = state.clock.getDelta();
 		uniforms.uTime.value = t;
 
-		// Slight responsiveness to pointer
+		// Softer responsiveness
 		const targetAmp =
-			(breakpoint === 'mobile' ? 0.7 : 1.05) +
-			(Math.abs(state.pointer.x) + Math.abs(state.pointer.y)) * 0.15;
+			(breakpoint === 'mobile' ? 0.4 : 0.6) +
+			(Math.abs(state.pointer.x) + Math.abs(state.pointer.y)) * 0.1;
 		uniforms.uAmplitude.value = THREE.MathUtils.damp(
 			uniforms.uAmplitude.value,
 			targetAmp,
-			2.2,
+			3.0,
 			dt
 		);
 	});
 
 	const geometryArgs = useMemo(() => {
-		const size = breakpoint === 'mobile' ? 120 : 170;
+		const size = breakpoint === 'mobile' ? 140 : 180;
 		return [size, size, segments, segments];
 	}, [breakpoint, segments]);
 
 	return (
-		<mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -7, 0]}>
+		// Lowered the mesh significantly
+		<mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -12, 0]}>
 			<planeGeometry args={geometryArgs} />
 			<shaderMaterial
 				transparent
@@ -249,11 +251,12 @@ const WaveMesh = ({ segments }) => {
                         vUv = uv;
                         vec3 pos = position;
 
+                        // Softer, more rolling waves
                         float w1 = wave(uDir1, uFreq1, uSpeed1, pos.xy);
-                        float w2 = wave(uDir2, uFreq2, uSpeed2, pos.xy + vec2(8.0, -4.0));
-                        float w3 = wave(uDir3, uFreq3, uSpeed3, pos.xy + vec2(-12.0, 6.0));
+                        float w2 = wave(uDir2, uFreq2, uSpeed2, pos.xy + vec2(10.0, -5.0));
+                        float w3 = wave(uDir3, uFreq3, uSpeed3, pos.xy + vec2(-15.0, 8.0));
 
-                        vElevation = (w1 * 0.5 + w2 * 0.3 + w3 * 0.2) * uAmplitude;
+                        vElevation = (w1 * 0.5 + w2 * 0.35 + w3 * 0.25) * uAmplitude;
                         pos.z += vElevation;
 
                         gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
@@ -267,31 +270,29 @@ const WaveMesh = ({ segments }) => {
                     uniform vec3 uColorAccentMid;
                     uniform vec3 uColorAccent2;
                     uniform float uMeshOpacity;
-                    uniform float uGridStrength;
-
-                    // Simple desaturation towards base for cleaner look in light mode
-                    vec3 desat(vec3 color, float amount, vec3 towards) {
-                        return mix(color, mix(vec3(dot(color, vec3(0.299,0.587,0.114))), color, 0.0), amount);
-                    }
+                    uniform float uWeaveStrength;
 
                     void main() {
-                        // Softer grid
-                        vec2 g = abs(fract(vUv * 14.0 - 0.5) - 0.5);
-                        float line = min(g.x, g.y);
-                        float grid = 1.0 - smoothstep(0.0, 0.17, line);
+                        // Procedural cloth weave texture
+                        vec2 uv = vUv * 120.0; // Controls weave density
+                        float weave = 0.5 + 0.25 * (sin(uv.x) + sin(uv.y));
+                        float fabricPattern = smoothstep(0.4, 0.6, weave);
+                        
+                        // Subtle color variation based on folds/elevation
+                        float e = clamp(vElevation * 0.5 + 0.5, 0.0, 1.0);
+                        vec3 color = mix(uColorBase, uColorAccentMid, smoothstep(0.1, 0.6, e));
+                        color = mix(color, uColorAccent2, smoothstep(0.55, 0.9, e));
 
-                        // Elevation-based color blend (base -> mid -> accent)
-                        float e = clamp(vElevation * 0.42 + 0.5, 0.0, 1.0);
-                        vec3 c = mix(uColorBase, uColorAccentMid, smoothstep(0.2, 0.7, e));
-                        c = mix(c, uColorAccent2, smoothstep(0.65, 1.0, e));
+                        // Add the fabric pattern to the color
+                        color = mix(color, uColorAccent1, fabricPattern * uWeaveStrength);
 
-                        // Vertical vignette ONLY (removed central focus)
-                        float vfade = smoothstep(0.06, 0.95, vUv.y);
+                        // Fade out at the edges
+                        float vfade = smoothstep(0.0, 0.85, vUv.y);
+                        float hfade = 1.0 - step(0.98, abs(vUv.x - 0.5) * 2.0);
 
-                        float alpha = (0.2 + vfade * 0.22); // Removed 'center' multiplication
-                        alpha *= mix(0.65, 1.0, grid * uGridStrength);
+                        float alpha = vfade * hfade;
 
-                        gl_FragColor = vec4(c, alpha * uMeshOpacity);
+                        gl_FragColor = vec4(color, alpha * uMeshOpacity);
                     }
                 `}
 			/>
