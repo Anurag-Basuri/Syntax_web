@@ -15,6 +15,8 @@
 	"dependencies": {
 		"@cashfreepayments/cashfree-js": "^1.0.5",
 		"@heroicons/react": "^2.2.0",
+		"@react-three/drei": "^9.122.0",
+		"@react-three/fiber": "^8.18.0",
 		"@tailwindcss/vite": "^4.1.11",
 		"axios": "^1.10.0",
 		"file-saver": "^2.0.5",
@@ -33,7 +35,8 @@
 		"react-toastify": "^11.0.5",
 		"react-zxing": "^2.1.0",
 		"recharts": "^3.1.2",
-		"tailwindcss": "^4.1.11"
+		"tailwindcss": "^4.1.11",
+		"three": "^0.181.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.30.1",
