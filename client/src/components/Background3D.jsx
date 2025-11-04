@@ -4,10 +4,9 @@ import { Float, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import logo from '../assets/logo.png';
 
-// Enhanced 3D Logo using your PNG texture
+// Enhanced 3D Logo using your PNG texture (Glow and background removed)
 const Logo3D = () => {
 	const ref = useRef();
-	const glowRef = useRef();
 	const texture = useTexture(logo);
 	const { gl } = useThree();
 
@@ -26,8 +25,6 @@ const Logo3D = () => {
 
 	useFrame((state) => {
 		const pointer = state.pointer ?? { x: 0, y: 0 };
-		const time = state.clock.elapsedTime;
-
 		if (ref.current) {
 			ref.current.rotation.y = THREE.MathUtils.lerp(
 				ref.current.rotation.y,
@@ -40,44 +37,20 @@ const Logo3D = () => {
 				0.06
 			);
 		}
-		if (glowRef.current) {
-			glowRef.current.material.opacity = 0.28 + Math.sin(time * 0.6) * 0.14;
-		}
 	});
 
 	return (
 		<Float speed={1.15} rotationIntensity={0.35} floatIntensity={0.65}>
 			<group ref={ref} position={[0, 0.55, 0]}>
-				{/* Main logo plane (physical material for better highlights) */}
-				<mesh scale={[scale * aspect, scale, 0.02]} renderOrder={2}>
+				{/* Simplified logo plane with a clean material */}
+				<mesh scale={[scale * aspect, scale, 1]}>
 					<planeGeometry />
-					<meshPhysicalMaterial
+					<meshStandardMaterial
 						map={texture}
-						transparent
-						metalness={0.85}
-						roughness={0.28}
-						clearcoat={0.6}
-						clearcoatRoughness={0.4}
-						ior={1.2}
-						depthTest
-						depthWrite
-					/>
-				</mesh>
-
-				{/* Soft halo behind logo (no post-processing) */}
-				<mesh
-					ref={glowRef}
-					scale={[scale * aspect * 1.18, scale * 1.18, 1]}
-					position={[0, 0, -0.12]}
-					renderOrder={1}
-				>
-					<planeGeometry />
-					<meshBasicMaterial
-						color="#0ea5e9"
-						transparent
-						opacity={0.3}
-						blending={THREE.AdditiveBlending}
-						depthWrite={false}
+						transparent={true}
+						metalness={0.8}
+						roughness={0.3}
+						depthTest={false} // Prevents z-fighting with particles
 					/>
 				</mesh>
 			</group>
@@ -85,21 +58,18 @@ const Logo3D = () => {
 	);
 };
 
-// Dynamic, reactive wave mesh (shader)
+// Dynamic, non-interactive cloth-like wave mesh
 const WaveMesh = () => {
 	const meshRef = useRef();
 	const uniforms = useMemo(
 		() => ({
 			uTime: { value: 0 },
-			uMouse: { value: new THREE.Vector2(0, 0) },
 		}),
 		[]
 	);
 
 	useFrame((state) => {
-		const pointer = state.pointer ?? { x: 0, y: 0 };
 		uniforms.uTime.value = state.clock.elapsedTime;
-		uniforms.uMouse.value.lerp(new THREE.Vector2(pointer.x, pointer.y), 0.05);
 	});
 
 	return (
@@ -112,20 +82,27 @@ const WaveMesh = () => {
 				vertexShader={`
                     #extension GL_OES_standard_derivatives : enable
                     uniform float uTime;
-                    uniform vec2 uMouse;
                     varying vec2 vUv;
                     varying float vElevation;
+
+                    // 2D Noise function to create more organic movement
+                    float random(vec2 st) {
+                        return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+                    }
+
                     void main() {
                         vUv = uv;
                         vec3 pos = position;
-                        float wave1 = sin(pos.x * 0.30 + uTime * 0.50) * 0.50;
-                        float wave2 = sin(pos.y * 0.22 + uTime * 0.35) * 0.45;
-                        float wave3 = sin((pos.x + pos.y) * 0.16 + uTime * 0.42) * 0.30;
-                        vec2 mouseInfluence = uMouse * 10.0;
-                        float mouseDist = distance(pos.xy, mouseInfluence);
-                        float mouseWave = sin(mouseDist * 0.5 - uTime * 2.0) * exp(-mouseDist * 0.1) * 2.0;
-                        vElevation = wave1 + wave2 + wave3 + mouseWave;
+
+                        // More complex, overlapping waves for a cloth-like effect
+                        float wave1 = sin(pos.x * 0.1 + uTime * 0.2) * 0.8;
+                        float wave2 = sin(pos.y * 0.08 + uTime * 0.15) * 1.2;
+                        float wave3 = sin(length(pos.xy) * 0.2 - uTime * 0.3) * 0.7;
+                        float noise = random(pos.xy + uTime * 0.1) * 0.5;
+
+                        vElevation = wave1 + wave2 + wave3 + noise;
                         pos.z += vElevation;
+
                         gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
                     }
                 `}
@@ -286,7 +263,7 @@ const Background3D = () => {
 					{/* Scene content */}
 					<Logo3D />
 					<WaveMesh />
-					<FloatingOrbs />
+					{/* FloatingOrbs component has been removed */}
 					<ParticleNebula
 						count={1800}
 						size={0.025}
