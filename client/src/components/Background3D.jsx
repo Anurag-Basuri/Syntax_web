@@ -167,25 +167,29 @@ const Background3D = () => {
 			.map((c) => Math.round(c * 255))
 			.join(',');
 
-		// Enhanced Next.js-inspired theme with dual accents
+		// Much more subtle - reduced opacity across all elements
 		if (theme === 'light') {
 			return {
 				baseGradient: `radial-gradient(ellipse 120% 70% at 50% -20%, ${bgSoft}, ${bgBase})`,
-				spotlight: `radial-gradient(circle 800px at 50% -20%, rgba(${c1}, 0.15), transparent 60%)`,
-				accentGlow: `radial-gradient(circle 1000px at 100% -15%, rgba(${c2}, 0.1), transparent 60%)`,
-				gridColor: 'rgba(15, 23, 42, 0.04)',
+				spotlight: `radial-gradient(circle 800px at 50% -20%, rgba(${c1}, 0.06), transparent 60%)`,
+				accentGlow: `radial-gradient(circle 1000px at 100% -15%, rgba(${c2}, 0.04), transparent 60%)`,
+				gridColor: 'rgba(15, 23, 42, 0.015)',
 				gridSize: '40px 40px',
 				gridMask:
 					'radial-gradient(ellipse 80% 70% at 50% -15%, black 20%, transparent 75%)',
+				gridOpacity: 0.4,
+				noiseOpacity: 0.008,
 			};
 		}
 		return {
 			baseGradient: `radial-gradient(ellipse 120% 70% at 50% -20%, ${bgSoft}, ${bgBase})`,
-			spotlight: `radial-gradient(circle 800px at 50% -20%, rgba(${c1}, 0.22), transparent 60%)`,
-			accentGlow: `radial-gradient(circle 1000px at 100% -15%, rgba(${c2}, 0.15), transparent 60%)`,
-			gridColor: 'rgba(203, 213, 225, 0.03)',
+			spotlight: `radial-gradient(circle 800px at 50% -20%, rgba(${c1}, 0.08), transparent 60%)`,
+			accentGlow: `radial-gradient(circle 1000px at 100% -15%, rgba(${c2}, 0.05), transparent 60%)`,
+			gridColor: 'rgba(203, 213, 225, 0.012)',
 			gridSize: '40px 40px',
 			gridMask: 'radial-gradient(ellipse 80% 70% at 50% -15%, black 20%, transparent 75%)',
+			gridOpacity: 0.5,
+			noiseOpacity: 0.01,
 		};
 	}, [theme]);
 
@@ -208,19 +212,19 @@ const Background3D = () => {
 				style={{ background: styles.baseGradient }}
 			/>
 
-			{/* Top spotlight (Accent 1) */}
+			{/* Top spotlight (Accent 1) - reduced opacity */}
 			<div
 				className="absolute inset-0 transition-opacity duration-700"
-				style={{ background: styles.spotlight }}
+				style={{ background: styles.spotlight, opacity: 0.6 }}
 			/>
 
-			{/* Accent glow (Accent 2) */}
+			{/* Accent glow (Accent 2) - reduced opacity */}
 			<div
 				className="absolute inset-0 transition-opacity duration-700"
-				style={{ background: styles.accentGlow }}
+				style={{ background: styles.accentGlow, opacity: 0.5 }}
 			/>
 
-			{/* Animated grid with mask */}
+			{/* Animated grid with mask - much more subtle */}
 			<div
 				className="absolute inset-0 pointer-events-none animate-grid-flow"
 				style={{
@@ -231,15 +235,16 @@ const Background3D = () => {
 					backgroundSize: styles.gridSize,
 					maskImage: styles.gridMask,
 					WebkitMaskImage: styles.gridMask,
-					opacity: theme === 'light' ? 0.8 : 1,
+					opacity: styles.gridOpacity,
 				}}
 			/>
 
-			{/* Subtle noise texture */}
+			{/* Subtle noise texture - barely visible */}
 			<div
-				className="absolute inset-0 pointer-events-none opacity-[0.02] mix-blend-overlay"
+				className="absolute inset-0 pointer-events-none mix-blend-overlay"
 				style={{
 					backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+					opacity: styles.noiseOpacity,
 				}}
 			/>
 
@@ -251,13 +256,13 @@ const Background3D = () => {
 						near: 0.1,
 						far: 100,
 					}}
-					style={{ pointerEvents: 'none' }}
+					style={{ pointerEvents: 'none', opacity: 0.7 }} // Reduced canvas opacity
 					gl={{
 						antialias: true,
 						alpha: true,
 						powerPreference: 'high-performance',
 						toneMapping: THREE.ACESFilmicToneMapping,
-						toneMappingExposure: theme === 'light' ? 1.0 : 1.15,
+						toneMappingExposure: theme === 'light' ? 0.85 : 1.0, // Reduced exposure
 					}}
 					dpr={[1, 2]}
 				>
@@ -265,11 +270,11 @@ const Background3D = () => {
 				</Canvas>
 			</Suspense>
 
-			{/* Bottom fade */}
+			{/* Bottom fade - more prominent to hide background */}
 			<div
 				className="absolute inset-x-0 bottom-0 h-64 pointer-events-none"
 				style={{
-					background: `linear-gradient(to top, var(--bg-base) 20%, transparent 100%)`,
+					background: `linear-gradient(to top, var(--bg-base) 30%, transparent 100%)`,
 				}}
 			/>
 		</div>
