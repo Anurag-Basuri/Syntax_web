@@ -135,13 +135,13 @@ const Background3D = () => {
 
 		const isLight = theme === 'light';
 
-		// Responsive, center-aligned logo sizing (caps by viewport height)
+		// Responsive, center-aligned logo sizing (slightly larger, safely capped)
 		const logoWidth =
 			breakpoint === 'mobile'
-				? 'min(64vw, 28vh)'
+				? 'min(70vw, 30vh, 420px)'
 				: breakpoint === 'tablet'
-				? 'min(40vw, 32vh)'
-				: 'min(28vw, 34vh)';
+				? 'min(44vw, 34vh, 560px)'
+				: 'min(32vw, 36vh, 640px)';
 
 		return {
 			// Base radial wash
@@ -167,7 +167,7 @@ const Background3D = () => {
 
 			// Logo presentation (centered, subtle, responsive)
 			logoOpacity: isLight ? 0.16 : 0.22,
-			logoTop: '50%', // centered vertically
+			logoTop: '50%',
 			logoWidth,
 			logoShadow: `drop-shadow(0 6px 28px rgba(${a1}, ${isLight ? 0.08 : 0.1}))`,
 		};
