@@ -177,33 +177,32 @@ const LineMesh = ({ segments }) => {
 
 		return {
 			uTime: { value: 0 },
-			uAmplitude: { value: breakpoint === 'mobile' ? 1.2 : 1.8 }, // Increased from 0.5/0.7
-			uFrequency: { value: 0.025 }, // Decreased for larger waves
-			uSpeed: { value: 0.15 }, // Slower for more visible motion
+			uAmplitude: { value: breakpoint === 'mobile' ? 0.8 : 1.2 }, // Reduced height
+			uFrequency: { value: 0.02 }, // Lower frequency for larger, squarer waves
+			uSpeed: { value: 0.12 }, // Slower motion
 			uColorStart: { value: accent1 },
 			uColorEnd: { value: accent2 },
-			uLineOpacity: { value: theme === 'light' ? 0.2 : 0.3 }, // Slightly increased
+			uLineOpacity: { value: theme === 'light' ? 0.25 : 0.35 },
 		};
 	}, [theme, breakpoint]);
 
 	useFrame((state) => {
 		uniforms.uTime.value = state.clock.elapsedTime;
 
-		// Subtle responsive animation with higher amplitude
-		const targetAmp =
-			(breakpoint === 'mobile' ? 1.2 : 1.8) +
-			(Math.abs(state.pointer.x) + Math.abs(state.pointer.y)) * 0.15;
+		// More responsive to pointer movement
+		const pointerInfluence = (Math.abs(state.pointer.x) + Math.abs(state.pointer.y)) * 0.25;
+		const targetAmp = (breakpoint === 'mobile' ? 0.8 : 1.2) + pointerInfluence;
 		uniforms.uAmplitude.value = THREE.MathUtils.lerp(
 			uniforms.uAmplitude.value,
 			targetAmp,
-			0.05
+			0.08 // Faster response
 		);
 	});
 
-	const size = breakpoint === 'mobile' ? 200 : 280; // Increased from 150/200
+	const size = breakpoint === 'mobile' ? 240 : 320; // Larger mesh
 
 	return (
-		<mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -10, 0]}>
+		<mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -9, 0]}>
 			<planeGeometry args={[size, size, segments, segments]} />
 			<shaderMaterial
 				transparent
@@ -220,17 +219,26 @@ const LineMesh = ({ segments }) => {
                     varying vec2 vUv;
                     varying float vElevation;
 
+                    // Square wave function
+                    float squareWave(float x) {
+                        return sign(sin(x));
+                    }
+
                     void main() {
                         vUv = uv;
                         vec3 pos = position;
                         
-                        // Multi-directional waves for more dynamic motion
-                        float wave1 = sin(pos.x * uFrequency + uTime * uSpeed) * 
-                                     cos(pos.y * uFrequency + uTime * uSpeed * 0.7);
-                        float wave2 = sin(pos.y * uFrequency * 0.8 + uTime * uSpeed * 0.6) *
-                                     cos(pos.x * uFrequency * 0.8 + uTime * uSpeed * 0.5);
+                        // Create square waves in both directions
+                        float waveX = squareWave(pos.x * uFrequency + uTime * uSpeed);
+                        float waveY = squareWave(pos.y * uFrequency + uTime * uSpeed * 0.8);
                         
-                        vElevation = (wave1 * 0.6 + wave2 * 0.4) * uAmplitude;
+                        // Combine waves for checkerboard-like pattern
+                        float combined = waveX * waveY;
+                        
+                        // Add subtle smoothing to avoid harsh edges
+                        float smoothWave = smoothstep(-0.8, -0.6, combined) - smoothstep(0.6, 0.8, combined);
+                        
+                        vElevation = smoothWave * uAmplitude;
                         pos.z += vElevation;
                         
                         gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
@@ -244,13 +252,14 @@ const LineMesh = ({ segments }) => {
                     uniform float uLineOpacity;
 
                     void main() {
-                        // Gradient based on elevation
+                        // Color gradient based on elevation
                         float mixFactor = clamp(vElevation * 0.5 + 0.5, 0.0, 1.0);
                         vec3 color = mix(uColorStart, uColorEnd, mixFactor);
                         
-                        // Fade at edges
-                        float edgeFade = smoothstep(0.0, 0.25, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
-                        edgeFade *= smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x);
+                        // Softer edge fade for larger mesh
+                        float edgeFadeY = smoothstep(0.0, 0.2, vUv.y) * smoothstep(1.0, 0.8, vUv.y);
+                        float edgeFadeX = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x);
+                        float edgeFade = edgeFadeY * edgeFadeX;
                         
                         gl_FragColor = vec4(color, uLineOpacity * edgeFade);
                     }
@@ -345,20 +354,20 @@ const SceneContent = ({ perfLevel }) => {
 		const isMobile = breakpoint === 'mobile';
 		if (perfLevel === 'low') {
 			return {
-				segments: isMobile ? 30 : 40,
+				segments: isMobile ? 40 : 50, // Increased for better square waves
 				particleCount: isMobile ? 150 : 250,
 				particleRadius: 25,
 			};
 		}
 		if (perfLevel === 'medium') {
 			return {
-				segments: isMobile ? 50 : 70,
+				segments: isMobile ? 60 : 80,
 				particleCount: isMobile ? 300 : 500,
 				particleRadius: 30,
 			};
 		}
 		return {
-			segments: isMobile ? 70 : 100,
+			segments: isMobile ? 80 : 120, // Higher segments for smoother square waves
 			particleCount: isMobile ? 500 : 900,
 			particleRadius: 35,
 		};
