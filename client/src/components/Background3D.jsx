@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import logo from '../assets/logo.png';
 
 // Theme hook (unchanged)
 const useTheme = () => {
@@ -74,19 +75,32 @@ const Background3D = () => {
 	useEffect(() => {
 		const el = containerRef.current;
 		if (!el) return;
-		const update = (e) => {
+
+		const handleMove = (e) => {
 			const rect = el.getBoundingClientRect();
 			const x = ((e.clientX - rect.left) / rect.width) * 100;
 			const y = ((e.clientY - rect.top) / rect.height) * 100;
 			el.style.setProperty('--spot-x', `${x.toFixed(2)}%`);
-			el.style.setProperty('--spot-y', `${Math.max(0, y - 20).toFixed(2)}%`); // bias towards top
+			el.style.setProperty('--spot-y', `${Math.max(0, y - 20).toFixed(2)}%`);
+
+			// Lightweight parallax for logo
+			const relX = x / 100 - 0.5;
+			const relY = y / 100 - 0.5;
+			const prefReduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			const strength = prefReduce ? 0 : breakpoint === 'mobile' ? 6 : 10;
+			el.style.setProperty('--logo-ox', `${(relX * strength).toFixed(2)}px`);
+			el.style.setProperty('--logo-oy', `${(relY * strength).toFixed(2)}px`);
 		};
-		window.addEventListener('pointermove', update, { passive: true });
+
+		window.addEventListener('pointermove', handleMove, { passive: true });
 		// initial
 		el.style.setProperty('--spot-x', '50%');
 		el.style.setProperty('--spot-y', '0%');
-		return () => window.removeEventListener('pointermove', update);
-	}, []);
+		el.style.setProperty('--logo-ox', '0px');
+		el.style.setProperty('--logo-oy', '0px');
+
+		return () => window.removeEventListener('pointermove', handleMove);
+	}, [breakpoint]);
 
 	// Theme-aware styles (very subtle)
 	const styles = useMemo(() => {
@@ -121,6 +135,13 @@ const Background3D = () => {
 				'radial-gradient(ellipse 120% 85% at 50% 50%, transparent 55%, rgba(0,0,0,0.08) 100%)',
 			// Ultra subtle film grain
 			noiseOpacity: isLight ? 0.005 : 0.007,
+
+			// Logo presentation (subtle, responsive)
+			logoOpacity: isLight ? 0.14 : 0.2,
+			logoTop: breakpoint === 'mobile' ? '14vh' : '16vh',
+			logoWidth:
+				breakpoint === 'mobile' ? 'clamp(160px, 42vw, 360px)' : 'clamp(220px, 28vw, 520px)',
+			logoShadow: `drop-shadow(0 6px 28px rgba(${a1}, ${isLight ? 0.08 : 0.1}))`,
 		};
 	}, [theme, breakpoint]);
 
@@ -129,24 +150,36 @@ const Background3D = () => {
 			ref={containerRef}
 			className="fixed inset-0 -z-10 overflow-hidden"
 			aria-hidden="true"
-			style={{
-				// base gradient layer (kept opaque for structure)
-				background: styles.baseGradient,
-			}}
+			style={{ background: styles.baseGradient }}
 		>
-			{/* Top spotlight (very low alpha) */}
 			<div
 				className="absolute inset-0 transition-opacity duration-700"
 				style={{ background: styles.spotlight, opacity: 0.5 }}
 			/>
-
-			{/* Secondary aura (second accent, lower alpha) */}
 			<div
 				className="absolute inset-0 transition-opacity duration-700"
 				style={{ background: styles.aura, opacity: 0.35 }}
 			/>
 
-			{/* Subtle masked grid (animated, but very faint) */}
+			{/* Subtle logo (no background), under grid, with tiny parallax */}
+			<img
+				src={logo}
+				alt=""
+				aria-hidden="true"
+				draggable="false"
+				className="absolute select-none pointer-events-none"
+				style={{
+					top: styles.logoTop,
+					left: '50%',
+					width: styles.logoWidth,
+					opacity: styles.logoOpacity,
+					transform:
+						'translate(-50%, -50%) translate(var(--logo-ox, 0px), var(--logo-oy, 0px))',
+					filter: styles.logoShadow,
+					transition: 'transform 220ms ease-out, opacity 220ms ease',
+				}}
+			/>
+
 			<div
 				className="absolute inset-0 pointer-events-none animate-grid-flow"
 				style={{
@@ -161,13 +194,10 @@ const Background3D = () => {
 				}}
 			/>
 
-			{/* Soft vignette to keep content focus */}
 			<div
 				className="absolute inset-0 pointer-events-none"
 				style={{ background: styles.vignette, opacity: 0.9 }}
 			/>
-
-			{/* Film grain */}
 			<div
 				className="absolute inset-0 pointer-events-none mix-blend-overlay"
 				style={{
@@ -175,8 +205,6 @@ const Background3D = () => {
 					opacity: styles.noiseOpacity,
 				}}
 			/>
-
-			{/* Bottom fade to ensure safe content contrast */}
 			<div
 				className="absolute inset-x-0 bottom-0 h-56 pointer-events-none"
 				style={{
