@@ -44,21 +44,18 @@ const useResponsive = () => {
 	return breakpoint;
 };
 
-// Enhanced 3D Logo - Fully transparent background, more prominent
+// Clean 3D Logo - No background effects, just the logo
 const Logo3D = () => {
 	const meshRef = useRef();
 	const groupRef = useRef();
-	const outerGlowRef = useRef();
-	const innerGlowRef = useRef();
 	const texture = useTexture(logo);
 	const { gl } = useThree();
-	const theme = useTheme();
 	const breakpoint = useResponsive();
 
 	useEffect(() => {
 		if (!texture) return;
 		texture.colorSpace = THREE.SRGBColorSpace;
-		texture.anisotropy = gl.capabilities.getMaxAnisotropy?.() || 16; // Increased for sharper rendering
+		texture.anisotropy = gl.capabilities.getMaxAnisotropy?.() || 16;
 		texture.minFilter = THREE.LinearMipmapLinearFilter;
 		texture.magFilter = THREE.LinearFilter;
 		texture.generateMipmaps = true;
@@ -67,15 +64,15 @@ const Logo3D = () => {
 
 	const aspect = texture?.image ? texture.image.width / texture.image.height : 1;
 
-	// Increased scale for more prominence
+	// Adjusted position - lowered to account for navbar
 	const { scale, yPosition } = useMemo(() => {
 		switch (breakpoint) {
 			case 'mobile':
-				return { scale: 4.0, yPosition: 2.0 };
+				return { scale: 3.5, yPosition: 0.5 }; // Lowered from 2.0
 			case 'tablet':
-				return { scale: 5.5, yPosition: 2.5 };
+				return { scale: 4.5, yPosition: 0.8 }; // Lowered from 2.5
 			default:
-				return { scale: 7.0, yPosition: 3.0 };
+				return { scale: 6.0, yPosition: 1.0 }; // Lowered from 3.0
 		}
 	}, [breakpoint]);
 
@@ -84,111 +81,46 @@ const Logo3D = () => {
 		const time = state.clock.elapsedTime;
 
 		if (meshRef.current) {
-			const targetRotationY = (pointer.x * Math.PI) / 10;
-			const targetRotationX = (-pointer.y * Math.PI) / 14;
+			const targetRotationY = (pointer.x * Math.PI) / 12;
+			const targetRotationX = (-pointer.y * Math.PI) / 16;
 			meshRef.current.rotation.y = THREE.MathUtils.lerp(
 				meshRef.current.rotation.y,
 				targetRotationY,
-				0.08
+				0.06
 			);
 			meshRef.current.rotation.x = THREE.MathUtils.lerp(
 				meshRef.current.rotation.x,
 				targetRotationX,
-				0.08
+				0.06
 			);
-			meshRef.current.rotation.z = Math.sin(time * 0.2) * 0.015;
+			meshRef.current.rotation.z = Math.sin(time * 0.2) * 0.01;
 		}
 
 		if (groupRef.current) {
-			groupRef.current.position.y = yPosition + Math.sin(time * 0.5) * 0.12;
-		}
-
-		// Animated outer glow
-		if (outerGlowRef.current) {
-			const glowIntensity = 0.7 + Math.sin(time * 0.6) * 0.2;
-			outerGlowRef.current.scale.setScalar(1 + Math.sin(time * 0.8) * 0.08);
-			outerGlowRef.current.material.opacity =
-				(theme === 'light' ? 0.25 : 0.4) * glowIntensity;
-		}
-
-		// Animated inner glow
-		if (innerGlowRef.current) {
-			const glowIntensity = 0.8 + Math.sin(time * 0.9) * 0.15;
-			innerGlowRef.current.material.opacity =
-				(theme === 'light' ? 0.18 : 0.3) * glowIntensity;
+			groupRef.current.position.y = yPosition + Math.sin(time * 0.4) * 0.08;
 		}
 	});
 
 	return (
 		<Float
-			speed={1.8}
-			rotationIntensity={0.25}
-			floatIntensity={0.35}
-			floatingRange={[-0.08, 0.08]}
+			speed={1.5}
+			rotationIntensity={0.15}
+			floatIntensity={0.2}
+			floatingRange={[-0.05, 0.05]}
 		>
 			<group ref={groupRef} position={[0, yPosition, 0]}>
 				<group ref={meshRef}>
-					{/* Outer glow layer - larger, softer */}
-					<mesh
-						ref={outerGlowRef}
-						scale={[scale * aspect * 1.6, scale * 1.6, 1]}
-						position={[0, 0, -0.3]}
-						renderOrder={7}
-					>
-						<planeGeometry />
-						<meshBasicMaterial
-							transparent
-							opacity={theme === 'light' ? 0.25 : 0.4}
-							color={theme === 'light' ? '#8b5cf6' : '#38bdf8'}
-							blending={THREE.AdditiveBlending}
-							depthTest={false}
-						/>
-					</mesh>
-
-					{/* Inner glow layer - tighter, brighter */}
-					<mesh
-						ref={innerGlowRef}
-						scale={[scale * aspect * 1.25, scale * 1.25, 1]}
-						position={[0, 0, -0.2]}
-						renderOrder={8}
-					>
-						<planeGeometry />
-						<meshBasicMaterial
-							transparent
-							opacity={theme === 'light' ? 0.18 : 0.3}
-							color={theme === 'light' ? '#a78bfa' : '#60a5fa'}
-							blending={THREE.AdditiveBlending}
-							depthTest={false}
-						/>
-					</mesh>
-
-					{/* Rim light effect */}
-					<mesh
-						scale={[scale * aspect * 1.08, scale * 1.08, 1]}
-						position={[0, 0, -0.1]}
-						renderOrder={9}
-					>
-						<planeGeometry />
-						<meshBasicMaterial
-							transparent
-							opacity={theme === 'light' ? 0.1 : 0.15}
-							color={theme === 'light' ? '#ec4899' : '#818cf8'}
-							blending={THREE.AdditiveBlending}
-							depthTest={false}
-						/>
-					</mesh>
-
-					{/* Main logo mesh - fully transparent background */}
+					{/* Clean logo - no glow layers */}
 					<mesh scale={[scale * aspect, scale, 1]} renderOrder={10}>
 						<planeGeometry />
 						<meshBasicMaterial
 							map={texture}
 							transparent={true}
-							alphaTest={0.1} // Higher alpha test to remove background completely
+							alphaTest={0.1}
 							side={THREE.DoubleSide}
 							depthTest={false}
 							depthWrite={false}
-							opacity={1.0} // Full opacity for the logo itself
+							opacity={1.0}
 						/>
 					</mesh>
 				</group>
@@ -488,14 +420,15 @@ const Background3D = () => {
 		};
 	}, [theme]);
 
+	// Adjusted camera position to account for lowered logo
 	const cameraConfig = useMemo(() => {
 		switch (breakpoint) {
 			case 'mobile':
-				return { position: [0, 3, 16], fov: 60 };
+				return { position: [0, 1.5, 16], fov: 60 }; // Lowered from [0, 3, 16]
 			case 'tablet':
-				return { position: [0, 3.5, 14], fov: 56 };
+				return { position: [0, 2, 14], fov: 56 }; // Lowered from [0, 3.5, 14]
 			default:
-				return { position: [0, 4, 13], fov: 52 };
+				return { position: [0, 2.5, 13], fov: 52 }; // Lowered from [0, 4, 13]
 		}
 	}, [breakpoint]);
 
@@ -528,13 +461,13 @@ const Background3D = () => {
 					}}
 					style={{ pointerEvents: 'auto' }}
 					gl={{
-						antialias: true, // Re-enabled for sharper logo
+						antialias: true,
 						alpha: true,
-						powerPreference: 'high-performance', // Changed for better rendering
-						toneMapping: THREE.ACESFilmicToneMapping, // Re-enabled for better colors
+						powerPreference: 'high-performance',
+						toneMapping: THREE.ACESFilmicToneMapping,
 						toneMappingExposure: theme === 'light' ? 1.1 : 1.3,
 					}}
-					dpr={[1, 2]} // Increased for sharper rendering
+					dpr={[1, 2]}
 					frameloop="always"
 				>
 					<PerformanceMonitor
