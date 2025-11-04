@@ -44,7 +44,7 @@ const useResponsive = () => {
 	return breakpoint;
 };
 
-// Lighter 3D Logo
+// Optimized 3D Logo
 const Logo3D = () => {
 	const meshRef = useRef();
 	const groupRef = useRef();
@@ -57,7 +57,7 @@ const Logo3D = () => {
 	useEffect(() => {
 		if (!texture) return;
 		texture.colorSpace = THREE.SRGBColorSpace;
-		texture.anisotropy = gl.capabilities.getMaxAnisotropy?.() || 8; // Reduced anisotropy
+		texture.anisotropy = gl.capabilities.getMaxAnisotropy?.() || 8;
 		texture.minFilter = THREE.LinearMipmapLinearFilter;
 		texture.magFilter = THREE.LinearFilter;
 		texture.generateMipmaps = true;
@@ -66,7 +66,6 @@ const Logo3D = () => {
 
 	const aspect = texture?.image ? texture.image.width / texture.image.height : 1;
 
-	// Responsive scale and position
 	const { scale, yPosition } = useMemo(() => {
 		switch (breakpoint) {
 			case 'mobile':
@@ -117,7 +116,7 @@ const Logo3D = () => {
 		>
 			<group ref={groupRef} position={[0, yPosition, 0]}>
 				<group ref={meshRef}>
-					{/* Simplified single glow layer */}
+					{/* Glow layer */}
 					<mesh
 						ref={glowRef}
 						scale={[scale * aspect * 1.3, scale * 1.3, 1]}
@@ -155,7 +154,7 @@ const Logo3D = () => {
 	);
 };
 
-// Lighter wave mesh
+// Optimized wave mesh
 const WaveMesh = ({ segments }) => {
 	const meshRef = useRef();
 	const theme = useTheme();
@@ -189,7 +188,6 @@ const WaveMesh = ({ segments }) => {
 		};
 	}, [theme]);
 
-	// Lighter geometry
 	const geometryArgs = useMemo(() => {
 		const size = breakpoint === 'mobile' ? 100 : 140;
 		return [size, size, segments, segments];
@@ -210,10 +208,10 @@ const WaveMesh = ({ segments }) => {
                     varying vec2 vUv;
                     varying float vElevation;
 
-                    // Simplex noise function (simplified)
                     vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
                     vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
                     vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+                    
                     float snoise(vec2 v) {
                         const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
                         vec2 i  = floor(v + dot(v, C.yy));
@@ -254,12 +252,10 @@ const WaveMesh = ({ segments }) => {
                     varying float vElevation;
                     
                     void main() {
-                        // Simplified grid
                         vec2 grid = abs(fract(vUv * 20.0 - 0.5) - 0.5);
                         float line = min(grid.x, grid.y);
                         float gridPattern = 1.0 - min(line * 2.0, 1.0);
                         
-                        // Simplified colors
                         vec3 baseColor = ${colors.base};
                         vec3 highlightColor = ${colors.highlight};
                         vec3 ambientColor = ${colors.ambient};
@@ -268,7 +264,6 @@ const WaveMesh = ({ segments }) => {
                         vec3 color = mix(ambientColor, baseColor, elevationFactor);
                         color = mix(color, highlightColor, smoothstep(0.6, 1.0, elevationFactor) * 0.5);
                         
-                        // Simplified fade and alpha
                         float centerDist = distance(vUv, vec2(0.5));
                         float edgeFade = 1.0 - smoothstep(0.25, 0.65, centerDist);
                         float verticalGradient = smoothstep(0.1, 0.9, vUv.y) * 0.3;
@@ -283,7 +278,7 @@ const WaveMesh = ({ segments }) => {
 	);
 };
 
-// Lighter particle system
+// Optimized particle system
 const ParticleNebula = ({ count, radius }) => {
 	const ref = useRef();
 	const theme = useTheme();
@@ -343,7 +338,7 @@ const ParticleNebula = ({ count, radius }) => {
 	);
 };
 
-// Lighter dynamic lights
+// Optimized dynamic lights
 const DynamicLights = () => {
 	const spot1 = useRef();
 	const theme = useTheme();
@@ -390,6 +385,7 @@ const DynamicLights = () => {
 	);
 };
 
+// Scene content with adaptive performance
 const SceneContent = ({ perfLevel }) => {
 	const breakpoint = useResponsive();
 
@@ -409,7 +405,6 @@ const SceneContent = ({ perfLevel }) => {
 				particleRadius: 35,
 			};
 		}
-		// High performance
 		return {
 			segments: isMobile ? 80 : 120,
 			particleCount: isMobile ? 1000 : 1800,
@@ -430,7 +425,7 @@ const SceneContent = ({ perfLevel }) => {
 const Background3D = () => {
 	const theme = useTheme();
 	const breakpoint = useResponsive();
-	const [perfLevel, setPerfLevel] = useState('high'); // 'high', 'medium', 'low'
+	const [perfLevel, setPerfLevel] = useState('high');
 
 	const gradients = useMemo(() => {
 		if (theme === 'light') {
@@ -461,14 +456,9 @@ const Background3D = () => {
 		}
 	}, [breakpoint]);
 
-	const onPerfUpdate = (factor) => {
-		if (factor > 0.7) setPerfLevel('high');
-		else if (factor > 0.4) setPerfLevel('medium');
-		else setPerfLevel('low');
-	};
-
 	return (
 		<div className="fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+			{/* Base gradient */}
 			<div
 				className="absolute inset-0 transition-all duration-700 ease-in-out"
 				style={{
@@ -478,6 +468,8 @@ const Background3D = () => {
 							: 'linear-gradient(to bottom, #030712, #0f172a)',
 				}}
 			/>
+
+			{/* Radial gradient overlay */}
 			<div
 				className="absolute inset-0 opacity-100 transition-opacity duration-700"
 				style={{ background: gradients.radial1 }}
@@ -493,13 +485,13 @@ const Background3D = () => {
 					}}
 					style={{ pointerEvents: 'auto' }}
 					gl={{
-						antialias: false, // Disabled for performance
+						antialias: false,
 						alpha: true,
-						powerPreference: 'low-power', // Changed for broader compatibility
-						toneMapping: THREE.NoToneMapping, // Disabled for performance
+						powerPreference: 'low-power',
+						toneMapping: THREE.NoToneMapping,
 					}}
-					dpr={[1, 1.5]} // Capped DPR at 1.5
-					frameloop="demand" // Render only when needed
+					dpr={[1, 1.5]}
+					frameloop="always"
 				>
 					<PerformanceMonitor
 						onIncline={() => setPerfLevel('high')}
@@ -514,10 +506,13 @@ const Background3D = () => {
 				</Canvas>
 			</Suspense>
 
+			{/* Bottom fade */}
 			<div
 				className="absolute inset-x-0 bottom-0 h-[25rem] pointer-events-none transition-all duration-700"
 				style={{ background: gradients.bottomFade }}
 			/>
+
+			{/* Top fade */}
 			<div
 				className="absolute inset-x-0 top-0 h-40 pointer-events-none transition-all duration-700"
 				style={{
