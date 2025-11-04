@@ -68,11 +68,11 @@ const Logo3D = () => {
 	const { scale, yPosition } = useMemo(() => {
 		switch (breakpoint) {
 			case 'mobile':
-				return { scale: 3.5, yPosition: 0.5 }; // Lowered from 2.0
+				return { scale: 3.5, yPosition: 0.5 };
 			case 'tablet':
-				return { scale: 4.5, yPosition: 0.8 }; // Lowered from 2.5
+				return { scale: 4.5, yPosition: 0.8 };
 			default:
-				return { scale: 6.0, yPosition: 1.0 }; // Lowered from 3.0
+				return { scale: 6.0, yPosition: 1.0 };
 		}
 	}, [breakpoint]);
 
@@ -129,7 +129,7 @@ const Logo3D = () => {
 	);
 };
 
-// Optimized wave mesh
+// Optimized wave mesh with improved theme colors
 const WaveMesh = ({ segments }) => {
 	const meshRef = useRef();
 	const theme = useTheme();
@@ -148,18 +148,23 @@ const WaveMesh = ({ segments }) => {
 		uniforms.uTime.value = state.clock.elapsedTime * 0.7;
 	});
 
+	// Enhanced color palette for both themes
 	const colors = useMemo(() => {
 		if (theme === 'light') {
 			return {
-				base: 'vec3(0.65, 0.70, 0.99)',
-				highlight: 'vec3(0.40, 0.85, 0.99)',
-				ambient: 'vec3(0.88, 0.90, 0.99)',
+				// Light theme: Soft, elegant purples and blues
+				base: 'vec3(0.72, 0.67, 0.95)', // Soft lavender
+				highlight: 'vec3(0.45, 0.75, 0.98)', // Sky blue
+				ambient: 'vec3(0.91, 0.89, 0.99)', // Very light purple
+				accent: 'vec3(0.62, 0.52, 0.93)', // Medium purple
 			};
 		}
 		return {
-			base: 'vec3(0.14, 0.26, 0.56)',
-			highlight: 'vec3(0.30, 0.78, 0.98)',
-			ambient: 'vec3(0.10, 0.19, 0.46)',
+			// Dark theme: Deep, rich blues with cyan accents
+			base: 'vec3(0.12, 0.22, 0.45)', // Deep blue
+			highlight: 'vec3(0.22, 0.68, 0.90)', // Bright cyan
+			ambient: 'vec3(0.08, 0.14, 0.32)', // Very dark blue
+			accent: 'vec3(0.38, 0.55, 0.95)', // Electric blue
 		};
 	}, [theme]);
 
@@ -234,18 +239,22 @@ const WaveMesh = ({ segments }) => {
                         vec3 baseColor = ${colors.base};
                         vec3 highlightColor = ${colors.highlight};
                         vec3 ambientColor = ${colors.ambient};
+                        vec3 accentColor = ${colors.accent};
                         
                         float elevationFactor = clamp(vElevation * 0.5 + 0.5, 0.0, 1.0);
-                        vec3 color = mix(ambientColor, baseColor, elevationFactor);
-                        color = mix(color, highlightColor, smoothstep(0.6, 1.0, elevationFactor) * 0.5);
+                        
+                        // Smooth color transitions
+                        vec3 color = mix(ambientColor, baseColor, smoothstep(0.0, 0.6, elevationFactor));
+                        color = mix(color, accentColor, smoothstep(0.4, 0.7, elevationFactor) * 0.6);
+                        color = mix(color, highlightColor, smoothstep(0.6, 1.0, elevationFactor) * 0.7);
                         
                         float centerDist = distance(vUv, vec2(0.5));
                         float edgeFade = 1.0 - smoothstep(0.25, 0.65, centerDist);
-                        float verticalGradient = smoothstep(0.1, 0.9, vUv.y) * 0.3;
+                        float verticalGradient = smoothstep(0.1, 0.9, vUv.y) * 0.35;
                         
-                        float alpha = gridPattern * edgeFade * (0.3 + verticalGradient);
+                        float alpha = gridPattern * edgeFade * (0.35 + verticalGradient);
                         
-                        gl_FragColor = vec4(color, alpha * 0.8);
+                        gl_FragColor = vec4(color, alpha * 0.85);
                     }
                 `}
 			/>
@@ -253,7 +262,7 @@ const WaveMesh = ({ segments }) => {
 	);
 };
 
-// Optimized particle system
+// Optimized particle system with improved theme colors
 const ParticleNebula = ({ count, radius }) => {
 	const ref = useRef();
 	const theme = useTheme();
@@ -282,7 +291,8 @@ const ParticleNebula = ({ count, radius }) => {
 		ref.current.rotation.x += delta * 0.01;
 	});
 
-	const color = useMemo(() => (theme === 'light' ? '#a78bfa' : '#60a5fa'), [theme]);
+	// Improved particle colors
+	const color = useMemo(() => (theme === 'light' ? '#9f7aea' : '#38bdf8'), [theme]);
 
 	return (
 		<points ref={ref}>
@@ -304,7 +314,7 @@ const ParticleNebula = ({ count, radius }) => {
 				size={0.025}
 				transparent
 				color={color}
-				opacity={theme === 'light' ? 0.5 : 0.65}
+				opacity={theme === 'light' ? 0.55 : 0.7}
 				sizeAttenuation
 				blending={THREE.AdditiveBlending}
 				depthWrite={false}
@@ -313,30 +323,37 @@ const ParticleNebula = ({ count, radius }) => {
 	);
 };
 
-// Optimized dynamic lights
+// Optimized dynamic lights with improved theme colors
 const DynamicLights = () => {
 	const spot1 = useRef();
+	const spot2 = useRef();
 	const theme = useTheme();
 
 	useFrame((state) => {
 		const time = state.clock.elapsedTime;
 		if (spot1.current) {
-			spot1.current.intensity = (theme === 'light' ? 1.5 : 1.8) + Math.sin(time * 0.5) * 0.3;
+			spot1.current.intensity = (theme === 'light' ? 1.6 : 2.0) + Math.sin(time * 0.5) * 0.3;
+			spot1.current.position.x = Math.sin(time * 0.3) * 3;
+		}
+		if (spot2.current) {
+			spot2.current.intensity = (theme === 'light' ? 1.2 : 1.5) + Math.cos(time * 0.4) * 0.2;
 		}
 	});
 
 	const lightColors = useMemo(() => {
 		if (theme === 'light') {
 			return {
-				hemisphere: { sky: '#8b5cf6', ground: '#fde68a' },
-				ambient: 0.8,
-				spot1: '#818cf8',
+				hemisphere: { sky: '#8b5cf6', ground: '#fcd34d' }, // Purple sky, golden ground
+				ambient: 0.9,
+				spot1: '#7c3aed', // Rich purple
+				spot2: '#3b82f6', // Bright blue
 			};
 		}
 		return {
-			hemisphere: { sky: '#38bdf8', ground: '#0c4a6e' },
-			ambient: 0.5,
-			spot1: '#818cf8',
+			hemisphere: { sky: '#0ea5e9', ground: '#0c4a6e' }, // Cyan sky, deep blue ground
+			ambient: 0.6,
+			spot1: '#06b6d4', // Cyan
+			spot2: '#6366f1', // Indigo
 		};
 	}, [theme]);
 
@@ -346,15 +363,23 @@ const DynamicLights = () => {
 			<hemisphereLight
 				skyColor={lightColors.hemisphere.sky}
 				groundColor={lightColors.hemisphere.ground}
-				intensity={theme === 'light' ? 1.0 : 0.7}
+				intensity={theme === 'light' ? 1.2 : 0.8}
 			/>
 			<spotLight
 				ref={spot1}
 				position={[0, 15, 10]}
 				angle={0.4}
 				penumbra={1}
-				intensity={theme === 'light' ? 1.5 : 1.8}
+				intensity={theme === 'light' ? 1.6 : 2.0}
 				color={lightColors.spot1}
+			/>
+			<spotLight
+				ref={spot2}
+				position={[-8, 12, -5]}
+				angle={0.35}
+				penumbra={1}
+				intensity={theme === 'light' ? 1.2 : 1.5}
+				color={lightColors.spot2}
 			/>
 		</>
 	);
@@ -402,21 +427,31 @@ const Background3D = () => {
 	const breakpoint = useResponsive();
 	const [perfLevel, setPerfLevel] = useState('high');
 
+	// Enhanced gradient colors for both themes
 	const gradients = useMemo(() => {
 		if (theme === 'light') {
 			return {
 				radial1:
-					'radial-gradient(ellipse 80% 70% at 50% 30%, rgba(139,92,246,.15), transparent)',
-				fog: '#f3e8ff',
+					'radial-gradient(ellipse 85% 75% at 50% 35%, rgba(139,92,246,.18), transparent)', // Purple glow
+				radial2:
+					'radial-gradient(circle at 20% 80%, rgba(59,130,246,.12), transparent 60%)', // Blue accent
+				radial3:
+					'radial-gradient(circle at 80% 20%, rgba(236,72,153,.08), transparent 55%)', // Pink accent
+				fog: '#f5f3ff', // Very light purple
 				bottomFade:
-					'linear-gradient(to top, rgba(255,255,255,0.98), rgba(255,255,255,0.8), transparent)',
+					'linear-gradient(to top, rgba(255,255,255,0.95), rgba(249,245,255,0.85), transparent)',
+				topFade: 'linear-gradient(to bottom, rgba(255,255,255,0.9), transparent)',
 			};
 		}
 		return {
 			radial1:
-				'radial-gradient(ellipse 80% 70% at 50% 30%, rgba(129,140,248,.2), transparent)',
-			fog: '#0f172a',
-			bottomFade: 'linear-gradient(to top, rgba(3,7,18,0.98), rgba(3,7,18,0.9), transparent)',
+				'radial-gradient(ellipse 85% 75% at 50% 35%, rgba(14,165,233,.22), transparent)', // Cyan glow
+			radial2: 'radial-gradient(circle at 20% 80%, rgba(99,102,241,.15), transparent 60%)', // Indigo accent
+			radial3: 'radial-gradient(circle at 80% 20%, rgba(6,182,212,.12), transparent 55%)', // Cyan accent
+			fog: '#0a1929', // Deep navy
+			bottomFade:
+				'linear-gradient(to top, rgba(3,7,18,0.98), rgba(10,25,41,0.92), transparent)',
+			topFade: 'linear-gradient(to bottom, rgba(3,7,18,0.85), transparent)',
 		};
 	}, [theme]);
 
@@ -424,31 +459,48 @@ const Background3D = () => {
 	const cameraConfig = useMemo(() => {
 		switch (breakpoint) {
 			case 'mobile':
-				return { position: [0, 1.5, 16], fov: 60 }; // Lowered from [0, 3, 16]
+				return { position: [0, 1.5, 16], fov: 60 };
 			case 'tablet':
-				return { position: [0, 2, 14], fov: 56 }; // Lowered from [0, 3.5, 14]
+				return { position: [0, 2, 14], fov: 56 };
 			default:
-				return { position: [0, 2.5, 13], fov: 52 }; // Lowered from [0, 4, 13]
+				return { position: [0, 2.5, 13], fov: 52 };
 		}
 	}, [breakpoint]);
 
 	return (
 		<div className="fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
-			{/* Base gradient */}
+			{/* Enhanced base gradient */}
 			<div
 				className="absolute inset-0 transition-all duration-700 ease-in-out"
 				style={{
 					background:
 						theme === 'light'
-							? 'linear-gradient(to bottom, #ffffff, #f3e8ff)'
-							: 'linear-gradient(to bottom, #030712, #0f172a)',
+							? 'linear-gradient(to bottom, #ffffff 0%, #faf5ff 35%, #f3e8ff 70%, #ede9fe 100%)'
+							: 'linear-gradient(to bottom, #030712 0%, #0a1929 35%, #0f1f3d 70%, #1e293b 100%)',
 				}}
 			/>
 
-			{/* Radial gradient overlay */}
+			{/* Multiple radial gradient overlays for depth */}
 			<div
 				className="absolute inset-0 opacity-100 transition-opacity duration-700"
 				style={{ background: gradients.radial1 }}
+			/>
+			<div
+				className="absolute inset-0 opacity-100 transition-opacity duration-700"
+				style={{ background: gradients.radial2 }}
+			/>
+			<div
+				className="absolute inset-0 opacity-100 transition-opacity duration-700"
+				style={{ background: gradients.radial3 }}
+			/>
+
+			{/* Subtle noise texture for depth */}
+			<div
+				className="absolute inset-0 opacity-[0.02] mix-blend-soft-light pointer-events-none"
+				style={{
+					backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+					backgroundSize: '180px 180px',
+				}}
 			/>
 
 			<Suspense fallback={null}>
@@ -465,7 +517,7 @@ const Background3D = () => {
 						alpha: true,
 						powerPreference: 'high-performance',
 						toneMapping: THREE.ACESFilmicToneMapping,
-						toneMappingExposure: theme === 'light' ? 1.1 : 1.3,
+						toneMappingExposure: theme === 'light' ? 1.15 : 1.35,
 					}}
 					dpr={[1, 2]}
 					frameloop="always"
@@ -483,21 +535,16 @@ const Background3D = () => {
 				</Canvas>
 			</Suspense>
 
-			{/* Bottom fade */}
+			{/* Enhanced bottom fade */}
 			<div
-				className="absolute inset-x-0 bottom-0 h-[25rem] pointer-events-none transition-all duration-700"
+				className="absolute inset-x-0 bottom-0 h-[28rem] pointer-events-none transition-all duration-700"
 				style={{ background: gradients.bottomFade }}
 			/>
 
-			{/* Top fade */}
+			{/* Enhanced top fade */}
 			<div
-				className="absolute inset-x-0 top-0 h-40 pointer-events-none transition-all duration-700"
-				style={{
-					background:
-						theme === 'light'
-							? 'linear-gradient(to bottom, rgba(255,255,255,0.8), transparent)'
-							: 'linear-gradient(to bottom, rgba(3,7,18,0.7), transparent)',
-				}}
+				className="absolute inset-x-0 top-0 h-48 pointer-events-none transition-all duration-700"
+				style={{ background: gradients.topFade }}
 			/>
 		</div>
 	);
