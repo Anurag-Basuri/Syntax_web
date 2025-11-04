@@ -4,10 +4,14 @@ import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import logo from '../assets/logo.png';
 
+useTexture.preload?.(logo);
+
 // --- Hooks & Helpers ---
 const useTheme = () => {
 	const [theme, setTheme] = React.useState(
-		document.documentElement.getAttribute('data-theme') || 'dark'
+		typeof document !== 'undefined'
+			? document.documentElement.getAttribute('data-theme') || 'dark'
+			: 'dark'
 	);
 	useEffect(() => {
 		const observer = new MutationObserver(() => {
@@ -39,25 +43,40 @@ const useResponsive = () => {
 };
 
 const readCssVar = (name) =>
-	getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#000';
+	typeof document !== 'undefined'
+		? getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#000'
+		: '#000';
+
+const isWebGLAvailable = () => {
+	try {
+		const canvas = document.createElement('canvas');
+		return !!(canvas.getContext('webgl2') || canvas.getContext('webgl'));
+	} catch {
+		return false;
+	}
+};
 
 // --- R3F Scene Components ---
 
-// Faint, animated grid inspired by Next.js (valid THREE.Color inputs)
+// Faint, anti-aliased animated grid (Next.js vibe)
 const Grid = ({ theme }) => {
+	const prefersReduced = useMemo(
+		() => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+		[]
+	);
 	const uniforms = useMemo(() => {
 		const isLight = theme === 'light';
-		// Use solid hex colors; alpha is controlled via fragment shader
-		const gridHex = isLight ? '#0f172a' /* slate-900 */ : '#cbd5e1'; /* slate-300 */
+		const gridHex = isLight ? '#0f172a' : '#cbd5e1';
 		return {
 			uTime: { value: 0 },
 			uGridColor: { value: new THREE.Color(gridHex) },
 			uGridSize: { value: 36.0 },
 			uFadeDistance: { value: 0.65 },
 			uFadeSharpness: { value: 0.8 },
-			uAlpha: { value: isLight ? 0.22 : 0.18 }, // overall opacity control
+			uAlpha: { value: isLight ? 0.22 : 0.2 }, // slightly increased for visibility
+			uSpeed: { value: prefersReduced ? 0.0 : 0.01 },
 		};
-	}, [theme]);
+	}, [theme, prefersReduced]);
 
 	useFrame((state) => {
 		uniforms.uTime.value = state.clock.elapsedTime;
@@ -68,6 +87,7 @@ const Grid = ({ theme }) => {
 			<planeGeometry args={[500, 500, 1, 1]} />
 			<shaderMaterial
 				transparent
+				extensions={{ derivatives: true }}
 				uniforms={uniforms}
 				vertexShader={`
           varying vec3 vWorldPosition;
@@ -77,31 +97,38 @@ const Grid = ({ theme }) => {
           }
         `}
 				fragmentShader={`
+          #ifdef GL_OES_standard_derivatives
+          #extension GL_OES_standard_derivatives : enable
+          #endif
+
           uniform float uTime;
-          uniform vec3 uGridColor;
+          uniform vec3  uGridColor;
           uniform float uGridSize;
           uniform float uFadeDistance;
           uniform float uFadeSharpness;
           uniform float uAlpha;
+          uniform float uSpeed;
           varying vec3 vWorldPosition;
 
-          float line(float v) {
-            return smoothstep(0.0, 0.02, abs(fract(v) - 0.5) * 2.0);
+          float aafLine(float v, float width){
+            float dv = fwidth(v);
+            return 1.0 - smoothstep(0.5 - width - dv, 0.5 + width + dv, abs(fract(v) - 0.5));
           }
 
           void main() {
-            vec2 gridUv = vWorldPosition.xz / uGridSize;
-            gridUv.y += uTime * 0.01; // Slow scroll
+            vec2 uv = vWorldPosition.xz / uGridSize;
+            uv.y += uTime * uSpeed;
 
-            float gridX = line(gridUv.x);
-            float gridY = line(gridUv.y);
-            float grid = 1.0 - min(gridX, gridY);
+            float gx = aafLine(uv.x, 0.015);
+            float gy = aafLine(uv.y, 0.015);
+            float grid = max(gx, gy);
 
             float dist = length(vWorldPosition.xz);
             float fade = 1.0 - smoothstep(uFadeDistance, uFadeDistance + uFadeSharpness, dist / 100.0);
 
             vec3 color = uGridColor;
             float alpha = grid * fade * uAlpha;
+            if (alpha <= 0.001) discard;
             gl_FragColor = vec4(color, alpha);
           }
         `}
@@ -110,44 +137,79 @@ const Grid = ({ theme }) => {
 	);
 };
 
-// Soft accent glows
-const Glows = ({ theme }) => {
-	const accent1 = useMemo(() => new THREE.Color(readCssVar('--accent-1')), [theme]);
-	const accent2 = useMemo(() => new THREE.Color(readCssVar('--accent-2')), [theme]);
-	const isLight = theme === 'light';
+// Radial glow shaders (cleaner than flat planes)
+const RadialGlow = ({
+	position = [0, 0, -30],
+	size = [120, 120],
+	color = '#fff',
+	opacity = 0.1,
+}) => {
+	const uniforms = useMemo(
+		() => ({
+			uColor: { value: new THREE.Color(color) },
+			uOpacity: { value: opacity },
+		}),
+		[color, opacity]
+	);
 
 	return (
+		<mesh position={position} renderOrder={-3}>
+			<planeGeometry args={size} />
+			<shaderMaterial
+				transparent
+				blending={THREE.AdditiveBlending}
+				depthWrite={false}
+				uniforms={uniforms}
+				vertexShader={`
+          varying vec2 vUv;
+          void main(){
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `}
+				fragmentShader={`
+          uniform vec3 uColor;
+          uniform float uOpacity;
+          varying vec2 vUv;
+          void main(){
+            vec2 p = vUv - 0.5;
+            float d = length(p) * 2.0;
+            float a = smoothstep(1.0, 0.0, d); // center bright, soft edge
+            gl_FragColor = vec4(uColor, a * uOpacity);
+          }
+        `}
+			/>
+		</mesh>
+	);
+};
+
+const Glows = ({ theme }) => {
+	const accent1 = useMemo(() => readCssVar('--accent-1'), [theme]);
+	const accent2 = useMemo(() => readCssVar('--accent-2'), [theme]);
+	const isLight = theme === 'light';
+	return (
 		<>
-			{/* Main spotlight */}
-			<mesh position={[0, 0, -25]} renderOrder={-3}>
-				<planeGeometry args={[120, 120]} />
-				<meshBasicMaterial
-					transparent
-					color={accent1}
-					opacity={isLight ? 0.12 : 0.14}
-					blending={THREE.AdditiveBlending}
-					depthWrite={false}
-				/>
-			</mesh>
-			{/* Secondary aura */}
-			<mesh position={[40, 10, -35]} renderOrder={-4}>
-				<planeGeometry args={[150, 150]} />
-				<meshBasicMaterial
-					transparent
-					color={accent2}
-					opacity={isLight ? 0.07 : 0.09}
-					blending={THREE.AdditiveBlending}
-					depthWrite={false}
-				/>
-			</mesh>
+			<RadialGlow
+				position={[0, 5, -28]}
+				size={[140, 140]}
+				color={accent1}
+				opacity={isLight ? 0.14 : 0.16}
+			/>
+			<RadialGlow
+				position={[42, 12, -36]}
+				size={[180, 180]}
+				color={accent2}
+				opacity={isLight ? 0.08 : 0.1}
+			/>
 		</>
 	);
 };
 
-// Subtle, blended logo with parallax (fades in when texture ready)
+// Subtle, blended logo with parallax (fades in when texture ready, preserves aspect)
 const SubtleLogo = ({ breakpoint }) => {
 	const ref = useRef();
 	const [opacity, setOpacity] = useState(0);
+	const [aspect, setAspect] = useState(1);
 	const texture = useTexture(logo);
 	const theme = useTheme();
 	const isLight = theme === 'light';
@@ -156,13 +218,17 @@ const SubtleLogo = ({ breakpoint }) => {
 		if (!texture) return;
 		texture.colorSpace = THREE.SRGBColorSpace;
 		texture.anisotropy = 4;
+		if (texture.image?.width && texture.image?.height) {
+			setAspect(texture.image.width / texture.image.height);
+		}
+		// fade-in target opacity
 		setOpacity(isLight ? 0.06 : 0.08);
 	}, [texture, isLight]);
 
-	const { scale } = useMemo(() => {
-		const scaleFactor = breakpoint === 'mobile' ? 14 : breakpoint === 'tablet' ? 18 : 22;
-		return { scale: scaleFactor };
-	}, [breakpoint]);
+	const scale = useMemo(
+		() => (breakpoint === 'mobile' ? 14 : breakpoint === 'tablet' ? 18 : 22),
+		[breakpoint]
+	);
 
 	useFrame((state) => {
 		if (!ref.current) return;
@@ -170,7 +236,6 @@ const SubtleLogo = ({ breakpoint }) => {
 		const t = state.clock.elapsedTime;
 		const strength = breakpoint === 'mobile' ? 0.2 : 0.4;
 
-		// Parallax
 		ref.current.position.x = THREE.MathUtils.lerp(
 			ref.current.position.x,
 			pointer.x * strength,
@@ -181,35 +246,38 @@ const SubtleLogo = ({ breakpoint }) => {
 			pointer.y * strength,
 			0.1
 		);
-
-		// Gentle float
 		ref.current.position.z = -15 + Math.sin(t * 0.3) * 0.2;
 	});
 
 	return (
-		<mesh ref={ref} position={[0, 0, -15]} scale={scale} renderOrder={-1}>
+		<mesh ref={ref} position={[0, 0, -15]} scale={[scale * aspect, scale, 1]} renderOrder={-1}>
 			<planeGeometry args={[1, 1]} />
 			<meshBasicMaterial
 				map={texture}
 				transparent
 				alphaTest={0.1}
 				opacity={opacity}
-				blending={isLight ? THREE.MultiplyBlending : THREE.AdditiveBlending}
+				blending={THREE.NormalBlending}
 				depthWrite={false}
 			/>
 		</mesh>
 	);
 };
 
-// Main component orchestrator
+// Main component orchestrator with fallback + ready fade
 const Background3D = () => {
 	const theme = useTheme();
 	const breakpoint = useResponsive();
 
-	const [ready, setReady] = useState(false); // first-frame readiness
+	const [webglOk, setWebglOk] = useState(true);
+	const [ctxLost, setCtxLost] = useState(false);
+	const [ready, setReady] = useState(false);
+
 	useEffect(() => {
-		// safety timeout to ensure we don't hang on blank if something fails
-		const t = setTimeout(() => setReady(true), 800);
+		// Check WebGL support
+		setWebglOk(isWebGLAvailable());
+		// Safety timeout so we never hang invisible
+		const t = setTimeout(() => setReady(true), 700);
 		return () => clearTimeout(t);
 	}, []);
 
@@ -222,9 +290,14 @@ const Background3D = () => {
 		}
 	}, [breakpoint]);
 
-	// Base gradient always visible (prevents “blank” while WebGL warms up)
+	// Base gradient always visible (prevents “blank”)
 	const baseGradient =
 		'radial-gradient(ellipse 120% 70% at 50% -15%, var(--bg-soft) 0%, var(--bg-base) 60%)';
+
+	const showFallback = !webglOk || ctxLost;
+
+	// Opacity for CSS preview (always under Canvas). Fades once first frame is ready.
+	const cssPreviewOpacity = showFallback ? 0.9 : ready ? 0.25 : 0.6;
 
 	return (
 		<div
@@ -232,39 +305,73 @@ const Background3D = () => {
 			aria-hidden="true"
 			style={{ background: baseGradient }}
 		>
-			{/* Canvas sits above base gradient; clear color is transparent */}
-			<Canvas
-				camera={cameraConfig}
-				style={{ position: 'absolute', inset: 0 }}
-				gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-				dpr={[1, 1.5]}
-				onCreated={({ gl }) => {
-					gl.setClearColor(0x000000, 0); // transparent, so base gradient shows through
-					// Mark ready on first raf
-					requestAnimationFrame(() => setReady(true));
-				}}
-			>
-				{/* Render non-async components immediately */}
-				<Glows theme={theme} />
-				<Grid theme={theme} />
-
-				{/* Suspend only the component that loads assets */}
-				<Suspense fallback={null}>
-					<SubtleLogo breakpoint={breakpoint} />
-				</Suspense>
-			</Canvas>
-
-			{/* Gentle entrance cover to avoid pop-in (fades away once ready) */}
+			{/* Always-on CSS preview under Canvas: instant paint, then soft fade */}
 			<div
-				className="absolute inset-0 transition-opacity duration-500 ease-out pointer-events-none"
-				style={{
-					background:
-						'radial-gradient(900px 600px at 50% 0%, color-mix(in srgb, var(--accent-1) 8%, transparent), transparent 65%)',
-					opacity: ready ? 0 : 1,
-				}}
-			/>
+				className="absolute inset-0 pointer-events-none transition-opacity duration-500 ease-out"
+				style={{ opacity: cssPreviewOpacity }}
+			>
+				<div
+					className="absolute inset-0"
+					style={{
+						background:
+							'radial-gradient(900px 600px at 50% 0%, color-mix(in srgb, var(--accent-1) 10%, transparent), transparent 65%)',
+					}}
+				/>
+				<div
+					className="absolute inset-0 pointer-events-none animate-grid-flow"
+					style={{
+						backgroundImage: `
+                            linear-gradient(to right, ${
+								theme === 'light'
+									? 'rgba(15, 23, 42, 0.06)'
+									: 'rgba(241, 245, 249, 0.06)'
+							} 1px, transparent 1px),
+                            linear-gradient(to bottom, ${
+								theme === 'light'
+									? 'rgba(15, 23, 42, 0.06)'
+									: 'rgba(241, 245, 249, 0.06)'
+							} 1px, transparent 1px)
+                        `,
+						backgroundSize: '36px 36px',
+						maskImage:
+							'radial-gradient(ellipse 80% 65% at 50% -10%, black 25%, transparent 85%)',
+						WebkitMaskImage:
+							'radial-gradient(ellipse 80% 65% at 50% -10%, black 25%, transparent 85%)',
+					}}
+				/>
+			</div>
 
-			{/* Bottom fade and noise overlay (very subtle, non-blocking) */}
+			{/* WebGL scene (on top of CSS preview). If WebGL unavailable, CSS preview remains. */}
+			{!showFallback && (
+				<Canvas
+					camera={cameraConfig}
+					style={{ position: 'absolute', inset: 0 }}
+					gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+					dpr={[1, Math.min(1.5, window.devicePixelRatio || 1)]}
+					onCreated={({ gl }) => {
+						gl.setClearColor(0x000000, 0); // transparent
+						gl.outputColorSpace = THREE.SRGBColorSpace;
+						// mark ready on first frame
+						requestAnimationFrame(() => setReady(true));
+						const el = gl.domElement;
+						const onLost = (e) => {
+							e.preventDefault();
+							setCtxLost(true);
+						};
+						const onRestored = () => setCtxLost(false);
+						el.addEventListener('webglcontextlost', onLost, { passive: false });
+						el.addEventListener('webglcontextrestored', onRestored, { passive: true });
+					}}
+				>
+					<Glows theme={theme} />
+					<Grid theme={theme} />
+					<Suspense fallback={null}>
+						<SubtleLogo breakpoint={breakpoint} />
+					</Suspense>
+				</Canvas>
+			)}
+
+			{/* Bottom fade and noise overlay */}
 			<div
 				className="absolute inset-x-0 bottom-0 h-56 pointer-events-none"
 				style={{
