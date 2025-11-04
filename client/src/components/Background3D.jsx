@@ -51,14 +51,16 @@ const useResponsive = () => {
 };
 
 // Enhanced 3D Logo with improved visibility, animations and cleaner structure
-const Logo3D = () => {
+const Logo3D = ({ perfLevel }) => {
 	const meshRef = useRef();
 	const groupRef = useRef();
 	const materialRef = useRef();
 	const texture = useTexture(logo);
-	const { gl, viewport } = useThree();
+	const { gl } = useThree();
 	const breakpoint = useResponsive();
 	const theme = useTheme();
+
+	const isLowPerf = perfLevel === 'low';
 
 	// Enhanced texture setup
 	useEffect(() => {
@@ -90,6 +92,8 @@ const Logo3D = () => {
 
 	// Enhanced animation frame with smoother effects
 	useFrame((state) => {
+		if (isLowPerf) return;
+
 		const pointer = state.pointer ?? { x: 0, y: 0 };
 		const t = state.clock.elapsedTime;
 		const dt = state.clock.getDelta();
@@ -153,12 +157,30 @@ const Logo3D = () => {
 		[texture, opacity, theme]
 	);
 
+	if (isLowPerf) {
+		return (
+			<group position={[0, yPosition, 0]}>
+				<mesh scale={[scale * aspect, scale, 1]}>
+					<planeGeometry />
+					<meshBasicMaterial
+						map={texture}
+						transparent
+						opacity={opacity * 0.8}
+						alphaTest={0.1}
+						side={THREE.DoubleSide}
+						depthWrite={false}
+					/>
+				</mesh>
+			</group>
+		);
+	}
+
 	return (
 		<Float
-			speed={0.8}
-			rotationIntensity={0.05}
-			floatIntensity={0.08}
-			floatingRange={[-0.015, 0.015]}
+			speed={isLowPerf ? 0 : 0.8}
+			rotationIntensity={isLowPerf ? 0 : 0.05}
+			floatIntensity={isLowPerf ? 0 : 0.08}
+			floatingRange={isLowPerf ? [0, 0] : [-0.015, 0.015]}
 		>
 			<group ref={groupRef} position={[0, yPosition, 0]}>
 				<group ref={meshRef}>
@@ -400,7 +422,7 @@ const ParticleField = ({ count, radius }) => {
 		ref.current.rotation.x += delta * 0.005;
 	});
 
-	const color = useMemo(() => getThemeColor('--accent-1'), [theme]);
+	const color = getThemeColor('--accent-1');
 
 	return (
 		<points ref={ref}>
@@ -436,8 +458,8 @@ const SceneLights = () => {
 	const theme = useTheme();
 	const lightRef = useRef();
 
-	const accent1 = useMemo(() => getThemeColor('--accent-1'), [theme]);
-	const accent2 = useMemo(() => getThemeColor('--accent-2'), [theme]);
+	const accent1 = getThemeColor('--accent-1');
+	const accent2 = getThemeColor('--accent-2');
 
 	useFrame((state) => {
 		if (lightRef.current) {
@@ -496,7 +518,7 @@ const SceneContent = ({ perfLevel }) => {
 	return (
 		<>
 			<SceneLights />
-			<Logo3D />
+			<Logo3D perfLevel={perfLevel} />
 			<WireframeMesh segments={segments} />
 			<ParticleField count={particleCount} radius={particleRadius} />
 		</>
