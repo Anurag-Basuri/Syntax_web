@@ -38,13 +38,12 @@ const pathToNavName = (pathname) => {
 	return 'Home';
 };
 
-const Navbar = () => {
+const Navbar = ({ scrollProgress }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [activeLink, setActiveLink] = useState('Home');
 	const { user, isAuthenticated, loading, logoutMember, logoutAdmin } = useAuth();
 	const [isUserOpen, setIsUserOpen] = useState(false);
 	const [elevated, setElevated] = useState(false);
-	const [progress, setProgress] = useState(0);
 	const userRef = useRef(null);
 	const menuButtonRef = useRef(null);
 	const drawerRef = useRef(null);
@@ -59,11 +58,7 @@ const Navbar = () => {
 
 	useEffect(() => {
 		const handleScroll = () => {
-			const currentScrollY = window.scrollY;
-			const doc = document.documentElement;
-			const max = (doc.scrollHeight || 0) - (window.innerHeight || 1);
-			setProgress(Math.min(100, Math.max(0, (currentScrollY / Math.max(1, max)) * 100)));
-			setElevated(currentScrollY > 10);
+			setElevated(window.scrollY > 10);
 		};
 		window.addEventListener('scroll', handleScroll, { passive: true });
 		handleScroll();
@@ -195,7 +190,7 @@ const Navbar = () => {
 			</a>
 
 			<nav role="navigation" aria-label="Primary" className="navbar" data-elevated={elevated}>
-				<div className="navbar-progress-bar" style={{ width: `${progress}%` }} />
+				<div className="navbar-progress-bar" style={{ width: `${scrollProgress}%` }} />
 
 				<div className="navbar-grid">
 					{/* Left Section - Logo */}

@@ -87,27 +87,14 @@ function App() {
 				}}
 			/>
 
-			{!hideNavbar && (
-				<header className={`nav-shell ${showNavbar ? 'show' : 'hide'}`}>
-					{/* Progress bar */}
-					<div
-						className="absolute top-0 left-0 h-[2px] transition-all duration-300"
-						style={{
-							width: `${scrollProgress}%`,
-							background: 'linear-gradient(90deg, var(--accent-1), var(--accent-2))',
-							boxShadow: '0 0 20px var(--accent-1)',
-						}}
-					/>
-					<Navbar />
-				</header>
-			)}
+			{!hideNavbar && <Navbar scrollProgress={scrollProgress} />}
 
 			<Background3D />
 
 			<main
 				id="main"
 				className={`relative z-10 transition-all duration-300 ${
-					!hideNavbar ? 'pt-20' : ''
+					!hideNavbar ? 'pt-28' : ''
 				}`}
 			>
 				<AnimatePresence mode="wait">
