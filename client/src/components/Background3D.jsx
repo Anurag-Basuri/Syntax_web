@@ -1,14 +1,35 @@
-import { useRef, Suspense, useMemo, useEffect } from 'react';
+import React, { useRef, Suspense, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Float, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import logo from '../assets/logo.png';
 
-// Enhanced 3D Logo with premium material
+// Hook to detect current theme
+const useTheme = () => {
+	const [theme, setTheme] = React.useState(
+		document.documentElement.getAttribute('data-theme') || 'dark'
+	);
+
+	useEffect(() => {
+		const observer = new MutationObserver(() => {
+			setTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+		});
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['data-theme'],
+		});
+		return () => observer.disconnect();
+	}, []);
+
+	return theme;
+};
+
+// Enhanced 3D Logo with theme-aware materials
 const Logo3D = () => {
 	const ref = useRef();
 	const texture = useTexture(logo);
 	const { gl } = useThree();
+	const theme = useTheme();
 
 	useEffect(() => {
 		if (!texture) return;
@@ -21,14 +42,20 @@ const Logo3D = () => {
 	}, [texture, gl]);
 
 	const aspect = texture?.image ? texture.image.width / texture.image.height : 1;
-	const scale = 4.5; // Slightly increased scale for more presence
+
+	// Responsive scale
+	const scale = useMemo(() => {
+		const width = window.innerWidth;
+		if (width < 640) return 2.8; // Mobile
+		if (width < 1024) return 3.5; // Tablet
+		return 4.2; // Desktop
+	}, []);
 
 	useFrame((state) => {
 		const pointer = state.pointer ?? { x: 0, y: 0 };
 		const time = state.clock.elapsedTime;
 
 		if (ref.current) {
-			// Smooth mouse tracking
 			ref.current.rotation.y = THREE.MathUtils.lerp(
 				ref.current.rotation.y,
 				(pointer.x * Math.PI) / 10,
@@ -39,27 +66,33 @@ const Logo3D = () => {
 				(-pointer.y * Math.PI) / 10,
 				0.08
 			);
-			// Subtle continuous rotation
 			ref.current.rotation.z = Math.sin(time * 0.1) * 0.02;
 		}
 	});
 
+	// Responsive positioning
+	const yPosition = useMemo(() => {
+		const width = window.innerWidth;
+		if (width < 640) return 0.8;
+		if (width < 1024) return 1.0;
+		return 1.2;
+	}, []);
+
 	return (
 		<Float speed={1.2} rotationIntensity={0.4} floatIntensity={0.7}>
-			{/* The Y position is raised to lift the logo higher in the viewport */}
-			<group ref={ref} position={[0, 1.2, 0]}>
+			<group ref={ref} position={[0, yPosition, 0]}>
 				<mesh scale={[scale * aspect, scale, 1]} renderOrder={10}>
 					<planeGeometry />
 					<meshPhysicalMaterial
 						map={texture}
 						transparent={true}
-						metalness={0.9}
-						roughness={0.2}
+						metalness={theme === 'light' ? 0.7 : 0.9}
+						roughness={theme === 'light' ? 0.3 : 0.2}
 						clearcoat={1.0}
 						clearcoatRoughness={0.2}
-						reflectivity={0.8}
+						reflectivity={theme === 'light' ? 0.6 : 0.8}
 						ior={1.5}
-						transmission={0.1}
+						transmission={theme === 'light' ? 0.05 : 0.1}
 						thickness={0.5}
 						depthTest={false}
 					/>
@@ -69,9 +102,11 @@ const Logo3D = () => {
 	);
 };
 
-// Advanced cloth simulation with Perlin noise
+// Theme-aware cloth mesh
 const WaveMesh = () => {
 	const meshRef = useRef();
+	const theme = useTheme();
+
 	const uniforms = useMemo(
 		() => ({
 			uTime: { value: 0 },
@@ -84,6 +119,22 @@ const WaveMesh = () => {
 	useFrame((state) => {
 		uniforms.uTime.value = state.clock.elapsedTime;
 	});
+
+	// Theme-aware colors
+	const colors = useMemo(() => {
+		if (theme === 'light') {
+			return {
+				base: 'vec3(0.39, 0.40, 0.95)', // Lavender
+				highlight: 'vec3(0.22, 0.74, 0.97)', // Light Blue
+				deep: 'vec3(0.55, 0.52, 0.98)', // Lighter Lavender
+			};
+		}
+		return {
+			base: 'vec3(0.08, 0.20, 0.50)', // Dark Cyan
+			highlight: 'vec3(0.22, 0.74, 0.97)', // Light Blue
+			deep: 'vec3(0.51, 0.55, 0.97)', // Lavender
+		};
+	}, [theme]);
 
 	return (
 		<mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -5, 0]}>
@@ -101,7 +152,6 @@ const WaveMesh = () => {
                     varying float vElevation;
                     varying vec3 vNormal;
 
-                    // Improved noise function for organic movement
                     vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
                     vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
                     vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
@@ -133,12 +183,10 @@ const WaveMesh = () => {
                         vUv = uv;
                         vec3 pos = position;
                         
-                        // Multi-layered noise for realistic cloth movement
                         float noise1 = snoise(pos.xy * 0.08 + uTime * 0.15) * 1.2;
                         float noise2 = snoise(pos.xy * 0.15 - uTime * 0.1) * 0.8;
                         float noise3 = snoise(pos.xy * 0.25 + uTime * 0.2) * 0.5;
                         
-                        // Combine waves for billowing effect
                         float wave1 = sin(pos.x * uFrequency * 0.1 + uTime * 0.3) * uAmplitude * 0.6;
                         float wave2 = cos(pos.y * uFrequency * 0.08 + uTime * 0.25) * uAmplitude * 0.8;
                         float ripple = sin(length(pos.xy) * 0.15 - uTime * 0.4) * 0.6;
@@ -146,7 +194,6 @@ const WaveMesh = () => {
                         vElevation = (noise1 + noise2 + noise3 + wave1 + wave2 + ripple) * 0.7;
                         pos.z += vElevation;
                         
-                        // Calculate normal for better lighting
                         vNormal = normalize(normalMatrix * normal);
                         
                         gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
@@ -158,24 +205,18 @@ const WaveMesh = () => {
                     varying vec3 vNormal;
                     
                     void main() {
-                        // Grid pattern
                         vec2 grid = abs(fract(vUv * 25.0 - 0.5) - 0.5) / fwidth(vUv * 25.0);
                         float line = min(grid.x, grid.y);
                         float gridPattern = 1.0 - min(line, 1.0);
                         
-                        // Dynamic color based on elevation and lighting
-                        vec3 baseColor = vec3(0.05, 0.35, 0.75);
-                        vec3 highlightColor = vec3(0.15, 0.65, 1.0);
-                        vec3 deepColor = vec3(0.02, 0.2, 0.5);
+                        vec3 baseColor = ${colors.base};
+                        vec3 highlightColor = ${colors.highlight};
+                        vec3 deepColor = ${colors.deep};
                         
-                        // Mix colors based on elevation
-                        vec3 color = mix(deepColor, baseColor, clamp(vElevation * 0.5 + 0.5, 0.0, 1.0));
+                        vec3 color = mix(baseColor, deepColor, clamp(vElevation * 0.5 + 0.5, 0.0, 1.0));
                         color = mix(color, highlightColor, clamp(vElevation * 0.8, 0.0, 1.0));
                         
-                        // Edge fade with smoother transition
                         float edgeFade = 1.0 - smoothstep(0.25, 0.55, distance(vUv, vec2(0.5)));
-                        
-                        // Add subtle gradient based on position
                         float gradient = smoothstep(0.0, 1.0, vUv.y) * 0.3;
                         
                         float alpha = gridPattern * edgeFade * (0.3 + gradient);
@@ -188,7 +229,7 @@ const WaveMesh = () => {
 	);
 };
 
-// Enhanced particle system with twinkling effect
+// Theme-aware particles
 const ParticleNebula = ({
 	count = 1500,
 	size = 0.03,
@@ -198,10 +239,9 @@ const ParticleNebula = ({
 }) => {
 	const ref = useRef();
 
-	const { positions, sizes, randoms } = useMemo(() => {
+	const { positions, sizes } = useMemo(() => {
 		const pos = new Float32Array(count * 3);
 		const siz = new Float32Array(count);
-		const rand = new Float32Array(count);
 
 		for (let i = 0; i < count; i++) {
 			const theta = Math.random() * Math.PI * 2;
@@ -212,21 +252,17 @@ const ParticleNebula = ({
 			pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
 			pos[i * 3 + 2] = r * Math.cos(phi);
 
-			// Varied particle sizes
 			siz[i] = size * (0.5 + Math.random() * 1.5);
-			rand[i] = Math.random() * Math.PI * 2;
 		}
-		return { positions: pos, sizes: siz, randoms: rand };
+		return { positions: pos, sizes: siz };
 	}, [count, radius, size]);
 
 	useFrame((state, delta) => {
 		if (!ref.current) return;
 
-		// Gentle rotation
 		ref.current.rotation.y += delta * 0.04 * speed;
 		ref.current.rotation.x += delta * 0.015 * speed;
 
-		// Subtle parallax effect
 		ref.current.rotation.x = THREE.MathUtils.lerp(
 			ref.current.rotation.x,
 			state.pointer.y * 0.08,
@@ -259,16 +295,16 @@ const ParticleNebula = ({
 				sizeAttenuation
 				blending={THREE.AdditiveBlending}
 				depthWrite={false}
-				vertexColors={false}
 			/>
 		</points>
 	);
 };
 
-// Dynamic animated lights
+// Theme-aware dynamic lights
 const DynamicLights = () => {
 	const spot1 = useRef();
 	const spot2 = useRef();
+	const theme = useTheme();
 
 	useFrame((state) => {
 		const time = state.clock.elapsedTime;
@@ -284,17 +320,38 @@ const DynamicLights = () => {
 		}
 	});
 
+	const lightColors = useMemo(() => {
+		if (theme === 'light') {
+			return {
+				hemisphere: { sky: '#6366f1', ground: '#faf5ff' },
+				spot1: '#38bdf8',
+				spot2: '#818cf8',
+				point: '#a78bfa',
+			};
+		}
+		return {
+			hemisphere: { sky: '#38bdf8', ground: '#083344' },
+			spot1: '#38bdf8',
+			spot2: '#818cf8',
+			point: '#a78bfa',
+		};
+	}, [theme]);
+
 	return (
 		<>
-			<ambientLight intensity={0.4} />
-			<hemisphereLight skyColor="#0ea5e9" groundColor="#030712" intensity={0.6} />
+			<ambientLight intensity={theme === 'light' ? 0.6 : 0.4} />
+			<hemisphereLight
+				skyColor={lightColors.hemisphere.sky}
+				groundColor={lightColors.hemisphere.ground}
+				intensity={theme === 'light' ? 0.8 : 0.6}
+			/>
 			<spotLight
 				ref={spot1}
 				position={[10, 15, 10]}
 				angle={0.35}
 				penumbra={1}
-				intensity={1.2}
-				color="#0ea5e9"
+				intensity={theme === 'light' ? 1.0 : 1.2}
+				color={lightColors.spot1}
 				castShadow
 			/>
 			<spotLight
@@ -302,32 +359,61 @@ const DynamicLights = () => {
 				position={[-10, 12, 5]}
 				angle={0.4}
 				penumbra={1}
-				intensity={0.8}
-				color="#2563eb"
+				intensity={theme === 'light' ? 0.7 : 0.8}
+				color={lightColors.spot2}
 			/>
-			<pointLight position={[0, 5, -5]} intensity={0.5} color="#60a5fa" distance={20} />
+			<pointLight
+				position={[0, 5, -5]}
+				intensity={theme === 'light' ? 0.4 : 0.5}
+				color={lightColors.point}
+				distance={20}
+			/>
 		</>
 	);
 };
 
 const Background3D = () => {
+	const theme = useTheme();
+
+	// Theme-aware gradients
+	const gradients = useMemo(() => {
+		if (theme === 'light') {
+			return {
+				radial1:
+					'radial-gradient(ellipse 65% 55% at 50% 45%, rgba(99,102,241,.12), transparent)',
+				radial2: 'radial-gradient(circle at 20% 80%, rgba(56,189,248,.1), transparent 50%)',
+				fog: '#faf5ff',
+			};
+		}
+		return {
+			radial1:
+				'radial-gradient(ellipse 65% 55% at 50% 45%, rgba(129,140,248,.15), transparent)',
+			radial2: 'radial-gradient(circle at 20% 80%, rgba(56,189,248,.1), transparent 50%)',
+			fog: '#083344',
+		};
+	}, [theme]);
+
+	// Responsive particle counts
+	const particleCounts = useMemo(() => {
+		const width = window.innerWidth;
+		if (width < 640) return [800, 600, 400];
+		if (width < 1024) return [1000, 750, 500];
+		return [1200, 900, 600];
+	}, []);
+
 	return (
 		<div className="fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
-			{/* Enhanced gradient layers */}
-			<div className="absolute inset-0 bg-gradient-to-b from-bg-base via-bg-soft to-bg-base" />
+			{/* Base gradient */}
+			<div className="absolute inset-0 bg-gradient-to-b from-bg-base via-bg-soft to-bg-base transition-colors duration-500" />
+
+			{/* Radial gradients */}
 			<div
-				className="absolute inset-0 opacity-25"
-				style={{
-					background:
-						'radial-gradient(ellipse 65% 55% at 50% 45%, rgba(14,165,233,.18), transparent)',
-				}}
+				className="absolute inset-0 opacity-25 transition-opacity duration-500"
+				style={{ background: gradients.radial1 }}
 			/>
 			<div
-				className="absolute inset-0 opacity-15"
-				style={{
-					background:
-						'radial-gradient(circle at 20% 80%, rgba(59,130,246,.12), transparent 50%)',
-				}}
+				className="absolute inset-0 opacity-15 transition-opacity duration-500"
+				style={{ background: gradients.radial2 }}
 			/>
 
 			<Suspense fallback={null}>
@@ -339,44 +425,43 @@ const Background3D = () => {
 						alpha: true,
 						powerPreference: 'high-performance',
 						toneMapping: THREE.ACESFilmicToneMapping,
-						toneMappingExposure: 1.2,
+						toneMappingExposure: theme === 'light' ? 1.0 : 1.2,
 					}}
-					dpr={[1, 2]}
+					dpr={[1, Math.min(window.devicePixelRatio, 2)]}
 				>
-					<fog attach="fog" args={['#030712', 8, 55]} />
+					<fog attach="fog" args={[gradients.fog, 8, 55]} />
 
 					<DynamicLights />
-
 					<Logo3D />
 					<WaveMesh />
 
-					{/* Optimized particle layers with better distribution */}
+					{/* Responsive particle layers */}
 					<ParticleNebula
-						count={1200}
+						count={particleCounts[0]}
 						size={0.02}
-						color="#3b82f6"
+						color="#818cf8"
 						speed={0.3}
 						radius={35}
 					/>
 					<ParticleNebula
-						count={900}
+						count={particleCounts[1]}
 						size={0.028}
-						color="#0ea5e9"
+						color="#38bdf8"
 						speed={0.5}
 						radius={25}
 					/>
 					<ParticleNebula
-						count={600}
+						count={particleCounts[2]}
 						size={0.035}
-						color="#60a5fa"
+						color="#a78bfa"
 						speed={0.7}
 						radius={18}
 					/>
 				</Canvas>
 			</Suspense>
 
-			{/* Enhanced bottom fade */}
-			<div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-bg-base via-bg-base/90 to-transparent pointer-events-none" />
+			{/* Bottom fade */}
+			<div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-bg-base via-bg-base/90 to-transparent pointer-events-none transition-colors duration-500" />
 		</div>
 	);
 };
