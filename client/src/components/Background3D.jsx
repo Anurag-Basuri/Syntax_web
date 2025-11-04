@@ -1,6 +1,111 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Plane, useTexture } from '@react-three/drei';
+import * as THREE from 'three';
 import { useLocation } from 'react-router-dom';
 import logo from '../assets/logo.png';
+
+const Logo3D = () => {
+	const ref = useRef();
+	const chevronRight = new THREE.Shape();
+	chevronRight.moveTo(0, 0.75);
+	chevronRight.lineTo(0.5, 0);
+	chevronRight.lineTo(0, -0.75);
+	chevronRight.lineTo(0.25, -0.75);
+	chevronRight.lineTo(0.75, 0);
+	chevronRight.lineTo(0.25, 0.75);
+	chevronRight.closePath();
+
+	const chevronLeft = new THREE.Shape();
+	chevronLeft.moveTo(0, 0.75);
+	chevronLeft.lineTo(-0.5, 0);
+	chevronLeft.lineTo(0, -0.75);
+	chevronLeft.lineTo(-0.25, -0.75);
+	chevronLeft.lineTo(-0.75, 0);
+	chevronLeft.lineTo(-0.25, 0.75);
+	chevronLeft.closePath();
+
+	const extrudeSettings = { depth: 0.1, bevelEnabled: false };
+
+	useFrame((state) => {
+		if (ref.current) {
+			ref.current.rotation.y = THREE.MathUtils.lerp(
+				ref.current.rotation.y,
+				(state.mouse.x * Math.PI) / 10,
+				0.05
+			);
+			ref.current.rotation.x = THREE.MathUtils.lerp(
+				ref.current.rotation.x,
+				(-state.mouse.y * Math.PI) / 10,
+				0.05
+			);
+		}
+	});
+
+	return (
+		<group ref={ref} position={[0, 0, 0]} scale={1.5}>
+			<mesh position={[-0.5, 0, 0]}>
+				<extrudeGeometry args={[chevronLeft, extrudeSettings]} />
+				<meshStandardMaterial
+					color="var(--accent-1)"
+					emissive="var(--accent-1)"
+					emissiveIntensity={0.5}
+					metalness={0.8}
+					roughness={0.4}
+				/>
+			</mesh>
+			<mesh position={[0.5, 0, 0]}>
+				<extrudeGeometry args={[chevronRight, extrudeSettings]} />
+				<meshStandardMaterial
+					color="var(--accent-2)"
+					emissive="var(--accent-2)"
+					emissiveIntensity={0.3}
+					metalness={0.8}
+					roughness={0.4}
+				/>
+			</mesh>
+		</group>
+	);
+};
+
+// Component for the infinite grid background
+const InfiniteGrid = () => {
+	const gridRef = useRef();
+	useFrame((state) => {
+		if (gridRef.current) {
+			gridRef.current.position.z = (gridRef.current.position.z + 0.02) % 10;
+		}
+	});
+
+	return (
+		<Plane
+			ref={gridRef}
+			args={[100, 100, 100, 100]}
+			rotation-x={-Math.PI / 2}
+			position={[0, -5, 0]}
+		>
+			<shaderMaterial
+				transparent
+				vertexShader={`
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `}
+				fragmentShader={`
+          varying vec2 vUv;
+          void main() {
+            vec2 grid = abs(fract(vUv * 20.0 - 0.5) - 0.5) / fwidth(vUv * 20.0);
+            float line = min(grid.x, grid.y);
+            float opacity = 1.0 - min(line, 1.0);
+            gl_FragColor = vec4(vec3(0.0, 0.5, 1.0), opacity * 0.1);
+          }
+        `}
+			/>
+		</Plane>
+	);
+};
 
 const Background3D = () => {
 	const canvasRef = useRef(null);
@@ -141,25 +246,19 @@ const Background3D = () => {
 				}}
 			/>
 
-			{/* Constellation Canvas */}
-			<canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-50" />
-
-			{/* Logo watermark - refined for better blending */}
-			<div className="absolute inset-0 flex items-center justify-center">
-				<div
-					className="relative w-[min(80vw,800px)] aspect-[2/1] opacity-5"
-					style={{
-						WebkitMaskImage: `url(${logo})`,
-						maskImage: `url(${logo})`,
-						WebkitMaskSize: 'contain',
-						maskSize: 'contain',
-						WebkitMaskRepeat: 'no-repeat',
-						WebkitMaskPosition: 'center',
-						maskPosition: 'center',
-						background: 'linear-gradient(45deg, var(--accent-1), var(--accent-2))',
-					}}
-				/>
-			</div>
+			{/* 3D Scene */}
+			<Suspense fallback={null}>
+				<Canvas
+					camera={{ position: [0, 0, 5], fov: 45 }}
+					style={{ pointerEvents: 'auto' }}
+					className="opacity-50"
+				>
+					<ambientLight intensity={0.5} />
+					<directionalLight position={[5, 5, 5]} intensity={1} />
+					<Logo3D />
+					<InfiniteGrid />
+				</Canvas>
+			</Suspense>
 
 			{/* Bottom fade to blend with content */}
 			<div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-bg-base to-transparent" />

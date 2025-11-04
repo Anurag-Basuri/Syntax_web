@@ -143,6 +143,14 @@ p {
 	box-shadow: var(--shadow-sm);
 }
 
+/* Allow canvas to be interactive without blocking content */
+canvas {
+	pointer-events: none;
+}
+canvas > div {
+	pointer-events: auto;
+}
+
 /* ==========================================================================
    4. ACCESSIBILITY & REDUCED MOTION
    ========================================================================== */
