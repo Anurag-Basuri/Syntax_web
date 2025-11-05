@@ -81,6 +81,10 @@ const Grid = ({ theme, breakpoint }) => {
 		// Responsive grid sizing
 		const gridSize = breakpoint === 'mobile' ? 22.0 : breakpoint === 'tablet' ? 25.0 : 28.0;
 
+		// Where the grid should stop vertically (in UV space)
+		const maskTop = breakpoint === 'mobile' ? 0.56 : breakpoint === 'tablet' ? 0.48 : 0.44;
+		const maskFeather = 0.18;
+
 		return {
 			uTime: { value: 0 },
 			uMinorColor: { value: new THREE.Color(minorHex) },
@@ -96,13 +100,13 @@ const Grid = ({ theme, breakpoint }) => {
 			uMajorAlpha: { value: isLight ? 0.35 : 0.48 },
 			uAccentAlpha: { value: isLight ? 0.08 : 0.12 },
 			uSpeed: { value: prefersReduced ? 0.0 : 0.015 },
-			// Enhanced cloth texture
 			uClothFreq: { value: 1.5 },
 			uClothAmp: { value: 0.06 },
-			// Smooth wave motion
 			uWaveAmp: { value: breakpoint === 'mobile' ? 0.2 : 0.35 },
 			uWaveFreq: { value: 0.15 },
 			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.35 },
+			uMaskTop: { value: maskTop },
+			uMaskFeather: { value: maskFeather },
 		};
 	}, [theme, prefersReduced, breakpoint]);
 
@@ -113,7 +117,7 @@ const Grid = ({ theme, breakpoint }) => {
 	});
 
 	return (
-		<mesh ref={meshRef} position={[0, -1.5, -12]} renderOrder={-2}>
+		<mesh ref={meshRef} position={[0, -6, -12]} renderOrder={-2}>
 			<planeGeometry args={[120, 120, 320, 320]} />
 			<shaderMaterial
 				ref={materialRef}
@@ -167,42 +171,42 @@ const Grid = ({ theme, breakpoint }) => {
                     uniform float uMinorAlpha;
                     uniform float uMajorAlpha;
                     uniform float uAccentAlpha;
-                    
+                    // New
+                    uniform float uMaskTop;
+                    uniform float uMaskFeather;
+
                     varying vec2 vUv;
                     varying vec3 vPosition;
                     varying float vElevation;
-                    
+
                     void main() {
                         vec2 coord = vPosition.xy;
-                        
-                        // Calculate grid lines with improved AA
+
+                        // Grid lines
                         vec2 grid = abs(fract(coord / uMinorSize - 0.5) - 0.5) * 2.0;
-                        float minor = min(grid.x, grid.y) / uMinorWidth;
-                        minor = smoothstep(0.0, 1.0, 1.0 - minor);
-                        
-                        // Major grid lines
+                        float minor = smoothstep(0.0, 1.0, 1.0 - min(grid.x, grid.y) / uMinorWidth);
+
                         vec2 majorCoord = coord / (uMinorSize * uMajorEvery);
                         vec2 majorGrid = abs(fract(majorCoord - 0.5) - 0.5) * 2.0;
-                        float major = min(majorGrid.x, majorGrid.y) / uMajorWidth;
-                        major = smoothstep(0.0, 1.0, 1.0 - major);
-                        
-                        // Center radial fade with improved falloff
-                        float distFromCenter = length(vUv - 0.5) * 1.4;
-                        float fade = 1.0 - smoothstep(uFadeNear, uFadeFar, distFromCenter);
-                        
-                        // Elevation-based accent glow
+                        float major = smoothstep(0.0, 1.0, 1.0 - min(majorGrid.x, majorGrid.y) / uMajorWidth);
+
+                        // Elevation-based accent
                         float accentGlow = smoothstep(-0.3, 0.3, vElevation) * uAccentAlpha;
-                        
-                        // Compose colors with better blending
+
                         vec3 minorTint = mix(uMinorColor, uAccentColor, accentGlow * 0.5);
                         vec3 majorTint = mix(uMajorColor, uAccentColor, accentGlow * 0.7);
-                        
+
                         vec3 color = minorTint * minor * uMinorAlpha + majorTint * major * uMajorAlpha;
-                        float alpha = (minor * uMinorAlpha + major * uMajorAlpha + accentGlow * 0.3) * fade;
-                        
+                        float alpha = (minor * uMinorAlpha + major * uMajorAlpha + accentGlow * 0.3);
+
+                        // New: bottom-only mask (fade out toward the top)
+                        float bottomMask = 1.0 - smoothstep(uMaskTop - uMaskFeather, uMaskTop + uMaskFeather, vUv.y);
+                        alpha *= bottomMask;
+
                         // Subtle depth enhancement
                         alpha *= 0.95 + vElevation * 0.05;
-                        
+
+                        if (alpha <= 0.001) discard;
                         gl_FragColor = vec4(color, alpha);
                     }
                 `}
@@ -560,10 +564,9 @@ const Background3D = () => {
 							} 1px, transparent 1px)
                         `,
 						backgroundSize: '32px 32px',
-						maskImage:
-							'radial-gradient(ellipse 85% 70% at 50% -12%, black 20%, transparent 90%)',
-						WebkitMaskImage:
-							'radial-gradient(ellipse 85% 70% at 50% -12%, black 20%, transparent 90%)',
+						// Bottom band mask
+						maskImage: 'linear-gradient(to top, black 38%, transparent 70%)',
+						WebkitMaskImage: 'linear-gradient(to top, black 38%, transparent 70%)',
 					}}
 				/>
 			</div>
