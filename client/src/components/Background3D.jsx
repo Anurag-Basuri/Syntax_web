@@ -53,8 +53,8 @@ const useResponsive = () => {
 
 const readCssVar = (name) =>
 	typeof document !== 'undefined'
-		? getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#06b6d4'
-		: '#06b6d4';
+		? getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#6366f1'
+		: '#6366f1';
 
 const isWebGLAvailable = () => {
 	if (typeof document === 'undefined') return false;
@@ -69,9 +69,7 @@ const isWebGLAvailable = () => {
 // --- R3F Scene Components ---
 
 /**
- * ## 🚀 Updated Grid Component: True Squares, Enhanced 3D, and Visibility
- * This version corrects the geometry to be a true square grid, increases amplitude
- * for stronger 3D effect, and reduces depth fade for better visibility.
+ * Enhanced Grid Component with Dramatic 3D Wave Effect
  */
 const Grid = ({ theme, breakpoint }) => {
 	const meshRef = useRef();
@@ -82,30 +80,26 @@ const Grid = ({ theme, breakpoint }) => {
 		return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	}, []);
 
-	const gridSize = useMemo(() => {
-		const map = {
-			mobile: 14.0,
-			'tablet-sm': 18.0,
-			tablet: 22.0,
-			desktop: 26.0,
-			'desktop-lg': 30.0,
+	// Responsive grid dimensions
+	const gridParams = useMemo(() => {
+		const configs = {
+			mobile: { width: 80, height: 50, segs: 60 },
+			'tablet-sm': { width: 100, height: 60, segs: 70 },
+			tablet: { width: 120, height: 70, segs: 80 },
+			desktop: { width: 140, height: 80, segs: 90 },
+			'desktop-lg': { width: 160, height: 90, segs: 100 },
 		};
-		return map[breakpoint] || 22.0;
+		return configs[breakpoint] || configs.desktop;
 	}, [breakpoint]);
-
-	// Higher segment count for ultra-smooth waves
-	const segs = Math.max(48, Math.floor(gridSize * 2.5));
-	const segsY = Math.max(32, Math.floor(gridSize * 1.8));
 
 	const uniforms = useMemo(
 		() => ({
 			uTime: { value: 0 },
-			// Dramatically increased amplitude for powerful 3D effect
-			uWaveAmplitude: { value: breakpoint === 'mobile' ? 2.8 : 4.2 },
+			uWaveAmplitude: { value: breakpoint === 'mobile' ? 2.5 : 3.8 },
 			uWaveFrequency: { value: 0.06 },
-			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.32 },
-			uDepthFade: { value: 0.88 },
-			uWireOpacity: { value: theme === 'light' ? 0.38 : 0.62 },
+			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.35 },
+			uDepthFade: { value: 0.85 },
+			uWireOpacity: { value: theme === 'light' ? 0.5 : 0.8 },
 			uWireColor: { value: new THREE.Color(theme === 'light' ? '#94a3b8' : '#475569') },
 			uAccent: { value: new THREE.Color(readCssVar('--accent-1')) },
 			uMouseX: { value: 0 },
@@ -125,28 +119,28 @@ const Grid = ({ theme, breakpoint }) => {
 				// Smooth mouse tracking
 				wireMatRef.current.uniforms.uMouseX.value = THREE.MathUtils.lerp(
 					wireMatRef.current.uniforms.uMouseX.value,
-					pointer.x * 0.4,
-					0.06
+					pointer.x * 0.5,
+					0.08
 				);
 				wireMatRef.current.uniforms.uMouseY.value = THREE.MathUtils.lerp(
 					wireMatRef.current.uniforms.uMouseY.value,
-					pointer.y * 0.3,
-					0.06
+					pointer.y * 0.4,
+					0.08
 				);
 
-				// Enhanced 3D tilt with more dramatic angles
-				const targetRotX = THREE.MathUtils.degToRad(-22 + pointer.y * 5);
-				const targetRotY = THREE.MathUtils.degToRad(pointer.x * 6);
+				// Dynamic 3D tilt
+				const targetRotX = THREE.MathUtils.degToRad(-18 + pointer.y * 6);
+				const targetRotY = THREE.MathUtils.degToRad(pointer.x * 7);
 
 				meshRef.current.rotation.x = THREE.MathUtils.lerp(
 					meshRef.current.rotation.x,
 					targetRotX,
-					0.06
+					0.08
 				);
 				meshRef.current.rotation.y = THREE.MathUtils.lerp(
 					meshRef.current.rotation.y,
 					targetRotY,
-					0.06
+					0.08
 				);
 			}
 		}
@@ -164,9 +158,8 @@ const Grid = ({ theme, breakpoint }) => {
         varying float vElevation;
         varying float vDepth;
         varying vec3 vNormal;
-        varying vec3 vWorldPos;
-
-        // Enhanced noise functions
+        
+        // Noise functions
         float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
         }
@@ -197,52 +190,53 @@ const Grid = ({ theme, breakpoint }) => {
             vUv = uv;
             vec3 pos = position;
 
-            // Multi-layered wave system for complex motion
-            float wave1 = sin(pos.x * uWaveFrequency * 0.7 + uTime * uWaveSpeed * 0.8) *
-                          cos(pos.y * uWaveFrequency * 0.5 + uTime * uWaveSpeed * 0.6);
+            // Multi-layered wave system
+            float wave1 = sin(pos.x * uWaveFrequency * 0.8 + uTime * uWaveSpeed) *
+                          cos(pos.y * uWaveFrequency * 0.6 + uTime * uWaveSpeed * 0.7);
             
-            float wave2 = sin(pos.x * uWaveFrequency * 1.4 + uTime * uWaveSpeed * 1.2) *
-                          cos(pos.y * uWaveFrequency * 1.1 + uTime * uWaveSpeed * 0.85);
+            float wave2 = sin(pos.x * uWaveFrequency * 1.5 + uTime * uWaveSpeed * 1.3) *
+                          cos(pos.y * uWaveFrequency * 1.2 + uTime * uWaveSpeed * 0.9);
             
-            float wave3 = sin(pos.x * uWaveFrequency * 2.2 + uTime * uWaveSpeed * 1.6) *
-                          sin(pos.y * uWaveFrequency * 1.8 + uTime * uWaveSpeed * 1.3);
+            float wave3 = sin(pos.x * uWaveFrequency * 2.3 + uTime * uWaveSpeed * 1.7) *
+                          sin(pos.y * uWaveFrequency * 1.9 + uTime * uWaveSpeed * 1.4);
             
-            // High-frequency details
-            float ripple = sin(pos.x * uWaveFrequency * 5.0 + uTime * uWaveSpeed * 2.5) *
-                           sin(pos.y * uWaveFrequency * 4.2 + uTime * uWaveSpeed * 2.0) * 0.12;
+            // Fine details
+            float ripple = sin(pos.x * uWaveFrequency * 5.5 + uTime * uWaveSpeed * 2.8) *
+                           sin(pos.y * uWaveFrequency * 4.8 + uTime * uWaveSpeed * 2.2) * 0.12;
             
             // Organic turbulence
-            float organic = (fbm(pos.xy * 0.045 + uTime * 0.018) - 0.5) * 0.5;
+            float organic = (fbm(pos.xy * 0.045 + uTime * 0.02) - 0.5) * 0.5;
             
-            // Combine all layers with varying weights
-            float elevation = (wave1 * 1.0 + wave2 * 0.7 + wave3 * 0.4) * uWaveAmplitude + 
+            // Combine waves
+            float elevation = (wave1 * 1.0 + wave2 * 0.7 + wave3 * 0.45) * uWaveAmplitude + 
                               ripple + organic;
             
-            // Mouse-driven deformation
-            float mouseInfluence = sin(pos.x * 0.08 + uMouseX * 3.5) * 
-                                   cos(pos.y * 0.08 + uMouseY * 3.5) * 0.4;
+            // Mouse interaction
+            float mouseInfluence = sin(pos.x * 0.09 + uMouseX * 4.0) * 
+                                   cos(pos.y * 0.09 + uMouseY * 4.0) * 0.5;
             elevation += mouseInfluence;
 
-            // Enhanced depth calculation for stronger perspective
-            vDepth = (pos.y + 32.0) / 64.0;
+            // Depth calculation (normalized Y position)
+            vDepth = (pos.y + ${gridParams.height / 2}.0) / ${gridParams.height}.0;
             
-            // Exponential depth attenuation for dramatic vanishing effect
+            // Depth-based attenuation for perspective
             float depthAtten = smoothstep(0.0, 0.92, 1.0 - vDepth);
             depthAtten = pow(depthAtten, 2.2);
             elevation *= depthAtten;
 
             pos.z += elevation;
             vElevation = elevation;
-            vWorldPos = (modelMatrix * vec4(pos, 1.0)).xyz;
             
-            // Calculate surface normal for advanced lighting
+            // Calculate surface normal
             float delta = 0.1;
             vec3 tangentX = vec3(delta, 0.0, 
-                (sin((pos.x + delta) * uWaveFrequency * 0.7 + uTime * uWaveSpeed * 0.8) *
-                 cos(pos.y * uWaveFrequency * 0.5 + uTime * uWaveSpeed * 0.6) * uWaveAmplitude * depthAtten) - elevation);
+                (sin((pos.x + delta) * uWaveFrequency * 0.8 + uTime * uWaveSpeed) *
+                 cos(pos.y * uWaveFrequency * 0.6 + uTime * uWaveSpeed * 0.7) * 
+                 uWaveAmplitude * depthAtten) - elevation);
             vec3 tangentY = vec3(0.0, delta,
-                (sin(pos.x * uWaveFrequency * 0.7 + uTime * uWaveSpeed * 0.8) *
-                 cos((pos.y + delta) * uWaveFrequency * 0.5 + uTime * uWaveSpeed * 0.6) * uWaveAmplitude * depthAtten) - elevation);
+                (sin(pos.x * uWaveFrequency * 0.8 + uTime * uWaveSpeed) *
+                 cos((pos.y + delta) * uWaveFrequency * 0.6 + uTime * uWaveSpeed * 0.7) * 
+                 uWaveAmplitude * depthAtten) - elevation);
             
             vNormal = normalize(cross(tangentX, tangentY));
 
@@ -250,14 +244,84 @@ const Grid = ({ theme, breakpoint }) => {
         }
     `;
 
+	const fragmentShader = `
+        uniform vec3 uWireColor;
+        uniform float uWireOpacity;
+        uniform float uDepthFade;
+        uniform vec3 uAccent;
+        uniform float uTime;
+        
+        varying vec2 vUv;
+        varying float vDepth;
+        varying float vElevation;
+        varying vec3 vNormal;
+        
+        void main() {
+            // Enhanced depth fade
+            float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
+            depthFade = pow(depthFade, 2.5);
+            
+            // Elevation-based glow
+            float elevationGlow = smoothstep(0.5, 2.5, abs(vElevation)) * 1.3;
+            
+            // Multi-frequency shimmer
+            float shimmer = sin(uTime * 2.5 + vUv.x * 10.0 + vUv.y * 8.0) * 
+                           cos(uTime * 3.0 + vUv.y * 12.0) * 0.18 + 0.82;
+            
+            // Fresnel effect
+            vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
+            float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 2.5);
+            float edgeGlow = fresnel * 0.95;
+            
+            // Rim lighting on wave peaks
+            float rimLight = smoothstep(1.2, 2.8, vElevation) * fresnel * 0.85;
+            
+            // Combine lighting
+            float totalGlow = clamp(
+                elevationGlow * 0.65 + 
+                edgeGlow * 0.75 + 
+                rimLight * 0.6, 
+                0.0, 1.0
+            );
+            totalGlow *= shimmer;
+            
+            // Color mixing
+            vec3 finalColor = mix(uWireColor, uAccent, totalGlow * 0.92);
+            
+            // Brighten peaks
+            if (vElevation > 1.8) {
+                finalColor = mix(finalColor, uAccent * 1.25, 0.55);
+            }
+            
+            // Dynamic opacity
+            float alpha = uWireOpacity * depthFade * (0.6 + totalGlow * 0.5);
+            
+            // Extra boost for extreme peaks
+            if (vElevation > 2.3) {
+                alpha += 0.28;
+                finalColor += uAccent * 0.35;
+            }
+            
+            if (alpha <= 0.01) discard;
+            gl_FragColor = vec4(finalColor, alpha);
+        }
+    `;
+
 	return (
 		<group
 			ref={meshRef}
-			position={[0, -32, -16]}
-			rotation={[THREE.MathUtils.degToRad(-22), 0, 0]}
+			position={[0, -12, -18]}
+			rotation={[THREE.MathUtils.degToRad(-18), 0, 0]}
 		>
 			<mesh renderOrder={0}>
-				<planeGeometry args={[140, 64, segs, segsY]} />
+				<planeGeometry
+					args={[
+						gridParams.width,
+						gridParams.height,
+						gridParams.segs,
+						gridParams.segs * 0.7,
+					]}
+				/>
 				<shaderMaterial
 					ref={wireMatRef}
 					uniforms={uniforms}
@@ -266,80 +330,14 @@ const Grid = ({ theme, breakpoint }) => {
 					wireframe={true}
 					side={THREE.DoubleSide}
 					vertexShader={vertexShader}
-					fragmentShader={`
-                        uniform vec3 uWireColor;
-                        uniform float uWireOpacity;
-                        uniform float uDepthFade;
-                        uniform vec3 uAccent;
-                        uniform float uTime;
-                        
-                        varying vec2 vUv;
-                        varying float vDepth;
-                        varying float vElevation;
-                        varying vec3 vNormal;
-                        varying vec3 vWorldPos;
-                        
-                        void main() {
-                            // Enhanced exponential depth fade
-                            float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
-                            depthFade = pow(depthFade, 2.4);
-                            
-                            // Elevation-based glow with sharper peaks
-                            float elevationGlow = smoothstep(0.8, 2.8, abs(vElevation)) * 1.2;
-                            
-                            // Multi-frequency shimmer for dynamic highlights
-                            float shimmer = sin(uTime * 2.8 + vUv.x * 12.0 + vUv.y * 8.0) * 
-                                           cos(uTime * 3.2 + vUv.y * 10.0) * 0.15 + 0.85;
-                            
-                            // Advanced fresnel with view-dependent highlight
-                            vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
-                            float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 2.8);
-                            float edgeGlow = fresnel * 0.9;
-                            
-                            // Rim lighting effect on wave crests
-                            float rimLight = smoothstep(1.5, 3.2, vElevation) * fresnel * 0.8;
-                            
-                            // Combine all lighting factors
-                            float totalGlow = clamp(
-                                elevationGlow * 0.6 + 
-                                edgeGlow * 0.7 + 
-                                rimLight, 
-                                0.0, 1.0
-                            );
-                            totalGlow *= shimmer;
-                            
-                            // Enhanced color mixing with stronger accent on peaks
-                            vec3 finalColor = mix(
-                                uWireColor, 
-                                uAccent, 
-                                totalGlow * 0.95
-                            );
-                            
-                            // Boost brightness on wave peaks
-                            if (vElevation > 2.0) {
-                                finalColor = mix(finalColor, uAccent * 1.3, 0.5);
-                            }
-                            
-                            // Dynamic opacity with glow boost
-                            float alpha = uWireOpacity * depthFade * (0.65 + totalGlow * 0.45);
-                            
-                            // Extra glow for extreme peaks
-                            if (vElevation > 2.5) {
-                                alpha += 0.25;
-                                finalColor += uAccent * 0.3;
-                            }
-                            
-                            if (alpha <= 0.01) discard;
-                            gl_FragColor = vec4(finalColor, alpha);
-                        }
-                    `}
+					fragmentShader={fragmentShader}
 				/>
 			</mesh>
 		</group>
 	);
 };
 
-// Clean logo (no 3D animation)
+// Floating Logo Component
 const FloatingLogo = ({ breakpoint }) => {
 	const base = useRef();
 	const texture = useTexture(logo);
@@ -362,22 +360,22 @@ const FloatingLogo = ({ breakpoint }) => {
 	}, [texture]);
 
 	const { camera } = useThree();
-	const targetZ = -12;
 
 	const logoScales = {
-		mobile: 0.22,
-		'tablet-sm': 0.26,
-		tablet: 0.3,
-		desktop: 0.34,
-		'desktop-lg': 0.38,
+		mobile: 0.24,
+		'tablet-sm': 0.28,
+		tablet: 0.32,
+		desktop: 0.36,
+		'desktop-lg': 0.4,
 	};
 
-	const frac = logoScales[breakpoint] || 0.3;
+	const frac = logoScales[breakpoint] || 0.32;
+
 	const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 	const scaleXY = useMemo(() => {
-		const dist = Math.abs(targetZ - (camera?.position?.z ?? 5));
+		const dist = Math.abs(-10 - (camera?.position?.z ?? 5));
 		const worldH = 2 * Math.tan(THREE.MathUtils.degToRad((camera?.fov ?? 60) / 2)) * dist;
-		const h = clamp(worldH * frac, 6, 20);
+		const h = clamp(worldH * frac, 6, 22);
 		return [h * aspect, h];
 	}, [camera?.fov, camera?.position?.z, aspect, frac]);
 
@@ -386,8 +384,8 @@ const FloatingLogo = ({ breakpoint }) => {
 	}, [scaleXY]);
 
 	return (
-		<group ref={base} position={[0, 0, 0]} renderOrder={-1}>
-			<mesh position={[0, 0, targetZ]}>
+		<group ref={base} position={[0, 0, -10]} renderOrder={1}>
+			<mesh>
 				<planeGeometry args={[1, 1]} />
 				<meshBasicMaterial map={texture} transparent depthWrite={false} />
 			</mesh>
@@ -395,7 +393,7 @@ const FloatingLogo = ({ breakpoint }) => {
 	);
 };
 
-// Main component
+// Main Background Component
 const Background3D = () => {
 	const theme = useTheme();
 	const { breakpoint } = useResponsive();
@@ -407,14 +405,13 @@ const Background3D = () => {
 
 	const cameraConfig = useMemo(() => {
 		const configs = {
-			// Enhanced FOV and positioning for stronger perspective
-			mobile: { position: [0, 2, 10], fov: 82 },
-			'tablet-sm': { position: [0, 2, 8.5], fov: 76 },
-			tablet: { position: [0, 2, 7], fov: 72 },
-			desktop: { position: [0, 2, 6], fov: 68 },
-			'desktop-lg': { position: [0, 2, 5.5], fov: 64 },
+			mobile: { position: [0, 1, 12], fov: 80 },
+			'tablet-sm': { position: [0, 1, 10], fov: 75 },
+			tablet: { position: [0, 1, 8], fov: 70 },
+			desktop: { position: [0, 1, 7], fov: 65 },
+			'desktop-lg': { position: [0, 1, 6], fov: 62 },
 		};
-		return configs[breakpoint] || { position: [0, 2, 6], fov: 68 };
+		return configs[breakpoint] || { position: [0, 1, 7], fov: 65 };
 	}, [breakpoint]);
 
 	if (!webglOk) {
