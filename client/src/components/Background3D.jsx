@@ -224,9 +224,15 @@ const Grid = ({ theme, breakpoint }) => {
                             float shadow = smoothstep(-0.25, -0.04, vElevation) * 0.18;
                             color *= 1.0 - shadow;
 
-                            // vignette/fade by depth
-                            float fade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
-                            float alpha = 0.9 * fade;
+                            // vignette/fade by depth and radial distance
+                            float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
+                            
+                            // Fade out towards the edges for a contained look
+                            vec2 centerUv = vUv - 0.5;
+                            float radialDist = length(centerUv * vec2(1.0, 1.5)); // Elliptical shape
+                            float radialFade = smoothstep(0.5, 0.25, radialDist);
+
+                            float alpha = 0.9 * depthFade * radialFade;
 
                             if (alpha <= 0.01) discard;
                             gl_FragColor = vec4(color, alpha);
@@ -251,11 +257,18 @@ const Grid = ({ theme, breakpoint }) => {
                         uniform float uWireOpacity;
                         uniform float uDepthFade;
 
+                        varying vec2 vUv;
                         varying float vDepth;
 
                         void main(){
-                            float fade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
-                            float alpha = uWireOpacity * fade * fade;
+                            float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
+
+                            // Fade out towards the edges to match the fill
+                            vec2 centerUv = vUv - 0.5;
+                            float radialDist = length(centerUv * vec2(1.0, 1.5));
+                            float radialFade = smoothstep(0.5, 0.25, radialDist);
+
+                            float alpha = uWireOpacity * depthFade * radialFade;
 
                             if (alpha <= 0.01) discard;
                             gl_FragColor = vec4(uWireColor, alpha);
