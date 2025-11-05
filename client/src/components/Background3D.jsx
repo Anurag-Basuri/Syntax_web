@@ -68,10 +68,10 @@ const isWebGLAvailable = () => {
 
 // --- R3F Scene Components ---
 
-// Grid with 3D perspective view and new wavy effect
+// ** UPDATED Grid Component **
 const Grid = ({ theme, breakpoint }) => {
 	const meshRef = useRef();
-	const wireMatRef = useRef(); // Only wireframe material now
+	const wireMatRef = useRef();
 
 	const prefersReduced = useMemo(() => {
 		if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -89,20 +89,23 @@ const Grid = ({ theme, breakpoint }) => {
 		return map[breakpoint] || 20.0;
 	}, [breakpoint]);
 
+	// **CHANGE:** segsY adjusted to new plane height (50) to keep cells square
+	// (Width 120 / segs) should equal (Height 50 / segsY)
+	// 120 / (gridSize * 1.5) = 80 / gridSize
+	// 50 / (gridSize * (50/80)) = 80 / gridSize
 	const segs = Math.max(8, Math.floor(gridSize * 1.5));
-	const segsY = Math.max(6, Math.floor(gridSize));
+	const segsY = Math.max(6, Math.floor(gridSize * 0.625)); // 0.625 = 50 / 80
 
 	const uniforms = useMemo(
 		() => ({
 			uTime: { value: 0 },
-			uWaveAmplitude: { value: breakpoint === 'mobile' ? 0.45 : 0.65 },
+			// **CHANGE:** Increased amplitude for a stronger 3D effect
+			uWaveAmplitude: { value: breakpoint === 'mobile' ? 0.8 : 1.2 },
 			uWaveFrequency: { value: 0.09 },
 			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.45 },
 			uDepthFade: { value: 0.95 },
-			// **CHANGE:** Increased wire opacity significantly
 			uWireOpacity: { value: theme === 'light' ? 0.4 : 0.6 },
 			uWireColor: { value: new THREE.Color(theme === 'light' ? '#cbd5e1' : '#334155') },
-			// **NEW:** Accent color for the glow effect
 			uAccent: { value: new THREE.Color(readCssVar('--accent-1')) },
 		}),
 		[theme, prefersReduced, breakpoint]
@@ -148,8 +151,11 @@ const Grid = ({ theme, breakpoint }) => {
 
             float elevation = wave + small + n;
 
-            vDepth = (pos.y + 40.0) / 80.0;
-            elevation *= smoothstep(0.0, 0.9, 1.0 - vDepth);
+            // **CHANGE:** vDepth calculation updated for new plane height (50)
+            // Plane height is 50, so pos.y ranges from -25 to 25
+            vDepth = (pos.y + 25.0) / 50.0; // Maps -25 -> 0.0 and 25 -> 1.0
+
+            elevation *= smoothstep(0.0, 0.9, 1.0 - vDepth); // Attenuates waves near the top edge
 
             pos.z += elevation;
 
@@ -162,11 +168,13 @@ const Grid = ({ theme, breakpoint }) => {
 	return (
 		<group
 			ref={meshRef}
-			position={[0, -10, -12]}
+			// **CHANGE:** Positioned lower so its top edge (-25 + 25*cos) is just below logo (y=0)
+			position={[0, -25, -12]}
 			rotation={[THREE.MathUtils.degToRad(-12), 0, 0]}
 		>
 			<mesh renderOrder={0}>
-				<planeGeometry args={[120, 80, segs, segsY]} />
+				{/* **CHANGE:** Height changed from 80 to 50, segsY updated */}
+				<planeGeometry args={[120, 50, segs, segsY]} />
 				<shaderMaterial
 					ref={wireMatRef}
 					uniforms={uniforms}
@@ -179,24 +187,23 @@ const Grid = ({ theme, breakpoint }) => {
                         uniform vec3 uWireColor;
                         uniform float uWireOpacity;
                         uniform float uDepthFade;
-                        uniform vec3 uAccent; // **NEW** Accent color for glow
-                        uniform float uTime; // **NEW** For pulsing glow
+                        uniform vec3 uAccent;
+                        uniform float uTime;
                         
                         varying vec2 vUv;
                         varying float vDepth;
-                        varying float vElevation; // **NEW** To base glow on elevation
+                        varying float vElevation;
                         
                         void main(){
                             float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
                             
-                            // **CHANGE:** New dynamic glow effect based on elevation and time
-                            float glowFactor = smoothstep(0.0, 0.4, abs(vElevation)) * 0.5; // Glows more on higher elevation
-                            glowFactor += sin(uTime * 3.0 + vUv.x * 5.0) * 0.2 + 0.3; // Pulsing effect
+                            float glowFactor = smoothstep(0.0, 0.4, abs(vElevation)) * 0.5;
+                            glowFactor += sin(uTime * 3.0 + vUv.x * 5.0) * 0.2 + 0.3;
                             glowFactor = clamp(glowFactor, 0.0, 1.0);
 
                             vec3 finalColor = mix(uWireColor, uAccent, glowFactor);
                             
-                            float alpha = uWireOpacity * depthFade * (0.8 + glowFactor * 0.2); // Opacity also affected by glow
+                            float alpha = uWireOpacity * depthFade * (0.8 + glowFactor * 0.2);
                             
                             if (alpha <= 0.01) discard;
                             gl_FragColor = vec4(finalColor, alpha);
@@ -211,7 +218,6 @@ const Grid = ({ theme, breakpoint }) => {
 // Clean logo (no 3D animation)
 const FloatingLogo = ({ breakpoint }) => {
 	const base = useRef();
-	// const anim = useRef(); // Removed anim ref as no 3D effect
 	const texture = useTexture(logo);
 
 	useEffect(() => {
@@ -255,19 +261,8 @@ const FloatingLogo = ({ breakpoint }) => {
 		if (base.current) base.current.scale.set(scaleXY[0], scaleXY[1], 1);
 	}, [scaleXY]);
 
-	// **CHANGE:** Removed 3D animation from the logo
-	// useFrame((state) => {
-	//     const t = state.clock.elapsedTime;
-	//     if (anim.current) {
-	//         anim.current.position.y = Math.sin(t * 0.8) * 0.15;
-	//         anim.current.rotation.y = Math.cos(t * 0.5) * 0.05;
-	//         anim.current.rotation.x = Math.sin(t * 0.4) * 0.02;
-	//     }
-	// });
-
 	return (
 		<group ref={base} position={[0, 0, 0]} renderOrder={-1}>
-			{/* **CHANGE:** Direct mesh, no extra animation group */}
 			<mesh position={[0, 0, targetZ]}>
 				<planeGeometry args={[1, 1]} />
 				<meshBasicMaterial map={texture} transparent depthWrite={false} />
