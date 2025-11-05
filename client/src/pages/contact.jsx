@@ -88,7 +88,7 @@ const ContactPage = () => {
 	};
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-[#0a0f1f] to-[#1a1f3a] py-12 px-4">
+		<div className="min-h-screen py-12 px-4">
 			{!user?.adminID ? (
 				<motion.div
 					initial={{ opacity: 0, y: 20 }}

@@ -142,7 +142,7 @@ const EventHero = ({ events, loading }) => {
 													'0 0 10px #ff0000',
 													'0 0 0px #ff0000',
 												],
-											}
+										  }
 										: {}
 								}
 								transition={{ duration: 1.5, repeat: Infinity }}
@@ -377,15 +377,7 @@ const EventPage = () => {
 
 	if (error) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0a0e17] to-[#1a1f3a] p-4 relative overflow-hidden">
-				{/* Enhanced background for error state */}
-				<div className="fixed inset-0 z-0 overflow-hidden">
-					<div className="absolute inset-0 bg-grid-white/[0.03] bg-[length:20px_20px]" />
-					<div className="absolute top-1/4 left-1/4 w-80 h-80 rounded-full bg-red-500/10 filter blur-3xl animate-pulse-slow" />
-					<div className="absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-orange-500/15 filter blur-3xl animate-pulse-slow" />
-					<div className="absolute bottom-1/4 left-1/3 w-72 h-72 rounded-full bg-red-500/12 filter blur-3xl animate-pulse-slow" />
-				</div>
-
+			<div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
 				<motion.div
 					initial={{ opacity: 0, y: 30, scale: 0.9 }}
 					animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -397,7 +389,7 @@ const EventPage = () => {
 							scale: [1, 1.1, 1],
 						}}
 						transition={{ duration: 3, repeat: Infinity }}
-						className="text-6xl sm:text-8xl lg:text-9xl mb-6 sm:mb-8"
+						className="text-6xl sm:text-8xl lg:text-9xl mb-6"
 					>
 						⚠️
 					</motion.div>
@@ -421,15 +413,7 @@ const EventPage = () => {
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-b from-[#0a0e17] to-[#1a1f3a] text-white overflow-x-hidden">
-			{/* Enhanced fixed background matching home page */}
-			<div className="fixed inset-0 z-0 overflow-hidden">
-				<div className="absolute inset-0 bg-grid-white/[0.03] bg-[length:20px_20px]" />
-				<div className="absolute top-1/4 left-1/4 w-80 h-80 rounded-full bg-blue-500/10 filter blur-3xl animate-pulse-slow" />
-				<div className="absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-indigo-500/15 filter blur-3xl animate-pulse-slow" />
-				<div className="absolute bottom-1/4 left-1/3 w-72 h-72 rounded-full bg-purple-500/12 filter blur-3xl animate-pulse-slow" />
-			</div>
-
+		<div className="min-h-screen text-white overflow-x-hidden">
 			{/* Content */}
 			<div className="relative z-10">
 				<EventHero events={events} loading={loading} />
@@ -546,7 +530,9 @@ const EventPage = () => {
 											key={category}
 											categoryKey={category}
 											events={eventsArr}
-											emptyMessage={`No ${category === 'ongoing' ? 'live' : category} events at the moment`}
+											emptyMessage={`No ${
+												category === 'ongoing' ? 'live' : category
+											} events at the moment`}
 										/>
 									)
 							)}
