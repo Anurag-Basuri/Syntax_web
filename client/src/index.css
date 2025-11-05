@@ -4,56 +4,82 @@
    1. THEME & GLOBAL VARIABLES
    ========================================================================== */
 :root {
-	/* Accents: cyan ⇢ indigo (clean gradient, readable on dark) */
-	--accent-1: #06b6d4; /* Cyan-500 */
-	--accent-2: #6366f1; /* Indigo-500 */
+	/* Enhanced Accents: vibrant cyan ⇢ blue gradient */
+	--accent-1: #0ea5e9; /* Sky-500 - more vibrant */
+	--accent-2: #3b82f6; /* Blue-500 - clearer blue */
 
-	/* Dark theme base: deep navy slate with soft layering */
-	--bg-base: #0b1020; /* Deep Navy */
-	--bg-soft: #0f172a; /* Slate-900 */
-	--bg-softer: #111827; /* Slate-800 */
+	/* Dark theme: deeper backgrounds with better contrast */
+	--bg-base: #0a0e1a; /* Very deep navy-black */
+	--bg-soft: #111827; /* Gray-900 */
+	--bg-softer: #1f2937; /* Gray-800 */
 
-	/* Glass surfaces tuned for dark */
-	--glass-bg: rgba(8, 13, 28, 0.62);
-	--glass-border: rgba(148, 163, 184, 0.18);
-	--glass-hover: rgba(17, 24, 39, 0.74);
-	--glass-shine: rgba(255, 255, 255, 0.04);
+	/* Glass surfaces - higher contrast for dark mode */
+	--glass-bg: rgba(31, 41, 55, 0.75); /* More opaque */
+	--glass-border: rgba(148, 163, 184, 0.25); /* More visible */
+	--glass-hover: rgba(55, 65, 81, 0.85); /* Clearer hover */
+	--glass-shine: rgba(255, 255, 255, 0.08);
 
-	/* Dark text scale */
-	--text-primary: #e2e8f0; /* Slate-200 */
-	--text-secondary: #94a3b8; /* Slate-400 */
-	--text-muted: #64748b; /* Slate-500 */
+	/* Dark text - higher contrast */
+	--text-primary: #f1f5f9; /* Slate-100 - brighter */
+	--text-secondary: #cbd5e1; /* Slate-300 - more visible */
+	--text-muted: #94a3b8; /* Slate-400 */
 
-	/* Shadows */
-	--shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
-	--shadow-md: 0 6px 18px rgba(0, 0, 0, 0.55);
-	--shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.65);
+	/* Navigation specific */
+	--nav-bg: rgba(10, 14, 26, 0.85);
+	--nav-border: rgba(148, 163, 184, 0.2);
+	--nav-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+	--nav-bg-elevated: rgba(17, 24, 39, 0.92);
+	--nav-border-elevated: rgba(148, 163, 184, 0.3);
+	--nav-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.6);
+
+	/* Enhanced shadows */
+	--shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+	--shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+	--shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
+	--shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.7);
+
+	/* Glows for accents */
+	--glow-blue: 0 0 20px rgba(14, 165, 233, 0.4);
 }
 
-/* Light theme: brighter accents, higher contrast UI */
+/* Light theme: crisp whites with strong contrast */
 :root[data-theme='light'] {
-	--accent-1: #0891b2; /* Cyan-600 (slightly deeper for light bg) */
-	--accent-2: #4f46e5; /* Indigo-600 */
+	/* Accents: deeper for better visibility on light */
+	--accent-1: #0284c7; /* Sky-600 - deeper */
+	--accent-2: #2563eb; /* Blue-600 - richer */
 
-	--bg-base: #ffffff;
+	/* Light backgrounds: pure white base */
+	--bg-base: #ffffff; /* Pure white */
 	--bg-soft: #f8fafc; /* Slate-50 */
-	--bg-softer: #eef2f7; /* Soft neutral */
+	--bg-softer: #f1f5f9; /* Slate-100 */
 
-	/* Glass surfaces tuned for light */
-	--glass-bg: rgba(255, 255, 255, 0.78);
-	--glass-border: rgba(15, 23, 42, 0.08);
+	/* Glass surfaces - subtle but visible */
+	--glass-bg: rgba(255, 255, 255, 0.85);
+	--glass-border: rgba(15, 23, 42, 0.12); /* More visible */
 	--glass-hover: rgba(248, 250, 252, 0.95);
-	--glass-shine: rgba(0, 0, 0, 0.02);
+	--glass-shine: rgba(255, 255, 255, 0.5);
 
-	/* Light text scale */
-	--text-primary: #0f172a; /* Slate-900 */
-	--text-secondary: #334155; /* Slate-700 */
+	/* Light text - strong contrast */
+	--text-primary: #0f172a; /* Slate-900 - very dark */
+	--text-secondary: #475569; /* Slate-600 - darker */
 	--text-muted: #64748b; /* Slate-500 */
 
-	/* Shadows (lighter) */
-	--shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
-	--shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
-	--shadow-lg: 0 10px 36px rgba(15, 23, 42, 0.12);
+	/* Navigation specific */
+	--nav-bg: rgba(255, 255, 255, 0.88);
+	--nav-border: rgba(15, 23, 42, 0.1);
+	--nav-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+	--nav-bg-elevated: rgba(255, 255, 255, 0.95);
+	--nav-border-elevated: rgba(15, 23, 42, 0.15);
+	--nav-shadow-elevated: 0 8px 32px rgba(15, 23, 42, 0.12);
+
+	/* Enhanced shadows for light */
+	--shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
+	--shadow-md: 0 6px 20px rgba(15, 23, 42, 0.1);
+	--shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.14);
+	--shadow-xl: 0 20px 60px rgba(15, 23, 42, 0.18);
+
+	/* Glows for accents */
+	--glow-blue: 0 0 20px rgba(2, 132, 199, 0.3);
 }
 
 /* ==========================================================================
@@ -82,6 +108,7 @@ h6 {
 	color: var(--text-primary);
 	font-weight: 700;
 	letter-spacing: -0.025em;
+	line-height: 1.2;
 }
 h1 {
 	font-size: clamp(2.5rem, 6vw + 1rem, 5rem);
@@ -94,6 +121,7 @@ h3 {
 }
 p {
 	font-size: clamp(0.95rem, 0.5vw + 0.8rem, 1.1rem);
+	line-height: 1.7;
 }
 
 /* ==========================================================================
@@ -113,6 +141,7 @@ p {
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
+	font-weight: 700;
 }
 .btn {
 	display: inline-flex;
@@ -129,15 +158,15 @@ p {
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .btn:hover {
-	transform: translateY(-1px);
+	transform: translateY(-2px);
 }
 .btn-primary {
-	color: #fff;
+	color: #ffffff;
 	background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-	box-shadow: var(--shadow-sm);
+	box-shadow: var(--shadow-md);
 }
 .btn-primary:hover {
-	box-shadow: var(--shadow-md);
+	box-shadow: var(--shadow-lg), var(--glow-blue);
 }
 .btn-secondary {
 	color: var(--text-primary);
@@ -146,7 +175,8 @@ p {
 }
 .btn-secondary:hover {
 	background: var(--glass-hover);
-	box-shadow: var(--shadow-sm);
+	box-shadow: var(--shadow-md);
+	border-color: var(--accent-1);
 }
 
 /* Allow canvas to be interactive without blocking content */
@@ -161,7 +191,7 @@ canvas > div {
    4. ACCESSIBILITY & REDUCED MOTION
    ========================================================================== */
 html[data-theme] * {
-	transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+	transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 :focus-visible {
 	outline: 2px solid var(--accent-1);
