@@ -27,7 +27,7 @@ const initializeCloudinary = () => {
 };
 
 // Check Cloudinary connection
-export const checkCloudinaryConnection = async () => {
+const checkCloudinaryConnection = async () => {
 	initializeCloudinary(); // First, set up the configuration
 	const response = await cloudinary.api.ping();
 	if (response?.status !== 'ok') {
