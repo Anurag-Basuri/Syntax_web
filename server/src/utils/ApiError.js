@@ -1,58 +1,48 @@
 class ApiError extends Error {
-	constructor(statusCode, message = 'Something went wrong', errors = [], stack = '') {
+	constructor(statusCode, message, details = null) {
 		super(message);
-
-		// Validate HTTP status code
-		if (!Number.isInteger(statusCode) || statusCode < 100 || statusCode > 599) {
-			throw new Error(`Invalid HTTP status code: ${statusCode}`);
-		}
-
+		this.name = 'ApiError';
 		this.statusCode = statusCode;
-		this.data = null;
-		this.message = message;
-		this.success = false;
-		this.errors = Array.isArray(errors) ? errors : [errors];
-		this.timestamp = new Date().toISOString();
-
-		// Stack trace handling
-		stack ? (this.stack = stack) : Error.captureStackTrace(this, this.constructor);
+		this.details = details;
+		Error.captureStackTrace(this, this.constructor);
 	}
 
-	// Static factory methods for common errors
-	static badRequest(message = 'Bad Request', errors = []) {
-		return new ApiError(400, message, errors);
-	}
-
-	static unauthorized(message = 'Unauthorized access') {
-		return new ApiError(401, message);
-	}
-
-	static forbidden(message = 'Forbidden access') {
-		return new ApiError(403, message);
-	}
-
-	static notFound(message = 'Resource not found') {
-		return new ApiError(404, message);
-	}
-
-	static tooManyRequests(message = 'Too many requests') {
-		return new ApiError(429, message);
-	}
-
-	static internal(message = 'Internal server error') {
-		return new ApiError(500, message);
-	}
-
-	// Safe serialization for responses
 	toJSON() {
 		return {
-			success: this.success,
+			name: this.name,
 			statusCode: this.statusCode,
 			message: this.message,
-			errors: this.errors,
-			timestamp: this.timestamp,
-			...(process.env.NODE_ENV === 'development' && { stack: this.stack }),
+			...(this.details && { details: this.details }),
+			stack: process.env.NODE_ENV === 'development' ? this.stack : undefined,
 		};
+	}
+
+	static BadRequest(message = 'Bad Request', details = null) {
+		return new ApiError(400, message, details);
+	}
+
+	static Unauthorized(message = 'Unauthorized', details = null) {
+		return new ApiError(401, message, details);
+	}
+
+	static Forbidden(message = 'Forbidden', details = null) {
+		return new ApiError(403, message, details);
+	}
+
+	static NotFound(message = 'Not Found', details = null) {
+		return new ApiError(404, message, details);
+	}
+
+	static Conflict(message = 'Conflict', details = null) {
+		return new ApiError(409, message, details);
+	}
+
+	static UnprocessableEntity(message = 'Unprocessable Entity', details = null) {
+		return new ApiError(422, message, details);
+	}
+
+	static InternalServerError(message = 'Internal Server Error', details = null) {
+		return new ApiError(500, message, details);
 	}
 }
 
