@@ -111,81 +111,62 @@ const Grid = ({ theme, breakpoint }) => {
 		[theme, prefersReduced, breakpoint]
 	);
 
-	// animate time and subtle rotation
+	// animate time
 	useFrame((state) => {
 		const t = state.clock.elapsedTime;
 		if (fillMatRef.current) fillMatRef.current.uniforms.uTime.value = t;
 		if (wireMatRef.current) wireMatRef.current.uniforms.uTime.value = t;
-
-		// subtle 3D tilt based on pointer unless reduced motion requested
-		if (meshRef.current && !prefersReduced) {
-			const { pointer } = state;
-			const targetX = THREE.MathUtils.degToRad(-10 + pointer.y * 4);
-			const targetY = THREE.MathUtils.degToRad(pointer.x * 6);
-			meshRef.current.rotation.x = THREE.MathUtils.damp(
-				meshRef.current.rotation.x,
-				targetX,
-				3,
-				0.016
-			);
-			meshRef.current.rotation.y = THREE.MathUtils.damp(
-				meshRef.current.rotation.y,
-				targetY,
-				3,
-				0.016
-			);
-		}
 	});
 
 	// Shared vertex shader for both fill and wireframe to ensure they match
 	const vertexShader = `
-        uniform float uTime;
-        uniform float uWaveAmplitude;
-        uniform float uWaveFrequency;
-        uniform float uWaveSpeed;
+		uniform float uTime;
+		uniform float uWaveAmplitude;
+		uniform float uWaveFrequency;
+		uniform float uWaveSpeed;
 
-        varying vec2 vUv;
-        varying float vElevation;
-        varying float vDepth;
+		varying vec2 vUv;
+		varying float vElevation;
+		varying float vDepth;
 
-        // small analytic noise (cheap)
-        float hash(vec2 p) {
-            return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
-        }
-        float noise(vec2 p){
-            vec2 i = floor(p);
-            vec2 f = fract(p);
-            f = f*f*(3.0-2.0*f);
-            float a = hash(i);
-            float b = hash(i+vec2(1.0,0.0));
-            float c = hash(i+vec2(0.0,1.0));
-            float d = hash(i+vec2(1.0,1.0));
-            return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
-        }
+		// small analytic noise (cheap)
+		float hash(vec2 p) {
+			return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
+		}
+		float noise(vec2 p){
+			vec2 i = floor(p);
+			vec2 f = fract(p);
+			f = f*f*(3.0-2.0*f);
+			float a = hash(i);
+			float b = hash(i+vec2(1.0,0.0));
+			float c = hash(i+vec2(0.0,1.0));
+			float d = hash(i+vec2(1.0,1.0));
+			return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+		}
 
-        void main(){
-            vUv = uv;
-            vec3 pos = position;
+		void main(){
+			vUv = uv;
+			vec3 pos = position;
 
-            // rolling waves + small high-frequency cloth ripples
-            float wave = sin(pos.x * uWaveFrequency + uTime * uWaveSpeed) * 
-                         cos(pos.y * uWaveFrequency * 0.75 + uTime * uWaveSpeed * 0.9) * uWaveAmplitude;
-            float small = sin(pos.x * uWaveFrequency * 3.2 + uTime * uWaveSpeed * 1.8) * 0.12;
-            float n = (noise((pos.xy) * 0.08 + uTime * 0.03) - 0.5) * 0.18;
+			// rolling waves + small high-frequency cloth ripples
+			float wave = sin(pos.x * uWaveFrequency + uTime * uWaveSpeed) *
+						 cos(pos.y * uWaveFrequency * 0.75 + uTime * uWaveSpeed * 0.9) * uWaveAmplitude;
+			float small = sin(pos.x * uWaveFrequency * 3.2 + uTime * uWaveSpeed * 1.8) * 0.12;
+			float n = (noise((pos.xy) * 0.08 + uTime * 0.03) - 0.5) * 0.18;
 
-            float elevation = wave + small + n;
+			float elevation = wave + small + n;
 
-            // gentle distance attenuation so far cloth lies flatter
-            vDepth = (pos.y + 40.0) / 80.0;
-            elevation *= smoothstep(0.0, 0.9, 1.0 - vDepth);
+			// gentle distance attenuation so far cloth lies flatter
+			vDepth = (pos.y + 40.0) / 80.0;
+			elevation *= smoothstep(0.0, 0.9, 1.0 - vDepth);
 
-            pos.z += elevation;
+			pos.z += elevation;
 
-            vElevation = elevation;
+			vElevation = elevation;
 
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-        }
-    `;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+		}
+	`;
 
 	return (
 		<group
@@ -209,7 +190,7 @@ const Grid = ({ theme, breakpoint }) => {
                         uniform float uDepthFade;
 
                         varying vec2 vUv;
-                        varying float vElevation;
+                        varying float vElevation; 
                         varying float vDepth;
 
                         void main(){
@@ -224,15 +205,10 @@ const Grid = ({ theme, breakpoint }) => {
                             float shadow = smoothstep(-0.25, -0.04, vElevation) * 0.18;
                             color *= 1.0 - shadow;
 
-                            // vignette/fade by depth and radial distance
+                            // vignette/fade by depth
                             float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
                             
-                            // Fade out towards the edges for a contained look
-                            vec2 centerUv = vUv - 0.5;
-                            float radialDist = length(centerUv * vec2(1.0, 1.5)); // Elliptical shape
-                            float radialFade = smoothstep(0.5, 0.25, radialDist);
-
-                            float alpha = 0.9 * depthFade * radialFade;
+                            float alpha = 0.9 * depthFade; // Only using depthFade
 
                             if (alpha <= 0.01) discard;
                             gl_FragColor = vec4(color, alpha);
@@ -256,20 +232,15 @@ const Grid = ({ theme, breakpoint }) => {
                         uniform vec3 uWireColor;
                         uniform float uWireOpacity;
                         uniform float uDepthFade;
-
+                        
                         varying vec2 vUv;
                         varying float vDepth;
-
+                        
                         void main(){
                             float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
-
-                            // Fade out towards the edges to match the fill
-                            vec2 centerUv = vUv - 0.5;
-                            float radialDist = length(centerUv * vec2(1.0, 1.5));
-                            float radialFade = smoothstep(0.5, 0.25, radialDist);
-
-                            float alpha = uWireOpacity * depthFade * radialFade;
-
+                            
+                            float alpha = uWireOpacity * depthFade; // Only using depthFade
+                            
                             if (alpha <= 0.01) discard;
                             gl_FragColor = vec4(uWireColor, alpha);
                         }
@@ -326,40 +297,6 @@ const FloatingLogo = ({ breakpoint }) => {
 	useEffect(() => {
 		if (base.current) base.current.scale.set(scaleXY[0], scaleXY[1], 1);
 	}, [scaleXY]);
-
-	const prefersReduced =
-		typeof window !== 'undefined' && window.matchMedia
-			? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-			: false;
-
-	useFrame((state) => {
-		if (!anim.current) return;
-		const { pointer, clock } = state;
-		const t = clock.elapsedTime;
-
-		const parallaxFactors = {
-			mobile: 0.1,
-			'tablet-sm': 0.15,
-			tablet: 0.2,
-			desktop: 0.25,
-			'desktop-lg': 0.3,
-		};
-
-		const factor = parallaxFactors[breakpoint] || 0.2;
-		const px = prefersReduced ? 0 : factor * pointer.x;
-		const py = prefersReduced ? 0 : factor * pointer.y;
-
-		anim.current.position.x = THREE.MathUtils.damp(anim.current.position.x, px, 5.0, 0.016);
-		anim.current.position.y = THREE.MathUtils.damp(anim.current.position.y, py, 5.0, 0.016);
-
-		const tiltX = prefersReduced ? 0 : THREE.MathUtils.degToRad(py * 1.5);
-		const tiltY = prefersReduced ? 0 : THREE.MathUtils.degToRad(px * -2.0);
-		anim.current.rotation.x = THREE.MathUtils.damp(anim.current.rotation.x, tiltX, 5.0, 0.016);
-		anim.current.rotation.y = THREE.MathUtils.damp(anim.current.rotation.y, tiltY, 5.0, 0.016);
-
-		const s = 1 + (prefersReduced ? 0 : Math.sin(t * 0.2) * 0.004);
-		anim.current.scale.set(s, s, 1);
-	});
 
 	return (
 		<group ref={base} position={[0, 0, 0]} renderOrder={-1}>
