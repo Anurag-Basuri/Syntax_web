@@ -296,8 +296,8 @@ const RadialGlow = ({
 };
 
 const Glows = ({ theme }) => {
-	const accent1 = useMemo(() => readCssVar('--accent-1'), [theme]);
-	const accent2 = useMemo(() => readCssVar('--accent-2'), [theme]);
+	const accent1 = useMemo(() => readCssVar('--accent-1'), []);
+	const accent2 = useMemo(() => readCssVar('--accent-2'), []);
 	const isLight = theme === 'light';
 
 	return (
@@ -374,7 +374,7 @@ const EnhancedLogo = ({ breakpoint }) => {
 		const worldH = 2 * Math.tan(THREE.MathUtils.degToRad((camera?.fov ?? 60) / 2)) * dist;
 		const h = clamp(worldH * frac, 6, 20);
 		return [h * aspect, h];
-	}, [camera?.fov, camera?.position?.z, aspect, frac]);
+	}, [camera?.fov, camera?.position?.z, aspect, frac, targetZ]);
 
 	useEffect(() => {
 		if (base.current) base.current.scale.set(scaleXY[0], scaleXY[1], 1);
