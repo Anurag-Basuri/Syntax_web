@@ -68,7 +68,7 @@ const isWebGLAvailable = () => {
 
 // --- R3F Scene Components ---
 
-// Grid positioned below logo only
+// Grid with 3D perspective view
 const Grid = ({ theme, breakpoint }) => {
 	const meshRef = useRef();
 	const materialRef = useRef();
@@ -122,12 +122,37 @@ const Grid = ({ theme, breakpoint }) => {
 		if (materialRef.current) {
 			materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
 		}
+
+		// Add subtle 3D rotation based on mouse movement
+		if (meshRef.current && !prefersReduced) {
+			const { pointer } = state;
+			const targetRotX = THREE.MathUtils.degToRad(-15 + pointer.y * 5); // Tilt based on Y
+			const targetRotY = THREE.MathUtils.degToRad(pointer.x * 8); // Rotate based on X
+
+			meshRef.current.rotation.x = THREE.MathUtils.damp(
+				meshRef.current.rotation.x,
+				targetRotX,
+				4,
+				0.016
+			);
+			meshRef.current.rotation.y = THREE.MathUtils.damp(
+				meshRef.current.rotation.y,
+				targetRotY,
+				4,
+				0.016
+			);
+		}
 	});
 
 	return (
-		// Position grid lower so it only appears below the logo
-		<mesh ref={meshRef} position={[0, -8, -10]} renderOrder={-2}>
-			<planeGeometry args={[100, 60, 256, 128]} />
+		// Position and rotate for 3D perspective effect
+		<mesh
+			ref={meshRef}
+			position={[0, -12, -15]}
+			rotation={[THREE.MathUtils.degToRad(-15), 0, 0]} // Initial tilt
+			renderOrder={-2}
+		>
+			<planeGeometry args={[120, 80, 320, 240]} />
 			<shaderMaterial
 				ref={materialRef}
 				transparent
@@ -145,14 +170,17 @@ const Grid = ({ theme, breakpoint }) => {
           varying vec2 vUv;
           varying vec3 vPosition;
           varying float vElevation;
+          varying float vDepth;
 
           void main() {
             vUv = uv;
             vec3 pos = position;
 
+            // Cloth-like texture displacement
             float cloth = sin(pos.x * uClothFreq + uTime * uSpeed) *
                           cos(pos.y * uClothFreq * 1.2 + uTime * uSpeed * 0.8) * uClothAmp;
 
+            // Wavy motion
             float wave1 = sin(pos.x * uWaveFreq + uTime * uWaveSpeed) * uWaveAmp;
             float wave2 = cos(pos.y * uWaveFreq * 0.7 + uTime * uWaveSpeed * 1.1) * uWaveAmp * 0.4;
 
@@ -161,6 +189,9 @@ const Grid = ({ theme, breakpoint }) => {
 
             vPosition = pos;
             vElevation = elevation;
+            
+            // Calculate depth for perspective fade
+            vDepth = (pos.y + 40.0) / 80.0; // Normalize depth
 
             gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
           }
@@ -182,12 +213,14 @@ const Grid = ({ theme, breakpoint }) => {
           varying vec2 vUv;
           varying vec3 vPosition;
           varying float vElevation;
+          varying float vDepth;
 
           void main() {
             vec2 coord = vPosition.xy;
 
-            // Only render grid in bottom half (below logo)
-            if (vUv.y > 0.45) discard;
+            // Perspective depth fade - fade out towards the back
+            float depthFade = smoothstep(0.0, 0.4, vDepth);
+            if (depthFade < 0.01) discard;
 
             vec2 g = abs(fract(coord / uMinorSize - 0.5) - 0.5) / fwidth(coord / uMinorSize);
             float minor = 1.0 - min(min(g.x, g.y) * uMinorWidth, 1.0);
@@ -195,6 +228,7 @@ const Grid = ({ theme, breakpoint }) => {
             vec2 G = abs(fract((coord / (uMinorSize * uMajorEvery)) - 0.5) - 0.5) / fwidth(coord / (uMinorSize * uMajorEvery));
             float major = 1.0 - min(min(G.x, G.y) * uMajorWidth, 1.0);
 
+            // Elevation-based accent glow
             float accentGlow = smoothstep(-0.2, 0.2, vElevation) * uAccentAlpha;
 
             vec3 minorTint = mix(uMinorColor, uAccentColor, accentGlow * 0.4);
@@ -203,14 +237,12 @@ const Grid = ({ theme, breakpoint }) => {
             vec3 color = minorTint * minor * uMinorAlpha + majorTint * major * uMajorAlpha;
             float alpha = (minor * uMinorAlpha + major * uMajorAlpha + accentGlow * 0.3);
 
-            // Fade at edges (horizontal)
+            // Horizontal fade from center
             float distFromCenter = length(vec2(vUv.x - 0.5, 0.0)) * 2.0;
             float fade = 1.0 - smoothstep(uFadeNear, uFadeFar, distFromCenter);
             
-            // Smooth fade at top edge (where it meets logo area)
-            float topFade = smoothstep(0.35, 0.45, vUv.y);
-            
-            alpha *= fade * (1.0 - topFade);
+            // Combine perspective depth with horizontal fade
+            alpha *= fade * depthFade;
             alpha *= 0.95 + vElevation * 0.05;
 
             if (alpha <= 0.01) discard;
@@ -332,9 +364,9 @@ const Background3D = () => {
 
 	const cameraConfig = useMemo(() => {
 		const configs = {
-			mobile: { position: [0, 0, 5], fov: 70 },
-			'tablet-sm': { position: [0, 0, 5], fov: 68 },
-			tablet: { position: [0, 0, 5], fov: 64 },
+			mobile: { position: [0, 0, 8], fov: 75 },
+			'tablet-sm': { position: [0, 0, 7], fov: 70 },
+			tablet: { position: [0, 0, 6], fov: 65 },
 			desktop: { position: [0, 0, 5], fov: 60 },
 			'desktop-lg': { position: [0, 0, 5], fov: 58 },
 		};
@@ -352,7 +384,7 @@ const Background3D = () => {
 			aria-hidden="true"
 			style={{ background: baseGradient }}
 		>
-			{/* CSS preview grid - bottom only */}
+			{/* CSS preview grid - bottom only with perspective */}
 			<div
 				className="absolute inset-0 pointer-events-none transition-opacity duration-500 ease-out"
 				style={{ opacity: cssPreviewOpacity }}
@@ -360,7 +392,7 @@ const Background3D = () => {
 				<div
 					className="absolute bottom-0 left-0 right-0 pointer-events-none animate-grid-flow"
 					style={{
-						height: '50%',
+						height: '55%',
 						backgroundImage: `
                             linear-gradient(to right, ${
 								theme === 'light'
@@ -374,13 +406,15 @@ const Background3D = () => {
 							} 1.5px, transparent 1.5px)
                         `,
 						backgroundSize: '24px 24px',
-						maskImage: 'linear-gradient(to top, black 60%, transparent 100%)',
-						WebkitMaskImage: 'linear-gradient(to top, black 60%, transparent 100%)',
+						transform: 'perspective(600px) rotateX(45deg)',
+						transformOrigin: 'bottom center',
+						maskImage: 'linear-gradient(to top, black 40%, transparent 100%)',
+						WebkitMaskImage: 'linear-gradient(to top, black 40%, transparent 100%)',
 					}}
 				/>
 			</div>
 
-			{/* WebGL scene */}
+			{/* WebGL scene with 3D perspective */}
 			{!showFallback && (
 				<Canvas
 					camera={cameraConfig}
