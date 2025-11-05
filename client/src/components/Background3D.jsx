@@ -80,40 +80,70 @@ const Grid = ({ theme, breakpoint }) => {
 
 	const gridSize = useMemo(() => {
 		const map = {
-			mobile: 12.0,
-			'tablet-sm': 16.0,
-			tablet: 20.0,
-			desktop: 24.0,
-			'desktop-lg': 28.0,
+			mobile: 14.0,
+			'tablet-sm': 18.0,
+			tablet: 22.0,
+			desktop: 26.0,
+			'desktop-lg': 30.0,
 		};
-		return map[breakpoint] || 20.0;
+		return map[breakpoint] || 22.0;
 	}, [breakpoint]);
 
-	// **CHANGE:** segsY adjusted to new plane height (50) to keep cells square
-	// (Width 120 / segs) should equal (Height 50 / segsY)
-	// 120 / (gridSize * 1.5) = 80 / gridSize
-	// 50 / (gridSize * (50/80)) = 80 / gridSize
-	const segs = Math.max(8, Math.floor(gridSize * 1.5));
-	const segsY = Math.max(6, Math.floor(gridSize * 0.625)); // 0.625 = 50 / 80
+	// Higher segment count for smoother waves
+	const segs = Math.max(12, Math.floor(gridSize * 2));
+	const segsY = Math.max(8, Math.floor(gridSize * 0.8));
 
 	const uniforms = useMemo(
 		() => ({
 			uTime: { value: 0 },
-			// **CHANGE:** Increased amplitude for a stronger 3D effect
-			uWaveAmplitude: { value: breakpoint === 'mobile' ? 0.8 : 1.2 },
-			uWaveFrequency: { value: 0.09 },
-			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.45 },
-			uDepthFade: { value: 0.95 },
-			uWireOpacity: { value: theme === 'light' ? 0.4 : 0.6 },
-			uWireColor: { value: new THREE.Color(theme === 'light' ? '#cbd5e1' : '#334155') },
+			// Enhanced amplitude for dramatic 3D effect
+			uWaveAmplitude: { value: breakpoint === 'mobile' ? 1.8 : 2.8 },
+			uWaveFrequency: { value: 0.07 },
+			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.35 },
+			uDepthFade: { value: 0.92 },
+			uWireOpacity: { value: theme === 'light' ? 0.35 : 0.55 },
+			uWireColor: { value: new THREE.Color(theme === 'light' ? '#94a3b8' : '#475569') },
 			uAccent: { value: new THREE.Color(readCssVar('--accent-1')) },
+			uMouseX: { value: 0 },
+			uMouseY: { value: 0 },
 		}),
 		[theme, prefersReduced, breakpoint]
 	);
 
 	useFrame((state) => {
 		const t = state.clock.elapsedTime;
-		if (wireMatRef.current) wireMatRef.current.uniforms.uTime.value = t;
+		if (wireMatRef.current) {
+			wireMatRef.current.uniforms.uTime.value = t;
+
+			// Subtle mouse tracking for interactive 3D feel
+			if (!prefersReduced && meshRef.current) {
+				const { pointer } = state;
+				wireMatRef.current.uniforms.uMouseX.value = THREE.MathUtils.lerp(
+					wireMatRef.current.uniforms.uMouseX.value,
+					pointer.x * 0.3,
+					0.05
+				);
+				wireMatRef.current.uniforms.uMouseY.value = THREE.MathUtils.lerp(
+					wireMatRef.current.uniforms.uMouseY.value,
+					pointer.y * 0.2,
+					0.05
+				);
+
+				// Gentle tilt based on mouse position
+				const targetRotX = THREE.MathUtils.degToRad(-18 + pointer.y * 3);
+				const targetRotY = THREE.MathUtils.degToRad(pointer.x * 4);
+				meshRef.current.rotation.x = THREE.MathUtils.lerp(
+					meshRef.current.rotation.x,
+					targetRotX,
+					0.05
+				);
+				meshRef.current.rotation.y = THREE.MathUtils.lerp(
+					meshRef.current.rotation.y,
+					targetRotY,
+					0.05
+				);
+			}
+		}
 	});
 
 	const vertexShader = `
@@ -121,45 +151,80 @@ const Grid = ({ theme, breakpoint }) => {
         uniform float uWaveAmplitude;
         uniform float uWaveFrequency;
         uniform float uWaveSpeed;
+        uniform float uMouseX;
+        uniform float uMouseY;
 
         varying vec2 vUv;
         varying float vElevation;
         varying float vDepth;
+        varying vec3 vNormal;
 
+        // Enhanced noise function for more organic waves
         float hash(vec2 p) {
-            return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
+            return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
         }
-        float noise(vec2 p){
+        
+        float noise(vec2 p) {
             vec2 i = floor(p);
             vec2 f = fract(p);
-            f = f*f*(3.0-2.0*f);
+            f = f * f * (3.0 - 2.0 * f);
             float a = hash(i);
-            float b = hash(i+vec2(1.0,0.0));
-            float c = hash(i+vec2(0.0,1.0));
-            float d = hash(i+vec2(1.0,1.0));
-            return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+            float b = hash(i + vec2(1.0, 0.0));
+            float c = hash(i + vec2(0.0, 1.0));
+            float d = hash(i + vec2(1.0, 1.0));
+            return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }
+        
+        float fbm(vec2 p) {
+            float value = 0.0;
+            float amplitude = 0.5;
+            for(int i = 0; i < 4; i++) {
+                value += amplitude * noise(p);
+                p *= 2.0;
+                amplitude *= 0.5;
+            }
+            return value;
         }
 
-        void main(){
+        void main() {
             vUv = uv;
             vec3 pos = position;
 
-            float wave = sin(pos.x * uWaveFrequency + uTime * uWaveSpeed) *
-                         cos(pos.y * uWaveFrequency * 0.75 + uTime * uWaveSpeed * 0.9) * uWaveAmplitude;
-            float small = sin(pos.x * uWaveFrequency * 3.2 + uTime * uWaveSpeed * 1.8) * 0.12;
-            float n = (noise((pos.xy) * 0.08 + uTime * 0.03) - 0.5) * 0.18;
+            // Primary wave layers with different frequencies
+            float wave1 = sin(pos.x * uWaveFrequency * 0.8 + uTime * uWaveSpeed) *
+                          cos(pos.y * uWaveFrequency * 0.6 + uTime * uWaveSpeed * 0.7);
+            
+            float wave2 = sin(pos.x * uWaveFrequency * 1.5 + uTime * uWaveSpeed * 1.3) *
+                          cos(pos.y * uWaveFrequency * 1.2 + uTime * uWaveSpeed * 0.9);
+            
+            // High-frequency ripples
+            float ripple = sin(pos.x * uWaveFrequency * 4.0 + uTime * uWaveSpeed * 2.0) *
+                           sin(pos.y * uWaveFrequency * 3.5 + uTime * uWaveSpeed * 1.8) * 0.15;
+            
+            // Organic noise layer
+            float organic = (fbm(pos.xy * 0.05 + uTime * 0.02) - 0.5) * 0.4;
+            
+            // Combine all wave components
+            float elevation = (wave1 + wave2 * 0.6) * uWaveAmplitude + ripple + organic;
+            
+            // Add subtle mouse influence
+            float mouseInfluence = sin(pos.x * 0.1 + uMouseX * 3.0) * 
+                                   cos(pos.y * 0.1 + uMouseY * 3.0) * 0.3;
+            elevation += mouseInfluence;
 
-            float elevation = wave + small + n;
-
-            // **CHANGE:** vDepth calculation updated for new plane height (50)
-            // Plane height is 50, so pos.y ranges from -25 to 25
-            vDepth = (pos.y + 25.0) / 50.0; // Maps -25 -> 0.0 and 25 -> 1.0
-
-            elevation *= smoothstep(0.0, 0.9, 1.0 - vDepth); // Attenuates waves near the top edge
+            // Calculate depth with stronger perspective
+            vDepth = (pos.y + 25.0) / 50.0;
+            
+            // Stronger attenuation towards the horizon
+            float depthAtten = smoothstep(0.0, 0.85, 1.0 - vDepth);
+            depthAtten = pow(depthAtten, 1.5); // Exponential falloff
+            elevation *= depthAtten;
 
             pos.z += elevation;
-
             vElevation = elevation;
+            
+            // Calculate normal for better lighting
+            vNormal = normalize(vec3(-elevation, -elevation, 1.0));
 
             gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
         }
@@ -168,12 +233,10 @@ const Grid = ({ theme, breakpoint }) => {
 	return (
 		<group
 			ref={meshRef}
-			// **CHANGE:** Positioned lower so its top edge (-25 + 25*cos) is just below logo (y=0)
-			position={[0, -25, -12]}
-			rotation={[THREE.MathUtils.degToRad(-12), 0, 0]}
+			position={[0, -28, -14]}
+			rotation={[THREE.MathUtils.degToRad(-18), 0, 0]}
 		>
 			<mesh renderOrder={0}>
-				{/* **CHANGE:** Height changed from 80 to 50, segsY updated */}
 				<planeGeometry args={[120, 50, segs, segsY]} />
 				<shaderMaterial
 					ref={wireMatRef}
@@ -193,17 +256,37 @@ const Grid = ({ theme, breakpoint }) => {
                         varying vec2 vUv;
                         varying float vDepth;
                         varying float vElevation;
+                        varying vec3 vNormal;
                         
-                        void main(){
+                        void main() {
+                            // Enhanced depth fade with exponential falloff
                             float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
+                            depthFade = pow(depthFade, 1.8);
                             
-                            float glowFactor = smoothstep(0.0, 0.4, abs(vElevation)) * 0.5;
-                            glowFactor += sin(uTime * 3.0 + vUv.x * 5.0) * 0.2 + 0.3;
-                            glowFactor = clamp(glowFactor, 0.0, 1.0);
-
-                            vec3 finalColor = mix(uWireColor, uAccent, glowFactor);
+                            // Dynamic glow based on elevation and normal
+                            float elevationGlow = smoothstep(0.2, 1.5, abs(vElevation)) * 0.7;
                             
-                            float alpha = uWireOpacity * depthFade * (0.8 + glowFactor * 0.2);
+                            // Animated shimmer effect
+                            float shimmer = sin(uTime * 2.5 + vUv.x * 8.0 + vUv.y * 6.0) * 0.15 + 0.85;
+                            
+                            // Fresnel-like edge highlight
+                            float edgeGlow = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.0) * 0.4;
+                            
+                            // Combine glow factors
+                            float totalGlow = clamp(elevationGlow + edgeGlow, 0.0, 1.0);
+                            totalGlow *= shimmer;
+                            
+                            // Mix wire color with accent based on glow
+                            vec3 finalColor = mix(uWireColor, uAccent, totalGlow * 0.8);
+                            
+                            // Enhanced opacity with glow boost
+                            float alpha = uWireOpacity * depthFade * (0.7 + totalGlow * 0.3);
+                            
+                            // Add extra glow to wave peaks
+                            if (vElevation > 1.0) {
+                                finalColor = mix(finalColor, uAccent, 0.4);
+                                alpha += 0.2;
+                            }
                             
                             if (alpha <= 0.01) discard;
                             gl_FragColor = vec4(finalColor, alpha);
