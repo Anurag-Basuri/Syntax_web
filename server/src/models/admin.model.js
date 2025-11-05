@@ -10,7 +10,7 @@ const adminSchema = new mongoose.Schema(
 			default: () => uuidv4(),
 			unique: true,
 		},
-		fullname: {
+		username: {
 			type: String,
 			required: true,
 			trim: true,
@@ -21,18 +21,13 @@ const adminSchema = new mongoose.Schema(
 			minlength: 6,
 		},
 
-		tokens: [
-			{
-				token: {
-					type: String,
-					required: true,
-				},
-				createdAt: {
-					type: Date,
-					default: Date.now,
-				},
-			},
-		],
+		refreshToken: {
+			type: String,
+			select: false,
+		},
+
+		resetPasswordToken: String,
+		resetPasswordExpires: Date,
 	},
 	{ timestamps: true }
 );
@@ -53,18 +48,18 @@ adminSchema.methods.comparePassword = async function (candidatePassword) {
 // Generate JWT token
 adminSchema.methods.generateAuthToken = function () {
 	return jwt.sign(
-		{ id: this._id, adminID: this.adminID },
+		{ id: this._id, role:'admin', adminID: this.adminID },
 		process.env.ACCESS_TOKEN_SECRET,
-		process.env.ACCESS_TOKEN_EXPIRY ? { expiresIn: process.env.ACCESS_TOKEN_EXPIRY } : {}
+		{ expiresIn: process.env.ACCESS_TOKEN_EXPIRY || '1d' }
 	);
 };
 
 // Generate refresh token
 adminSchema.methods.generateRefreshToken = function () {
 	return jwt.sign(
-		{ id: this._id },
+		{ id: this._id, role: 'admin' },
 		process.env.REFRESH_TOKEN_SECRET,
-		process.env.REFRESH_TOKEN_EXPIRY ? { expiresIn: process.env.REFRESH_TOKEN_EXPIRY } : {}
+		{ expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' }
 	);
 };
 
