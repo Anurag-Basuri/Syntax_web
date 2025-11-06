@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import colors from 'colors';
 import connectDB, { gracefulShutdown as closeDB } from './database/index.js';
 import { checkCloudinaryConnection } from './utils/cloudinary.js';
+import { createRateLimiter } from './middlewares/rateLimit.middleware.js';
 import app from './app.js';
 
 // --- Initialization ---
@@ -65,7 +66,23 @@ const startServer = async () => {
 		// 1. Connect to the database (critical)
 		await connectDB();
 
-		// 2. Check Cloudinary connection (non-critical)
+		// 2. Initialize and apply rate limiter
+		if (process.env.REDIS_URL) {
+			try {
+				const rateLimiter = await createRateLimiter();
+				app.use(rateLimiter);
+				console.log('⚡ Rate Limiter Initialized and applied.'.cyan);
+			} catch (redisErr) {
+				console.warn(
+					'⚠️  Rate limiter not initialized:'.yellow,
+					redisErr?.message || redisErr
+				);
+			}
+		} else {
+			console.warn('⚠️  Rate limiter disabled: REDIS_URL not set.'.yellow);
+		}
+
+		// 3. Check Cloudinary connection (non-critical)
 		try {
 			await checkCloudinaryConnection();
 			console.log('☁️  Cloudinary connection verified.'.cyan.bold);
@@ -80,7 +97,7 @@ const startServer = async () => {
 			console.warn('----------------------------------------------------\n'.yellow);
 		}
 
-		// 3. Start the Express server
+		// 4. Start the Express server
 		server = app.listen(PORT, () => {
 			console.log(
 				`🚀 Server is running in ${process.env.NODE_ENV.cyan} mode at http://localhost:${PORT}`
