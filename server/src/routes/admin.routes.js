@@ -1,43 +1,45 @@
 import { Router } from 'express';
-import { createAdmin,
-    loginAdmin,
-    logoutAdmin,
-    currentAdmin
+import {
+	createAdmin,
+	loginAdmin,
+	logoutAdmin,
+	currentAdmin,
 } from '../controllers/admin.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
 import { body } from 'express-validator';
 
 const router = Router();
+const { protect, authorize } = authMiddleware;
 
-// Admin routes
-router.post('/register',
-    validate([
-        body('fullname').notEmpty().withMessage('Fullname is required'),
-        body('password').notEmpty().withMessage('Password is required'),
-    ]),
-    createAdmin
+// --- Public Admin Routes ---
+
+router.post(
+	'/register',
+	validate([
+		body('fullname').notEmpty().withMessage('Fullname is required'),
+		body('password').notEmpty().withMessage('Password is required'),
+	]),
+	createAdmin
 );
 
-router.post('/login',
-    validate([
-        body('fullname').notEmpty().withMessage('Fullname is required'),
-        body('password').notEmpty().withMessage('Password is required'),
-        body('secret').notEmpty().withMessage('Secret is required'),
-    ]),
-    loginAdmin
+router.post(
+	'/login',
+	validate([
+		body('fullname').notEmpty().withMessage('Fullname is required'),
+		body('password').notEmpty().withMessage('Password is required'),
+		body('secret').notEmpty().withMessage('Secret is required'),
+	]),
+	loginAdmin
 );
 
-router.post('/logout',
-    authMiddleware.verifyToken,
-    authMiddleware.isAdmin,
-    logoutAdmin
-);
+// --- Protected Admin Routes ---
 
-router.get('/me',
-    authMiddleware.verifyToken,
-    authMiddleware.isAdmin,
-    currentAdmin
-);
+// This route now uses the new 'protect' and 'authorize' middleware.
+// 'authorize('admin')' ensures only users with the 'admin' role can proceed.
+router.post('/logout', protect, authorize('admin'), logoutAdmin);
+
+// This route is also updated to use the new, more secure middleware chain.
+router.get('/me', protect, authorize('admin'), currentAdmin);
 
 export default router;
