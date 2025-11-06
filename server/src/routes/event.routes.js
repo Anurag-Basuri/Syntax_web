@@ -5,6 +5,8 @@ import {
 	getAllEvents,
 	getEventById,
 	deleteEvent,
+	getEventRegistrations,
+	getEventStats,
 } from '../controllers/event.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
@@ -26,7 +28,10 @@ router.get(
 	getEventById
 );
 
-// --- Admin-Only Routes ---
+// --- Admin Routes ---
+
+// GET /api/v1/events/stats - Get event statistics (admin only)
+router.get('/stats', protect, authorize('admin'), getEventStats);
 
 // POST /api/v1/events - Create a new event
 router.post(
@@ -39,12 +44,10 @@ router.post(
 		body('description').notEmpty().withMessage('Description is required'),
 		body('date')
 			.notEmpty()
-			.withMessage('Date is required')
 			.isDate({ format: 'YYYY-MM-DD' })
 			.withMessage('Date must be in YYYY-MM-DD format'),
 		body('time')
 			.notEmpty()
-			.withMessage('Time is required')
 			.matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
 			.withMessage('Time must be in HH:MM (24-hour) format'),
 		body('venue').notEmpty().withMessage('Venue is required'),
@@ -58,6 +61,11 @@ router.post(
 			.optional()
 			.isFloat({ min: 0 })
 			.withMessage('Ticket price must be a non-negative number'),
+		body('registrationOpenDate').optional().isISO8601().withMessage('Invalid open date format'),
+		body('registrationCloseDate')
+			.optional()
+			.isISO8601()
+			.withMessage('Invalid close date format'),
 	]),
 	createEvent
 );
@@ -79,6 +87,15 @@ router.delete(
 	authorize('admin'),
 	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
 	deleteEvent
+);
+
+// GET /api/v1/events/:id/registrations - Get all users registered for an event
+router.get(
+	'/:id/registrations',
+	protect,
+	authorize('admin'),
+	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
+	getEventRegistrations
 );
 
 export default router;
