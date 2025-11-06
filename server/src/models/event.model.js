@@ -99,11 +99,18 @@ const EventSchema = new mongoose.Schema(
 			},
 			default: 'upcoming',
 		},
+		
+		registrationOpenDate: {
+			type: Date,
+		},
+		registrationCloseDate: {
+			type: Date,
+		},
 	},
 	{
 		timestamps: true,
-		toJSON: { virtuals: true }, // Ensure virtuals are included in JSON output
-		toObject: { virtuals: true }, // Ensure virtuals are included in object output
+		toJSON: { virtuals: true },
+		toObject: { virtuals: true },
 	}
 );
 
@@ -128,6 +135,33 @@ EventSchema.virtual('isFull').get(function () {
 	return this.registeredUsers.length >= this.totalSpots;
 });
 
+EventSchema.virtual('registrationStatus').get(function () {
+	const now = new Date();
+
+	// Handle definitive statuses first
+	if (this.status === 'cancelled') return 'CANCELLED';
+	if (this.status === 'completed' || this.status === 'ongoing') return 'CLOSED';
+	if (this.isFull) return 'FULL';
+
+	// If dates are not set, registration is considered closed unless the event is upcoming
+	if (!this.registrationOpenDate || !this.registrationCloseDate) {
+		return this.status === 'upcoming' ? 'CLOSED' : 'PAST';
+	}
+
+	// Logic based on dates
+	if (now < this.registrationOpenDate) {
+		return 'COMING_SOON';
+	}
+	if (now >= this.registrationOpenDate && now <= this.registrationCloseDate) {
+		return 'OPEN';
+	}
+	if (now > this.registrationCloseDate) {
+		return 'CLOSED';
+	}
+
+	return 'UNAVAILABLE'; // Fallback
+});
+
 // Text index for efficient searching on title, description, and tags
 EventSchema.index({ title: 'text', description: 'text', tags: 'text', category: 'text' });
 // Index for common filtering and sorting
@@ -137,6 +171,13 @@ EventSchema.index({ eventDate: 1, status: 1 });
 EventSchema.pre('save', function (next) {
 	if (this.isModified('tags')) {
 		this.tags = this.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+	}
+	if (
+		this.registrationOpenDate &&
+		this.registrationCloseDate &&
+		this.registrationOpenDate > this.registrationCloseDate
+	) {
+		return next(new Error('Registration open date cannot be after the close date.'));
 	}
 	next();
 });
