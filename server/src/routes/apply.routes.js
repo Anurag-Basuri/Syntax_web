@@ -1,101 +1,97 @@
-import { Router } from "express";
+import { Router } from 'express';
 import {
-    applyController,
+	applyController,
 	getAllApplications,
 	getApplicationById,
 	updateApplicationStatus,
 	deleteApplication,
-	markApplicationAsSeen
-} from "../controllers/apply.controller.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { validate } from "../middlewares/validator.middleware.js";
-import { body, param } from "express-validator";
+	markApplicationAsSeen,
+	bulkUpdateStatus,
+	getApplicationStats,
+} from '../controllers/apply.controller.js';
+import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { validate } from '../middlewares/validator.middleware.js';
+import { body, param } from 'express-validator';
 
 const router = Router();
+const { protect, authorize } = authMiddleware;
 
-// Submit a new application (public)
+// --- Public Route ---
+
+// Submit a new application
 router.post(
-    "/apply",
-    validate([
-        body("fullName")
-            .notEmpty()
-            .withMessage("Full name is required"),
-        body("LpuId")
-            .notEmpty()
-            .withMessage("LPU ID is required")
-            .isLength({ min: 8, max: 8 })
-            .withMessage("LPU ID must be exactly 8 digits"),
-        body("email")
-            .isEmail()
-            .withMessage("Invalid email format"),
-        body("phone")
-            .notEmpty()
-            .withMessage("Phone number is required"),
-        body("course")
-            .notEmpty()
-            .withMessage("Course is required"),
-        body("domains")
-            .isArray({ min: 1 })
-            .withMessage("At least one domain is required"),
-        body("accommodation")
-            .notEmpty()
-            .withMessage("Accommodation preference is required")
-    ]),
-    applyController
+	'/',
+	validate([
+		body('fullName').notEmpty().trim().withMessage('Full name is required'),
+		body('LpuId')
+			.notEmpty()
+			.withMessage('LPU ID is required')
+			.isLength({ min: 7, max: 10 })
+			.withMessage('LPU ID must be between 7 and 10 digits'),
+		body('email').isEmail().withMessage('Invalid email format'),
+		body('phone').notEmpty().withMessage('Phone number is required'),
+		body('course').notEmpty().withMessage('Course is required'),
+		body('domains').isArray({ min: 1 }).withMessage('At least one domain is required'),
+		body('accommodation').notEmpty().withMessage('Accommodation preference is required'),
+	]),
+	applyController
 );
 
-// Get all applications (protected)
-router.get(
-    "/applications",
-    authMiddleware.verifyToken,
-    getAllApplications
-);
+// --- Admin-Only Routes ---
 
-// Get single application by ID (protected)
-router.get(
-    "/applications/:id",
-    authMiddleware.verifyToken,
-    validate([
-        param("id")
-            .isMongoId()
-            .withMessage("Invalid application ID")
-    ]),
-    getApplicationById
-);
+// All subsequent routes are protected and restricted to admins
+router.use(protect, authorize('admin'));
 
-// Update application status (protected)
+// Get application statistics
+router.get('/stats', getApplicationStats);
+
+// Get all applications
+router.get('/', getAllApplications);
+
+// Bulk update application status
 router.patch(
-    "/applications/:id/status",
-    authMiddleware.verifyToken,
-    validate([
-        param("id")
-            .isMongoId()
-            .withMessage("Invalid application ID"),
-        body("status")
-            .isIn(["approved", "rejected", "pending"])
-            .withMessage("Invalid status value")
-    ]),
-    updateApplicationStatus
+	'/bulk/status',
+	validate([
+		body('ids').isArray({ min: 1 }).withMessage('An array of application IDs is required'),
+		body('ids.*').isMongoId().withMessage('All IDs in the array must be valid'),
+		body('status')
+			.isIn(['approved', 'rejected', 'pending'])
+			.withMessage('Invalid status value'),
+	]),
+	bulkUpdateStatus
 );
 
-// Mark application as seen (protected)
+// Get single application by ID
+router.get(
+	'/:id',
+	validate([param('id').isMongoId().withMessage('Invalid application ID')]),
+	getApplicationById
+);
+
+// Update application status
 router.patch(
-  "/applications/:id/seen",
-  authMiddleware.verifyToken,
-  validate([param("id").isMongoId().withMessage("Invalid application ID")]),
-  markApplicationAsSeen
+	'/:id/status',
+	validate([
+		param('id').isMongoId().withMessage('Invalid application ID'),
+		body('status')
+			.isIn(['approved', 'rejected', 'pending'])
+			.withMessage('Invalid status value'),
+	]),
+	updateApplicationStatus
 );
 
-// Delete an application (protected)
+// Mark application as seen
+router.patch(
+	'/:id/seen',
+	validate([param('id').isMongoId().withMessage('Invalid application ID')]),
+	markApplicationAsSeen
+);
+
+// Delete an application
 router.delete(
-    "/applications/:id/delete",
-    authMiddleware.verifyToken,
-    validate([
-        param("id")
-            .isMongoId()
-            .withMessage("Invalid application ID")
-    ]),
-    deleteApplication
+	'/:id',
+	validate([param('id').isMongoId().withMessage('Invalid application ID')]),
+	deleteApplication
 );
 
 export default router;
