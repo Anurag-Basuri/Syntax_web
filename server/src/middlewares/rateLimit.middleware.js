@@ -1,41 +1,46 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
-let rateLimiter = null;
+// Create and configure rate limiter middleware
+export const createRateLimiter = async () => {
+    const options = {
+        windowMs: 5 * 60 * 1000, // 5 minutes
+        limit: 200, // Limit each IP to 200 requests per window
+        standardHeaders: 'draft-7', // Use standard `RateLimit-*` headers
+        legacyHeaders: false, // Disable `X-RateLimit-*` headers
+        keyGenerator: ipKeyGenerator, // Use the helper for proper IP handling
+        message: {
+            status: 'error',
+            message: 'Too many requests from this IP, please try again after 15 minutes.',
+        },
+    };
 
-export const initRateLimiter = async () => {
-	if (process.env.NODE_ENV === 'production') {
-		const { default: RedisStore } = await import('rate-limit-redis');
-		const Redis = (await import('ioredis')).default;
-		const redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+    // Use Redis for storage in production or if REDIS_URL is set
+    if (process.env.REDIS_URL) {
+        try {
+            const { default: RedisStore } = await import('rate-limit-redis');
+            const { default: Redis } = await import('ioredis');
+            const redisClient = new Redis(process.env.REDIS_URL);
 
-		rateLimiter = rateLimit({
-			windowMs: 15 * 60 * 1000, // 15 minutes
-			max: 100, // limit each IP to 100 requests per windowMs
-			standardHeaders: true,
-			legacyHeaders: false,
-			keyGenerator: ipKeyGenerator, // Use the helper for proper IP handling
-			store: new RedisStore({
-				sendCommand: (...args) => redisClient.call(...args),
-				prefix: 'rate-limit:',
-			}),
-		});
-	} else {
-		rateLimiter = rateLimit({
-			windowMs: 15 * 60 * 1000,
-			max: 100,
-			standardHeaders: true,
-			legacyHeaders: false,
-			keyGenerator: ipKeyGenerator, // Use the helper for proper IP handling
-		});
-	}
+            options.store = new RedisStore({
+                // ioredis v5 uses `.call` instead of `.sendCommand`
+                sendCommand: (...args) => redisClient.call(...args),
+                prefix: 'rate-limit:',
+            });
+        } catch (err) {
+            console.error('Failed to import or connect to Redis for rate limiting:'.red, err);
+            // Re-throw to be caught by the startup logic in server.js
+            throw new Error('Redis setup for rate limiting failed.');
+        }
+    }
+
+    // Return the configured rate-limit middleware
+    return rateLimit(options);
 };
-
-// Export the initialized limiter for usage
-export { rateLimiter };
 
 // Optional placeholder for cache middleware
 export const cacheMiddleware = (duration) => {
-	return async (req, res, next) => {
-		next();
-	};
+    return async (req, res, next) => {
+        // Caching logic can be implemented here in the future
+        next();
+    };
 };
