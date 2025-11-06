@@ -1,66 +1,81 @@
 import { Router } from 'express';
 import {
-    sendContact,
-    getAllContacts,
-    getContactById,
-    markContactAsResolved,
-    deleteContact
+	sendContact,
+	getAllContacts,
+	getContactById,
+	updateContactStatus,
+	deleteContact,
+	bulkDeleteContacts,
+	getContactStats,
 } from '../controllers/contact.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 
 const router = Router();
+const { protect, authorize } = authMiddleware;
+
+// --- Public Route ---
 
 // Apply rate limiter to contact form submission
 router.post(
-    '/send',
-    validate([
-        body('name')
-            .notEmpty()
-            .withMessage('Name is required'),
-        body('phone')
-            .notEmpty()
-            .withMessage('Phone number is required'),
-        body('lpuID')
-            .notEmpty()
-            .withMessage('LPU ID is required'),
-        body('email')
-            .isEmail()
-            .withMessage('Invalid email format'),
-        body('subject')
-            .notEmpty()
-            .withMessage('Subject is required'),
-        body('message')
-            .notEmpty()
-            .withMessage('Message is required')
-    ]),
-    sendContact
+	'/send',
+	validate([
+		body('name').notEmpty().trim().withMessage('Name is required'),
+		body('phone').notEmpty().trim().withMessage('Phone number is required'),
+		body('lpuID').notEmpty().trim().withMessage('LPU ID is required'),
+		body('email').isEmail().withMessage('Invalid email format'),
+		body('subject').notEmpty().trim().withMessage('Subject is required'),
+		body('message').notEmpty().trim().withMessage('Message is required'),
+	]),
+	sendContact
 );
 
-// Admin routes (protected)
+// --- Admin-Only Routes ---
+
+// All routes below are protected and restricted to admins
+router.use(protect, authorize('admin'));
+
+// Get statistics about contacts
+router.get('/stats', getContactStats);
+
+// Get all contacts with filtering and pagination
+router.get('/', getAllContacts);
+
+// Get a single contact by ID
 router.get(
-    '/getall',
-    authMiddleware.verifyToken,
-    getAllContacts
+	'/:id',
+	validate([param('id').isMongoId().withMessage('Invalid contact ID')]),
+	getContactById
 );
 
-router.get(
-    '/:id',
-    authMiddleware.verifyToken,
-    getContactById
-);
-
+// Update a contact's status
 router.patch(
-    '/:id/resolve',
-    authMiddleware.verifyToken,
-    markContactAsResolved
+	'/:id/status',
+	validate([
+		param('id').isMongoId().withMessage('Invalid contact ID'),
+		body('status')
+			.isIn(['pending', 'resolved', 'closed'])
+			.withMessage('Invalid status provided'),
+	]),
+	updateContactStatus
 );
 
+// Delete a single contact by ID
 router.delete(
-    '/:id',
-    authMiddleware.verifyToken,
-    deleteContact
+	'/:id',
+	validate([param('id').isMongoId().withMessage('Invalid contact ID')]),
+	deleteContact
+);
+
+// Bulk delete contacts
+router.delete(
+	'/',
+	validate([
+		body('ids').isArray({ min: 1 }).withMessage('An array of contact IDs is required.'),
+		body('ids.*').isMongoId().withMessage('All items in the array must be valid IDs.'),
+	]),
+	bulkDeleteContacts
 );
 
 export default router;
