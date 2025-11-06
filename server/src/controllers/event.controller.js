@@ -137,7 +137,7 @@ const getAllEvents = asyncHandler(async (req, res) => {
 	);
 });
 
-// Get a single event by ID 
+// Get a single event by ID
 const getEventById = asyncHandler(async (req, res) => {
 	const { id } = req.params;
 
@@ -234,10 +234,4 @@ const deleteEvent = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Event deleted successfully');
 });
 
-export {
-    createEvent,
-    getAllEvents,
-    getEventById,
-    updateEvent,
-    deleteEvent
-};
+export { createEvent, getAllEvents, getEventById, updateEvent, deleteEvent };

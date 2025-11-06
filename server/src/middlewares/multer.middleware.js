@@ -20,6 +20,7 @@ const ALLOWED_FILE_TYPES = {
 
 // 5MB max file size
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_COUNT = 5; // Set a max count for array uploads
 
 // Ensure upload directory exists
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
@@ -58,24 +59,36 @@ const upload = multer({
 	},
 });
 
-// Middleware to handle file upload for a single field
+/**
+ * Middleware factory to handle multiple file uploads for a single field.
+ *
+ * @param {string} fieldName - The name of the field in the form-data.
+ * @returns {Function} Express middleware.
+ */
 export const uploadFile = (fieldName) => (req, res, next) => {
-	upload.single(fieldName)(req, res, (err) => {
-		// If an error occurred and a file was uploaded, delete it
-		if ((err instanceof multer.MulterError || err) && req.file && req.file.path) {
-        	try {
-                fs.unlinkSync(req.file.path);
-            } catch (deleteErr) {
-                console.error('Error deleting file after upload error:', deleteErr);
-            }
-        }
-        if (err instanceof multer.MulterError) {
-            return next(new ApiError(400, `Multer error: ${err.message}`));
-        } else if (err) {
-            return next(new ApiError(400, `File upload error: ${err.message}`));
-        }
-        // Ensure req.files is always an array for consistency
-        req.files = req.file ? [req.file] : [];
-        next();
-    });
+	// Use upload.array() to handle multiple files
+	upload.array(fieldName, MAX_FILE_COUNT)(req, res, (err) => {
+		// If an error occurred and files were uploaded, delete them
+		if (err && req.files && req.files.length > 0) {
+			req.files.forEach((file) => {
+				try {
+					fs.unlinkSync(file.path);
+				} catch (deleteErr) {
+					console.error('Error deleting file after upload error:', deleteErr);
+				}
+			});
+		}
+
+		if (err instanceof multer.MulterError) {
+			if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+				return next(new ApiError(400, `Too many files. Maximum is ${MAX_FILE_COUNT}.`));
+			}
+			return next(new ApiError(400, `File upload error: ${err.message}`));
+		} else if (err) {
+			return next(new ApiError(400, `File upload error: ${err.message}`));
+		}
+
+		// req.files is now correctly populated by upload.array()
+		next();
+	});
 };
