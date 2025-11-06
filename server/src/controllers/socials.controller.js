@@ -1,4 +1,4 @@
-import Post from '../models/socials.model.js'; // The model file is socials.model.js but exports 'Post'
+import Post from '../models/socials.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';

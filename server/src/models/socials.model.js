@@ -10,6 +10,12 @@ const socialSchema = new mongoose.Schema(
 			required: true,
 			index: true,
 		},
+		title: {
+			type: String,
+			required: [true, 'Title is required.'],
+			trim: true,
+			maxlength: [200, 'Title cannot exceed 200 characters.'],
+		},
 		content: {
 			type: String,
 			required: [true, 'Content/description is required.'],
@@ -44,14 +50,14 @@ const socialSchema = new mongoose.Schema(
 // --- INDEXES ---
 
 // Index for sorting posts by creation date
-postSchema.index({ createdAt: -1 });
+socialSchema.index({ createdAt: -1 });
 // Text index for searching by title and content
-postSchema.index({ title: 'text', content: 'text' });
+socialSchema.index({ title: 'text', content: 'text' });
 
 // --- PLUGIN ---
 
-postSchema.plugin(mongooseAggregatePaginate);
+socialSchema.plugin(mongooseAggregatePaginate);
 
-const Post = mongoose.model('Post', postSchema);
+const Post = mongoose.model('Post', socialSchema);
 
-export default socialSchema;
+export default Post;

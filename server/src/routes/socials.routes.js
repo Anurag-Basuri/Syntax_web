@@ -4,7 +4,7 @@ import {
 	getAllPosts,
 	getPostById,
 	deletePost,
-} from '../controllers/post.controller.js';
+} from '../controllers/socials.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
 import { uploadFile } from '../middlewares/multer.middleware.js';
@@ -15,30 +15,15 @@ const { protect, authorize } = authMiddleware;
 
 // --- Public Routes ---
 
-/**
- * Get all published posts (paginated)
- *
- * @route GET /api/v1/posts
- * @access Public
- */
+// Apply 'protect' middleware to routes that require authentication
 router.get('/', getAllPosts);
 
-/**
- * Get a single post by ID
- *
- * @route GET /api/v1/posts/:id
- * @access Public
- */
+// Get a single post by ID
 router.get('/:id', validate([param('id').isMongoId().withMessage('Invalid post ID')]), getPostById);
 
 // --- Admin-Only Routes ---
 
-/**
- * Create a new organizational post
- *
- * @route POST /api/v1/posts
- * @access Private (Admin)
- */
+// Create a new post
 router.post(
 	'/',
 	protect,
@@ -52,12 +37,7 @@ router.post(
 	createPost
 );
 
-/**
- * Delete a post
- *
- * @route DELETE /api/v1/posts/:id
- * @access Private (Admin)
- */
+// Delete a post by ID
 router.delete(
 	'/:id',
 	protect,
