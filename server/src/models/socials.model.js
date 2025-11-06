@@ -1,72 +1,57 @@
-import mongoose from "mongoose";
-import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongoose from 'mongoose';
+import mongooseAggregatePaginate from 'mongoose-aggregate-paginate-v2';
 
-const SocialSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        ref: 'Member'
-    },
-    content: {
-        type: String,
-        required: [true, 'Content is required'],
-        trim: true,
-        maxlength: [1000, 'Content cannot exceed 1000 characters']
-    },
-    images: [
-        {
-            url: {
-                type: String,
-                required: true
-            },
-            publicId: {
-                type: String,
-                required: true
-            },
-        }
-    ],
-    videos: [
-        {
-            url: { 
-                type: String,
-                required: true
-            },
-            publicId: {
-                type: String,
-                required: true
-            },
-        }
-    ],
+// --- POST SCHEMA ---
+const postSchema = new mongoose.Schema(
+	{
+		author: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Admin', // Posts are authored by Admins
+			required: true,
+			index: true,
+		},
+		content: {
+			type: String,
+			required: [true, 'Content/description is required.'],
+			trim: true,
+			maxlength: [5000, 'Content cannot exceed 5000 characters.'],
+		},
+		// Array of media (images or videos) associated with the post
+		media: [
+			{
+				url: {
+					type: String,
+					required: true,
+				},
+				publicId: {
+					type: String,
+					required: true,
+				},
+			},
+		],
+		status: {
+			type: String,
+			enum: ['published', 'draft'],
+			default: 'published',
+			index: true,
+		},
+	},
+	{
+		timestamps: true,
+	}
+);
 
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-}, {
-    timestamps: true
-});
+// --- INDEXES ---
 
-SocialSchema.index({ userId: 1, createdAt: -1 });
+// Index for sorting posts by creation date
+postSchema.index({ createdAt: -1 });
+// Text index for searching by title and content
+postSchema.index({ title: 'text', content: 'text' });
 
-SocialSchema.pre('save', function(next) {
-    if (this.isModified('content') && this.content.length > 1000) {
-        return next(new Error('Content cannot exceed 1000 characters'));
-    }
-    next();
-});
+// --- PLUGIN ---
 
-SocialSchema.plugin(mongooseAggregatePaginate);
-SocialSchema.statics.getPaginatedSocials = async function(page = 1, limit = 10) {
-    const options = {
-        page: Number(page),
-        limit: Number(limit),
-        sort: { createdAt: -1 },
-        populate: { path: 'userId', select: 'name profilePicture' }
-    };
+postSchema.plugin(mongooseAggregatePaginate);
 
-    return this.aggregatePaginate(this.find(), options);
-};
+const Post = mongoose.model('Post', postSchema);
 
-const Social = mongoose.model('Social', SocialSchema);
-
-export default Social;
+export default Post;
