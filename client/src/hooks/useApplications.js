@@ -6,7 +6,7 @@ import {
 	updateApplicationStatus,
 	deleteApplication,
 } from '../services/applyServices.js';
-import { toast } from 'react-hot-toast'; // Example: Import a toast library
+import { toast } from 'react-hot-toast';
 
 // Hook to fetch a paginated list of all applications
 export const useApplications = (params) => {
