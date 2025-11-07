@@ -69,13 +69,13 @@ const validateFile = (file) => {
 };
 
 // Upload file to Cloudinary
-const uploadFile = async (file) => {
+const uploadFile = async (file, options = {}) => {
 	validateFile(file);
 
 	try {
 		const uploadResponse = await cloudinary.uploader.upload(file.path, {
 			resource_type: 'auto',
-			public_id: path.basename(file.path, path.extname(file.path)),
+			folder: options.folder, // Use folder from options
 			overwrite: true,
 		});
 
@@ -90,9 +90,11 @@ const uploadFile = async (file) => {
 		return {
 			url: uploadResponse.secure_url,
 			publicId: uploadResponse.public_id,
+			resource_type: uploadResponse.resource_type, // Return resource_type
 		};
 	} catch (error) {
-		throw ApiError.internal(
+		throw new ApiError(
+			500,
 			`Failed to upload file "${file.originalname || file.path}" to Cloudinary`,
 			[error.message]
 		);
@@ -140,14 +142,52 @@ const deleteFile = async ({ public_id, resource_type }) => {
 	try {
 		const result = await cloudinary.uploader.destroy(public_id, { resource_type });
 		if (result.result !== 'ok' && result.result !== 'not found') {
-			throw ApiError.internal(
+			throw new ApiError(
+				500,
 				`Cloudinary did not confirm deletion of "${public_id}" (result: ${result.result})`
 			);
 		}
+		return result;
 	} catch (error) {
-		console.error('Errors: ', error);
-		throw ApiError.internal(`Failed to delete file "${public_id}" from Cloudinary`, [error]);
+		console.error('Error deleting file from Cloudinary: ', error);
+		throw new ApiError(500, `Failed to delete file "${public_id}" from Cloudinary`, [
+			error.message,
+		]);
 	}
 };
 
-export { initializeCloudinary, checkCloudinaryConnection, uploadFile, uploadResume, deleteFile };
+// Bulk delete files from Cloudinary
+const deleteFiles = async (files) => {
+	if (!files || files.length === 0) return;
+
+	try {
+		// Separate files by resource type for bulk deletion API
+		const publicIdsByResourceType = files.reduce((acc, file) => {
+			const type = file.resource_type || 'image';
+			if (!acc[type]) {
+				acc[type] = [];
+			}
+			acc[type].push(file.public_id);
+			return acc;
+		}, {});
+
+		for (const resource_type in publicIdsByResourceType) {
+			await cloudinary.api.delete_resources(publicIdsByResourceType[resource_type], {
+				resource_type,
+			});
+		}
+	} catch (error) {
+		console.error('Error during bulk file deletion from Cloudinary: ', error);
+		// Don't throw an error that stops the flow, just log it.
+		// The primary operation (e.g., deleting a fest) should still succeed.
+	}
+};
+
+export {
+	initializeCloudinary,
+	checkCloudinaryConnection,
+	uploadFile,
+	uploadResume,
+	deleteFile,
+	deleteFiles,
+};
