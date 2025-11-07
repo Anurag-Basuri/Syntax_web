@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import {
 	createEvent,
-	updateEvent,
 	getAllEvents,
 	getEventById,
+	updateEventDetails,
 	deleteEvent,
-	getEventRegistrations,
+	addEventPoster,
+	removeEventPoster,
 	getEventStats,
+	getEventRegistrations,
 } from '../controllers/event.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
@@ -16,43 +18,50 @@ import { body, param } from 'express-validator';
 const router = Router();
 const { protect, authorize } = authMiddleware;
 
+//================================================================================
 // --- Public Routes ---
+//================================================================================
 
-// GET /api/v1/events - Get all events with filtering, sorting, pagination
+// Get all events with filtering, sorting, and pagination
 router.get('/', getAllEvents);
 
-// GET /api/v1/events/:id - Get a single event by its ID
+// Get a single event by its ID
 router.get(
 	'/:id',
 	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
 	getEventById
 );
 
-// --- Admin Routes ---
+//================================================================================
+// --- Admin-Only Routes ---
+//================================================================================
 
-// GET /api/v1/events/stats - Get event statistics (admin only)
-router.get('/stats', protect, authorize('admin'), getEventStats);
+router.use(protect, authorize('admin'));
 
-// POST /api/v1/events - Create a new event
+// --- Analytics & Reports ---
+router.get('/admin/statistics', getEventStats);
+
+router.get(
+	'/:id/registrations',
+	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
+	getEventRegistrations
+);
+
+// --- Core Event Management ---
 router.post(
 	'/',
-	protect,
-	authorize('admin'),
-	uploadFile('posters'), // Handles multiple poster uploads
+	uploadFile('posters'), // Handles multiple poster uploads via the custom middleware
 	validate([
-		body('title').notEmpty().withMessage('Title is required'),
-		body('description').notEmpty().withMessage('Description is required'),
-		body('date')
-			.notEmpty()
-			.isDate({ format: 'YYYY-MM-DD' })
-			.withMessage('Date must be in YYYY-MM-DD format'),
-		body('time')
-			.notEmpty()
-			.matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
-			.withMessage('Time must be in HH:MM (24-hour) format'),
-		body('venue').notEmpty().withMessage('Venue is required'),
-		body('organizer').notEmpty().withMessage('Organizer is required'),
-		body('category').notEmpty().withMessage('Category is required'),
+		body('title').notEmpty().trim().withMessage('Title is required'),
+		body('description').notEmpty().trim().withMessage('Description is required'),
+		body('eventDate')
+			.isISO8601()
+			.toDate()
+			.withMessage('A valid ISO 8601 event date is required'),
+		body('venue').notEmpty().trim().withMessage('Venue is required'),
+		body('organizer').notEmpty().trim().withMessage('Organizer is required'),
+		body('category').notEmpty().trim().withMessage('Category is required'),
+		body('tags').optional().isString(),
 		body('totalSpots')
 			.optional()
 			.isInt({ min: 0 })
@@ -61,41 +70,57 @@ router.post(
 			.optional()
 			.isFloat({ min: 0 })
 			.withMessage('Ticket price must be a non-negative number'),
-		body('registrationOpenDate').optional().isISO8601().withMessage('Invalid open date format'),
+		body('registrationOpenDate')
+			.optional()
+			.isISO8601()
+			.toDate()
+			.withMessage('Invalid registration open date format'),
 		body('registrationCloseDate')
 			.optional()
 			.isISO8601()
-			.withMessage('Invalid close date format'),
+			.toDate()
+			.withMessage('Invalid registration close date format'),
 	]),
 	createEvent
 );
 
-// PATCH /api/v1/events/:id - Update an existing event
 router.patch(
-	'/:id',
-	protect,
-	authorize('admin'),
-	uploadFile('posters'), // Also allow updating posters
-	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
-	updateEvent
+	'/:id/details',
+	validate([
+		param('id').isMongoId().withMessage('Invalid event ID'),
+		// Add validation for any fields you allow to be updated
+		body('title').optional().notEmpty().trim(),
+		body('description').optional().notEmpty().trim(),
+		body('eventDate').optional().isISO8601().toDate(),
+		body('venue').optional().notEmpty().trim(),
+		body('status')
+			.optional()
+			.isIn(['upcoming', 'ongoing', 'completed', 'cancelled', 'postponed']),
+	]),
+	updateEventDetails
 );
 
-// DELETE /api/v1/events/:id - Delete an event
 router.delete(
 	'/:id',
-	protect,
-	authorize('admin'),
 	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
 	deleteEvent
 );
 
-// GET /api/v1/events/:id/registrations - Get all users registered for an event
-router.get(
-	'/:id/registrations',
-	protect,
-	authorize('admin'),
+// --- Poster Management ---
+router.post(
+	'/:id/posters',
+	uploadFile('poster'), // Handles a single poster upload
 	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
-	getEventRegistrations
+	addEventPoster
+);
+
+router.delete(
+	'/:id/posters/:publicId',
+	validate([
+		param('id').isMongoId().withMessage('Invalid event ID'),
+		param('publicId').notEmpty().withMessage('Poster public ID is required'),
+	]),
+	removeEventPoster
 );
 
 export default router;
