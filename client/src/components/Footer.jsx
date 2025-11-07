@@ -6,14 +6,19 @@ import { Link } from 'react-router-dom';
 const Footer = () => {
 	const socialLinks = [
 		{
+			name: 'GitHub',
+			icon: <Github className="w-5 h-5" />,
+			url: 'https://github.com/your-org',
+		},
+		{
 			name: 'LinkedIn',
 			icon: <Linkedin className="w-5 h-5" />,
-			url: 'https://www.linkedin.com/company/syntax-lpu/',
+			url: 'https://www.linkedin.com/company/syntax-club/',
 		},
 		{
 			name: 'Instagram',
 			icon: <Instagram className="w-5 h-5" />,
-			url: 'https://www.instagram.com/syntax.lpu/',
+			url: 'https://www.instagram.com/syntax.club/',
 		},
 	];
 
@@ -22,13 +27,6 @@ const Footer = () => {
 		{ name: 'Team', to: '/team' },
 		{ name: 'Contact', to: '/contact' },
 		{ name: 'Socials', to: '/socials' },
-	];
-
-	const policyLinks = [
-		{ name: 'Terms and Conditions', to: '/policy/terms' },
-		{ name: 'Cancellation and Refund', to: '/policy/refund' },
-		{ name: 'Privacy Policy', to: '/policy/privacy' },
-		{ name: 'Cookie Policy', to: '/policy/cookie' },
 	];
 
 	return (
@@ -132,17 +130,6 @@ const Footer = () => {
 					<p className="text-secondary text-center md:text-left text-sm">
 						© {new Date().getFullYear()} Syntax Club. All rights reserved.
 					</p>
-					<div className="flex flex-wrap gap-x-6 gap-y-2 justify-center md:justify-end">
-						{policyLinks.map((item, idx) => (
-							<Link
-								key={idx}
-								to={item.to}
-								className="text-sm text-secondary hover:text-accent transition-colors"
-							>
-								{item.name}
-							</Link>
-						))}
-					</div>
 				</div>
 			</div>
 		</footer>
