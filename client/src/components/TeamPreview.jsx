@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../services/api';
+import { useLeaders } from '../hooks/useMembers';
 
 const CARD_THEME = {
 	bg: 'from-cyan-500/20 via-blue-500/20 to-sky-500/20',
@@ -10,24 +11,15 @@ const CARD_THEME = {
 };
 
 const TeamPreview = () => {
-	const [teamMembers, setTeamMembers] = useState([]);
+	const { data: leadersData, isLoading, isError } = useLeaders();
 	const navigate = useNavigate();
 
-	useEffect(() => {
-		const fetchLeaders = async () => {
-			try {
-				const response = await publicClient.get('/api/members/getleaders');
-				setTeamMembers(
-					Array.isArray(response.data?.data?.members) ? response.data.data.members : []
-				);
-			} catch {
-				setTeamMembers([]);
-			}
-		};
-		fetchLeaders();
-	}, []);
+	const teamMembers = leadersData?.members || [];
 
-	const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
+	// If there's an error or no leaders are found after loading, don't render the component.
+	if (!isLoading && (isError || teamMembers.length === 0)) {
+		return null;
+	}
 
 	return (
 		<section className="section-container py-normal bg-transparent relative overflow-hidden">
@@ -58,37 +50,61 @@ const TeamPreview = () => {
 						transition={{ duration: 0.8, delay: 0.2 }}
 						className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
 					>
-						{teamMembers.slice(0, 6).map((member, index) => (
-							<motion.div
-								key={member._id || index}
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ duration: 0.6, delay: index * 0.1 }}
-							>
-								<div
-									className="glass-card p-6 shadow-2xl hover-lift border border-white/12"
-									style={{ boxShadow: `0 0 24px rgba(${CARD_THEME.glow})` }}
-								>
-									<div className="relative z-10 text-center">
-										<div className="w-20 h-20 mx-auto mb-4 rounded-full border border-white/20 bg-white/10 flex items-center justify-center">
-											<span className="text-2xl font-bold text-primary">
-												{member.name?.charAt(0).toUpperCase() || '?'}
-											</span>
+						{isLoading
+							? // Skeleton Loader
+							  Array.from({ length: 3 }).map((_, index) => (
+									<div
+										key={index}
+										className="glass-card p-6 shadow-2xl border border-white/12 animate-pulse"
+										style={{ boxShadow: `0 0 24px rgba(${CARD_THEME.glow})` }}
+									>
+										<div className="text-center">
+											<div className="w-20 h-20 mx-auto mb-4 rounded-full bg-slate-700/50 border border-white/20"></div>
+											<div className="h-6 w-3/4 mx-auto mb-2 rounded bg-slate-700/50"></div>
+											<div className="h-4 w-1/2 mx-auto rounded bg-slate-700/50"></div>
 										</div>
-										<h3 className="text-xl font-bold text-primary mb-1">
-											{member.name || 'Team Member'}
-										</h3>
-										<p className="text-accent font-medium">
-											{member.role || 'Role'}
-										</p>
-										<p className="text-secondary text-sm mt-2 leading-relaxed">
-											{member.bio ||
-												'Passionate about technology and innovation.'}
-										</p>
 									</div>
-								</div>
-							</motion.div>
-						))}
+							  ))
+							: // Actual Team Members
+							  teamMembers.slice(0, 6).map((member, index) => (
+									<motion.div
+										key={member._id || index}
+										initial={{ opacity: 0, y: 20 }}
+										animate={{ opacity: 1, y: 0 }}
+										transition={{ duration: 0.6, delay: index * 0.1 }}
+									>
+										<div
+											className="glass-card p-6 shadow-2xl hover-lift border border-white/12"
+											style={{
+												boxShadow: `0 0 24px rgba(${CARD_THEME.glow})`,
+											}}
+										>
+											<div className="relative z-10 text-center">
+												{member.profilePicture?.url ? (
+													<img
+														src={member.profilePicture.url}
+														alt={member.fullname}
+														className="w-20 h-20 mx-auto mb-4 rounded-full object-cover border-2 border-white/20"
+													/>
+												) : (
+													<div className="w-20 h-20 mx-auto mb-4 rounded-full border border-white/20 bg-white/10 flex items-center justify-center">
+														<span className="text-2xl font-bold text-primary">
+															{member.fullname
+																?.charAt(0)
+																.toUpperCase() || '?'}
+														</span>
+													</div>
+												)}
+												<h3 className="text-xl font-bold text-primary mb-1">
+													{member.fullname || 'Team Member'}
+												</h3>
+												<p className="text-accent font-medium">
+													{member.designation || 'Role'}
+												</p>
+											</div>
+										</div>
+									</motion.div>
+							  ))}
 					</motion.div>
 
 					{/* CTA Button */}
