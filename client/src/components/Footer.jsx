@@ -6,11 +6,6 @@ import { Link } from 'react-router-dom';
 const Footer = () => {
 	const socialLinks = [
 		{
-			name: 'GitHub',
-			icon: <Github className="w-5 h-5" />,
-			url: 'https://github.com/your-org',
-		},
-		{
 			name: 'LinkedIn',
 			icon: <Linkedin className="w-5 h-5" />,
 			url: 'https://www.linkedin.com/company/syntax-club/',
@@ -23,6 +18,7 @@ const Footer = () => {
 	];
 
 	const quickLinks = [
+		{ name: 'Join Us', to: '/join' },
 		{ name: 'Events', to: '/event' },
 		{ name: 'Team', to: '/team' },
 		{ name: 'Contact', to: '/contact' },
@@ -31,8 +27,8 @@ const Footer = () => {
 
 	return (
 		<footer className="pt-24 pb-12 px-4 relative z-10 overflow-hidden bg-transparent">
-			<div className="max-w-6xl mx-auto">
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-16">
+			<div className="max-w-7xl mx-auto">
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-16">
 					<div className="lg:col-span-2">
 						<div className="flex items-center gap-3 mb-6">
 							<h3 className="font-bold text-2xl brand-text">Syntax Club</h3>
@@ -126,9 +122,12 @@ const Footer = () => {
 					</div>
 				</div>
 
-				<div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
+				<div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
 					<p className="text-secondary text-center md:text-left text-sm">
 						© {new Date().getFullYear()} Syntax Club. All rights reserved.
+					</p>
+					<p className="text-xs text-secondary/50 text-center md:text-right">
+						Developed with ❤️ by the Syntax Dev Team
 					</p>
 				</div>
 			</div>
