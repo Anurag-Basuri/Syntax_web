@@ -5,11 +5,19 @@ import {
 	getTicketsByEvent,
 	updateTicketStatus,
 } from '../services/ticketServices.js';
+import { toast } from 'react-hot-toast';
 
 // Hook for the public event registration form
 export const useRegisterForEvent = () => {
 	return useMutation({
 		mutationFn: registerForEvent,
+		onSuccess: () => {
+			toast.success('Successfully registered for the event!');
+		},
+		onError: (error) => {
+			toast.error(error.message);
+			console.error('Failed to register:', error);
+		},
 	});
 };
 
@@ -34,11 +42,24 @@ export const useEventTickets = (eventId) => {
 // Hook for admins to update a ticket's status (e.g., mark as 'used')
 export const useUpdateTicketStatus = () => {
 	const queryClient = useQueryClient();
+
 	return useMutation({
 		mutationFn: ({ ticketId, status }) => updateTicketStatus(ticketId, status),
-		onSuccess: (data, variables) => {
-			// Refetch the list of tickets for the event
-			queryClient.invalidateQueries({ queryKey: ['tickets', data.event] });
+		// Optimistically update the ticket status for a snappy UI
+		onMutate: async ({ ticketId, status }) => {
+			await queryClient.cancelQueries({ queryKey: ['tickets'] });
+			const previousTickets = queryClient.getQueryData(['tickets']);
+			queryClient.setQueryData(['tickets'], (old) =>
+				old.map((ticket) => (ticket._id === ticketId ? { ...ticket, status } : ticket))
+			);
+			return { previousTickets };
+		},
+		onError: (err, newStatus, context) => {
+			toast.error('Failed to update status. Reverting changes.');
+			queryClient.setQueryData(['tickets'], context.previousTickets);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({ queryKey: ['tickets'] });
 		},
 	});
 };
