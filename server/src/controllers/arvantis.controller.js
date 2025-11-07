@@ -29,7 +29,7 @@ const findFestBySlugOrYear = async (identifier, populate = false) => {
 // --- Frontend-Specific Controllers ---
 
 // Get landing page data: current or most recent fest
-export const getLandingPageData = asyncHandler(async (req, res) => {
+const getLandingPageData = asyncHandler(async (req, res) => {
 	const currentYear = new Date().getFullYear();
 	let fest;
 
@@ -56,7 +56,7 @@ export const getLandingPageData = asyncHandler(async (req, res) => {
 // --- Core Fest Management ---
 
 // Create a new Arvantis fest
-export const createFest = asyncHandler(async (req, res) => {
+const createFest = asyncHandler(async (req, res) => {
 	const { name, year, description, startDate, endDate, status } = req.body;
 
 	const existingFest = await Arvantis.findOne({ year });
@@ -69,7 +69,7 @@ export const createFest = asyncHandler(async (req, res) => {
 });
 
 // Get all fests with pagination
-export const getAllFests = asyncHandler(async (req, res) => {
+const getAllFests = asyncHandler(async (req, res) => {
 	const { page = 1, limit = 10, sortBy = 'year', sortOrder = 'desc' } = req.query;
 	const options = {
 		page: parseInt(page, 10),
@@ -87,13 +87,13 @@ export const getAllFests = asyncHandler(async (req, res) => {
 });
 
 // Get fest details by slug or year
-export const getFestDetails = asyncHandler(async (req, res) => {
+const getFestDetails = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier, true);
 	return ApiResponse.success(res, fest, 'Fest details retrieved successfully');
 });
 
 // Update fest details
-export const updateFestDetails = asyncHandler(async (req, res) => {
+const updateFestDetails = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 	Object.assign(fest, req.body);
 	await fest.save({ validateBeforeSave: true });
@@ -101,10 +101,10 @@ export const updateFestDetails = asyncHandler(async (req, res) => {
 });
 
 // Delete a fest and all associated media
-export const deleteFest = asyncHandler(async (req, res) => {
+const deleteFest = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 
-	// Collect all public_ids for associated media
+    // Collect all media publicIds for deletion
 	const mediaToDelete = [];
 	if (fest.poster?.publicId) mediaToDelete.push(fest.poster.publicId);
 	fest.gallery.forEach((item) => mediaToDelete.push(item.publicId));
@@ -112,7 +112,7 @@ export const deleteFest = asyncHandler(async (req, res) => {
 		if (p.logo?.publicId) mediaToDelete.push(p.logo.publicId);
 	});
 
-	// Bulk delete from Cloudinary if there are any files
+    // Delete all associated media from Cloudinary
 	if (mediaToDelete.length > 0) {
 		await deleteFiles(mediaToDelete);
 	}
@@ -129,7 +129,7 @@ export const deleteFest = asyncHandler(async (req, res) => {
 // --- Partner Management ---
 
 // Add a new partner (sponsor or collaborator) to a fest
-export const addPartner = asyncHandler(async (req, res) => {
+const addPartner = asyncHandler(async (req, res) => {
 	const { name, website, type, tier } = req.body;
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 
@@ -150,7 +150,7 @@ export const addPartner = asyncHandler(async (req, res) => {
 });
 
 // Remove a partner from a fest
-export const removePartner = asyncHandler(async (req, res) => {
+const removePartner = asyncHandler(async (req, res) => {
 	const { identifier, partnerName } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
 
@@ -171,7 +171,7 @@ export const removePartner = asyncHandler(async (req, res) => {
 // --- Event Linking ---
 
 // Link an event to a fest
-export const linkEventToFest = asyncHandler(async (req, res) => {
+const linkEventToFest = asyncHandler(async (req, res) => {
 	const { eventId } = req.body;
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 
@@ -188,7 +188,7 @@ export const linkEventToFest = asyncHandler(async (req, res) => {
 });
 
 // Unlink an event from a fest
-export const unlinkEventFromFest = asyncHandler(async (req, res) => {
+const unlinkEventFromFest = asyncHandler(async (req, res) => {
 	const { identifier, eventId } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
 	fest.events.pull(eventId);
@@ -199,7 +199,7 @@ export const unlinkEventFromFest = asyncHandler(async (req, res) => {
 // --- Media Management (Poster & Gallery) ---
 
 // Update fest poster
-export const updateFestPoster = asyncHandler(async (req, res) => {
+const updateFestPoster = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 	if (!req.file) throw new ApiError(400, 'Poster file is required.');
 
@@ -213,7 +213,7 @@ export const updateFestPoster = asyncHandler(async (req, res) => {
 });
 
 // Add media items to the gallery
-export const addGalleryMedia = asyncHandler(async (req, res) => {
+const addGalleryMedia = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 	if (!req.files?.length) throw new ApiError(400, 'At least one media file is required.');
 
@@ -234,7 +234,7 @@ export const addGalleryMedia = asyncHandler(async (req, res) => {
 });
 
 // Remove a media item from the gallery
-export const removeGalleryMedia = asyncHandler(async (req, res) => {
+const removeGalleryMedia = asyncHandler(async (req, res) => {
 	const { identifier, publicId } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
 
@@ -248,21 +248,21 @@ export const removeGalleryMedia = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Gallery media removed successfully');
 });
 
-// --- Data Export ---
+// --- Data Export & Analytics ---
 
 // Export all fests data as CSV
-export const exportFestsCSV = asyncHandler(async (req, res) => {
+const exportFestsCSV = asyncHandler(async (req, res) => {
 	const fests = await Arvantis.find().sort({ year: -1 }).lean();
 	if (fests.length === 0) throw new ApiError(404, 'No fest data to export.');
 
 	const fields = [
 		{ label: 'Year', value: 'year' },
 		{ label: 'Name', value: 'name' },
-		{ label: 'Slug', value: 'slug' },
 		{ label: 'Status', value: 'status' },
 		{ label: 'Start Date', value: 'startDate' },
 		{ label: 'End Date', value: 'endDate' },
-		{ label: 'Events Count', value: 'events.length' },
+		{ label: 'Events Count', value: (row) => row.events?.length || 0 },
+		{ label: 'Partners Count', value: (row) => row.partners?.length || 0 },
 	];
 	const json2csvParser = new Parser({ fields });
 	const csv = json2csvParser.parse(fests);
@@ -270,10 +270,117 @@ export const exportFestsCSV = asyncHandler(async (req, res) => {
 	res.header('Content-Type', 'text/csv');
 	res.attachment(`arvantis-fests-export-${new Date().toISOString()}.csv`);
 	res.send(csv);
-}); 
-
-// 
-const statistics = asyncHandler(async (req, res) => {
-    // Placeholder for future statistics implementation
-    return ApiResponse.success(res, {}, 'Statistics endpoint is under construction.');
 });
+
+// Get high-level statistics about all fests
+const getFestStatistics = asyncHandler(async (req, res) => {
+	const stats = await Arvantis.aggregate([
+		{
+			$facet: {
+				totalFests: [{ $count: 'count' }],
+				statusCounts: [{ $group: { _id: '$status', count: { $sum: 1 } } }],
+				totalPartners: [
+					{ $project: { partnerCount: { $size: '$partners' } } },
+					{ $group: { _id: null, total: { $sum: '$partnerCount' } } },
+				],
+				totalEvents: [
+					{ $project: { eventCount: { $size: '$events' } } },
+					{ $group: { _id: null, total: { $sum: '$eventCount' } } },
+				],
+			},
+		},
+		{
+			$project: {
+				totalFests: { $arrayElemAt: ['$totalFests.count', 0] },
+				statusCounts: '$statusCounts',
+				totalPartners: { $arrayElemAt: ['$totalPartners.total', 0] },
+				totalEvents: { $arrayElemAt: ['$totalEvents.total', 0] },
+			},
+		},
+	]);
+
+	const formattedStats = {
+		totalFests: stats[0].totalFests || 0,
+		totalPartners: stats[0].totalPartners || 0,
+		totalEvents: stats[0].totalEvents || 0,
+		statusCounts: stats[0].statusCounts.reduce((acc, curr) => {
+			acc[curr._id] = curr.count;
+			return acc;
+		}, {}),
+	};
+
+	return ApiResponse.success(res, formattedStats, 'Fest statistics retrieved successfully.');
+});
+
+// Get year-over-year analytics data
+const getFestAnalytics = asyncHandler(async (req, res) => {
+	const analytics = await Arvantis.aggregate([
+		{ $sort: { year: 1 } },
+		{
+			$project: {
+				_id: 0,
+				year: '$year',
+				eventCount: { $size: '$events' },
+				partnerCount: { $size: '$partners' },
+				sponsorCount: {
+					$size: {
+						$filter: {
+							input: '$partners',
+							as: 'p',
+							cond: { $eq: ['$$p.type', 'sponsor'] },
+						},
+					},
+				},
+				collaboratorCount: {
+					$size: {
+						$filter: {
+							input: '$partners',
+							as: 'p',
+							cond: { $eq: ['$$p.type', 'collaborator'] },
+						},
+					},
+				},
+			},
+		},
+	]);
+
+	return ApiResponse.success(res, analytics, 'Fest analytics retrieved successfully.');
+});
+
+// Generate a detailed report for a single fest
+const generateFestReport = asyncHandler(async (req, res) => {
+	const fest = await findFestBySlugOrYear(req.params.identifier, true);
+	// You can expand this report with more details as needed
+	const report = {
+		festDetails: {
+			name: fest.name,
+			year: fest.year,
+			status: fest.status,
+			startDate: fest.startDate,
+			endDate: fest.endDate,
+		},
+		events: fest.events,
+		partners: fest.partners.map((p) => ({ name: p.name, type: p.type, tier: p.tier })),
+	};
+	return ApiResponse.success(res, report, 'Fest report generated successfully.');
+});
+
+export {
+	getLandingPageData,
+	createFest,
+	getAllFests,
+	getFestDetails,
+	updateFestDetails,
+	deleteFest,
+	addPartner,
+	removePartner,
+	linkEventToFest,
+	unlinkEventFromFest,
+	updateFestPoster,
+	addGalleryMedia,
+	removeGalleryMedia,
+	exportFestsCSV,
+	getFestStatistics,
+	getFestAnalytics,
+	generateFestReport,
+};
