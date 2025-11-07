@@ -27,14 +27,14 @@ export const memberLogout = async () => {
 	removeToken(); // Clear tokens on logout
 };
 
-// Registers a new admin.
+/* Registers a new admin.
 export const adminRegister = async (data) => {
 	// Registration is a public action, so use publicClient
 	const response = await publicClient.post('/api/v1/admin/register', data);
 	const { accessToken, refreshToken, user } = response.data.data;
 	setToken({ accessToken, refreshToken });
 	return user;
-};
+};*/
 
 // Logs in an admin.
 export const adminLogin = async (data) => {
