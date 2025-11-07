@@ -1,111 +1,65 @@
 import { apiClient, publicClient } from './api.js';
-import { setToken, getToken, removeToken } from '../utils/handleTokens.js';
+import { setToken, removeToken } from '../utils/handleTokens.js';
 
-// Function to handle authentication errors globally
-const handleAuthError = (error) => {
-	if (error.response) {
-		const { status } = error.response;
+// ===========================================
+// Auth Service Functions
+// ==================================================
 
-		if (status === 401) {
-			removeToken();
-			window.location.href = '/auth'; // Or use router redirect
-		}
-	}
-	return Promise.reject(error);
-};
-
-// Add a response interceptor to handle errors globally
-apiClient.interceptors.response.use(
-	(response) => response,
-	(error) => {
-		handleAuthError(error);
-		return Promise.reject(error);
-	}
-);
-
+// Registers a new member.
 export const memberRegister = async (data) => {
-	try {
-		const response = await apiClient.post('/api/members/register', data);
-
-		return response.data;
-	} catch (error) {
-		handleAuthError(error);
-		throw error;
-	}
+	// This is an admin action, so it uses the authenticated apiClient
+	const response = await apiClient.post('/api/v1/members/register', data);
+	return response.data;
 };
 
+// Logs in a member.
 export const memberLogin = async (data) => {
-	try {
-		const response = await publicClient.post('/api/members/login', data);
-
-		const { accessToken, refreshToken } = response.data.data;
-		setToken({ accessToken, refreshToken });
-		return response.data.data;
-	} catch (error) {
-		handleAuthError(error);
-		throw error;
-	}
+	// Login is a public action, so it uses publicClient
+	const response = await publicClient.post('/api/v1/members/login', data);
+	const { accessToken, refreshToken, user } = response.data.data;
+	setToken({ accessToken, refreshToken });
+	return user;
 };
 
+// Logs out the currently authenticated member.
 export const memberLogout = async () => {
-	try {
-		console.log('Member logout successful');
-		const response = await apiClient.post('/api/members/logout');
-		removeToken(); // Clear tokens on logout
-		return response.data;
-	} catch (error) {
-		handleAuthError(error);
-		throw error;
-	}
+	await apiClient.post('/api/v1/members/logout');
+	removeToken(); // Clear tokens on logout
 };
 
+// Registers a new admin.
 export const adminRegister = async (data) => {
-	try {
-		const response = await apiClient.post('/api/admin/register', data);
-
-		const { accessToken, refreshToken } = response.data.data;
-		setToken({ accessToken, refreshToken });
-
-		return response.data.data;
-	} catch (error) {
-		handleAuthError(error);
-		throw error;
-	}
+	// Registration is a public action, so use publicClient
+	const response = await publicClient.post('/api/v1/admin/register', data);
+	const { accessToken, refreshToken, user } = response.data.data;
+	setToken({ accessToken, refreshToken });
+	return user;
 };
 
+// Logs in an admin.
 export const adminLogin = async (data) => {
-	try {
-		const response = await apiClient.post('/api/admin/login', data);
-
-		const { accessToken, refreshToken } = response.data.data;
-		setToken({ accessToken, refreshToken });
-
-		return response.data.data;
-	} catch (error) {
-		handleAuthError(error);
-		throw error;
-	}
+	// Login is a public action, so use publicClient
+	const response = await publicClient.post('/api/v1/admin/login', data);
+	const { accessToken, refreshToken, user } = response.data.data;
+	setToken({ accessToken, refreshToken });
+	return user;
 };
 
+// Logs out the currently authenticated admin.
 export const adminLogout = async () => {
-	try {
-		const { refreshToken } = getToken();
-		const response = await apiClient.post('/api/admin/logout', { refreshToken });
-
-		removeToken(); // Clear tokens on logout
-		return response.data;
-	} catch (error) {
-		handleAuthError(error);
-		throw error;
-	}
+	// The backend identifies the user via the token in the header; no body is needed.
+	await apiClient.post('/api/v1/admin/logout');
+	removeToken(); // Clear tokens on logout
 };
 
+// Fetches the profile of the currently authenticated admin.
 export const getCurrentAdmin = async () => {
-	try {
-		const response = await apiClient.get('/api/admin/me');
-		return response.data;
-	} catch (error) {
-		handleAuthError(error);
-		throw error;
-	}
+	const response = await apiClient.get('/api/v1/admin/me');
+	return response.data.data;
+};
+
+// Fetches the profile of the currently authenticated member.
+export const getCurrentMember = async () => {
+	const response = await apiClient.get('/api/v1/members/me');
+	return response.data.data;
 };

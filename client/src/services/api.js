@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getToken, removeToken, isTokenValid } from '../utils/handleTokens.js';
 
 // Use centralized environment configuration
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 // Create an Axios instance with default settings
 const apiClient = axios.create({
