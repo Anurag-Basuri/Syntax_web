@@ -68,7 +68,7 @@ const AppRoutes = () => {
 					}
 				/>
 				<Route
-					path="/admin/auth"
+					path="/admin/secret/auth"
 					element={
 						<PublicRoute>
 							<AdminAuth />
