@@ -4,7 +4,7 @@ import { apiClient, publicClient } from './api.js';
 // Public Member Services
 // ==================================================
 
-// Get all members (public)
+// Fetches a list of all members.
 export const getAllMembers = async () => {
 	try {
 		const response = await publicClient.get('/api/v1/members/getall');
@@ -14,7 +14,7 @@ export const getAllMembers = async () => {
 	}
 };
 
-// Get Leaders (public)
+// Fetches a list of all members with leadership roles.
 export const getLeaders = async () => {
 	try {
 		const response = await publicClient.get('/api/v1/members/getleaders');
@@ -24,7 +24,7 @@ export const getLeaders = async () => {
 	}
 };
 
-// Send Password Reset Email
+// Sends a password reset email to the user.
 export const sendResetPasswordEmail = async (data) => {
 	try {
 		const response = await publicClient.post('/api/v1/members/send-reset-email', data);
@@ -34,7 +34,7 @@ export const sendResetPasswordEmail = async (data) => {
 	}
 };
 
-// Reset Password
+// Resets a member's password using their LPU ID.
 export const resetPassword = async (data) => {
 	try {
 		const response = await publicClient.post('/api/v1/members/reset-password', data);
@@ -48,45 +48,41 @@ export const resetPassword = async (data) => {
 // Authenticated Member Services
 // ==================================================
 
-// Update Current Member Profile
+// Updates the profile of the currently logged-in member.
 export const updateMyProfile = async (memberId, data) => {
 	try {
 		const response = await apiClient.put(`/api/v1/members/${memberId}/update`, data);
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.response?.data?.message || 'Failed to update profile.');
+		throw new Error(error.message || 'Failed to update profile.');
 	}
 };
 
-// Upload Profile Picture
+// Uploads a profile picture for the specified member.
 export const uploadProfilePicture = async (memberId, formData) => {
 	try {
 		const response = await apiClient.post(
 			`/api/v1/members/${memberId}/profile-picture`,
 			formData,
 			{
-				headers: {
-					'Content-Type': 'multipart/form-data',
-				},
+				headers: { 'Content-Type': 'multipart/form-data' },
 			}
 		);
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.response?.data?.message || 'Failed to upload profile picture.');
+		throw new Error(error.message || 'Failed to upload profile picture.');
 	}
 };
 
-// Upload Resume
+// Uploads a resume for the specified member.
 export const uploadResume = async (memberId, formData) => {
 	try {
 		const response = await apiClient.post(`/api/v1/members/${memberId}/resume`, formData, {
-			headers: {
-				'Content-Type': 'multipart/form-data',
-			},
+			headers: { 'Content-Type': 'multipart/form-data' },
 		});
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.response?.data?.message || 'Failed to upload resume.');
+		throw new Error(error.message || 'Failed to upload resume.');
 	}
 };
 
@@ -94,42 +90,42 @@ export const uploadResume = async (memberId, formData) => {
 // Admin-Only Member Services
 // ==================================================
 
-// Update Member by Admin
+// Updates any member's profile information (Admin only).
 export const updateMemberByAdmin = async (memberId, data) => {
 	try {
 		const response = await apiClient.put(`/api/v1/members/${memberId}/admin`, data);
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.response?.data?.message || 'Failed to update member details.');
+		throw new Error(error.message || 'Failed to update member details.');
 	}
 };
 
-// Ban a member. (Admin only)
+// Bans a member (Admin only).
 export const banMember = async (memberId, data) => {
 	try {
 		const response = await apiClient.put(`/api/v1/members/${memberId}/ban`, data);
 		return response.data;
 	} catch (error) {
-		throw new Error(error.response?.data?.message || 'Failed to ban member.');
+		throw new Error(error.message || 'Failed to ban member.');
 	}
 };
 
-// Unban a member. (Admin only)
+// Unbans a member (Admin only).
 export const unbanMember = async (memberId) => {
 	try {
 		const response = await apiClient.put(`/api/v1/members/${memberId}/unban`);
 		return response.data;
 	} catch (error) {
-		throw new Error(error.response?.data?.message || 'Failed to unban member.');
+		throw new Error(error.message || 'Failed to unban member.');
 	}
 };
 
-// Remove a member. (Admin only)
+// Marks a member as removed from the club (Admin only).
 export const removeMember = async (memberId, data) => {
 	try {
 		const response = await apiClient.put(`/api/v1/members/${memberId}/remove`, data);
 		return response.data;
 	} catch (error) {
-		throw new Error(error.response?.data?.message || 'Failed to remove member.');
+		throw new Error(error.message || 'Failed to remove member.');
 	}
 };
