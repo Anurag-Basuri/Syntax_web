@@ -4,6 +4,7 @@ import {
 	loginAdmin,
 	logoutAdmin,
 	currentAdmin,
+	refreshAccessToken,
 } from '../controllers/admin.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
@@ -32,6 +33,9 @@ router.post(
 	]),
 	loginAdmin
 );
+
+// Add this new route for refreshing the admin's access token
+router.post('/refresh-token', refreshAccessToken);
 
 // --- Protected Admin Routes ---
 

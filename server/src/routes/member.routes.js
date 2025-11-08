@@ -15,6 +15,7 @@ import {
 	banMember,
 	removeMember,
 	unbanMember,
+	refreshAccessToken, // Import the refreshAccessToken controller
 } from '../controllers/member.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
@@ -51,14 +52,15 @@ router.post(
 	'/reset-password',
 	validate([
 		body('LpuId').notEmpty().withMessage('LPU ID is required'),
-		body('newPassword')
-			.isLength({ min: 8 })
-			.withMessage('New password must be at least 8 characters'),
+		body('newPassword').notEmpty().withMessage('New password is required'),
 	]),
 	resetPassword
 );
 
-// --- Protected Member Routes ---
+// Add this new route for refreshing the member's access token
+router.post('/refresh-token', refreshAccessToken);
+
+// --- Protected Member Routes (require valid access token) ---
 
 // Logout Member (accessible to any authenticated user)
 router.post('/logout', protect, logoutMember);
