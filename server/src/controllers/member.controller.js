@@ -23,7 +23,7 @@ const generateAndSendTokens = async (member, res, message, statusCode) => {
 
 	return ApiResponse.success(
 		res.cookie('refreshToken', refreshToken, options),
-		{ member: member.toJSON(), accessToken },
+		{ user: member.toJSON(), accessToken },
 		message,
 		statusCode
 	);
@@ -107,7 +107,7 @@ const banMember = asyncHandler(async (req, res) => {
 
 	await member.ban(reason, reviewTime);
 
-	return ApiResponse.success(res, { member: member.toJSON() }, 'Member banned successfully');
+	return ApiResponse.success(res, { user: member.toJSON() }, 'Member banned successfully');
 });
 
 // Remove member (admin only)
@@ -121,7 +121,7 @@ const removeMember = asyncHandler(async (req, res) => {
 
 	await member.removeMember(reason, reviewTime);
 
-	return ApiResponse.success(res, { member: member.toJSON() }, 'Member removed successfully');
+	return ApiResponse.success(res, { user: member.toJSON() }, 'Member removed successfully');
 });
 
 // Unban member (admin only)
@@ -134,7 +134,7 @@ const unbanMember = asyncHandler(async (req, res) => {
 
 	await member.unban();
 
-	return ApiResponse.success(res, { member: member.toJSON() }, 'Member unbanned successfully');
+	return ApiResponse.success(res, { user: member.toJSON() }, 'Member unbanned successfully');
 });
 
 // Logout member
@@ -174,7 +174,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 	member.password = newPassword;
 	await member.save();
 
-	return ApiResponse.success(res, { member: member.toJSON() }, 'Password reset successfully');
+	return ApiResponse.success(res, { user: member.toJSON() }, 'Password reset successfully');
 });
 
 // Update member profile
@@ -211,7 +211,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 
 	await member.save();
 
-	return ApiResponse.success(res, { member: member.toJSON() }, 'Profile updated successfully');
+	return ApiResponse.success(res, { user: member.toJSON() }, 'Profile updated successfully');
 });
 
 // Update by admin
@@ -231,7 +231,7 @@ const updateMemberByAdmin = asyncHandler(async (req, res) => {
 
 	await member.save();
 
-	return ApiResponse.success(res, { member: member.toJSON() }, 'Member updated successfully');
+	return ApiResponse.success(res, { user: member.toJSON() }, 'Member updated successfully');
 });
 
 // Upload profile picture
@@ -266,7 +266,7 @@ const uploadProfilePicture = asyncHandler(async (req, res) => {
 
 	return ApiResponse.success(
 		res,
-		{ member: member.toJSON() },
+		{ user: member.toJSON() },
 		'Profile picture uploaded successfully'
 	);
 });
@@ -301,7 +301,7 @@ const uploadResume = asyncHandler(async (req, res) => {
 	};
 	await member.save();
 
-	return ApiResponse.success(res, { member: member.toJSON() }, 'Resume uploaded successfully');
+	return ApiResponse.success(res, { user: member.toJSON() }, 'Resume uploaded successfully');
 });
 
 // Get current member
@@ -314,7 +314,7 @@ const getCurrentMember = asyncHandler(async (req, res) => {
 
 	return ApiResponse.success(
 		res,
-		{ member: member.toJSON() },
+		{ user: member.toJSON() },
 		'Current member retrieved successfully'
 	);
 });

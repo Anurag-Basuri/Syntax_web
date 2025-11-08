@@ -19,7 +19,7 @@ const generateAndSendTokens = async (admin, res, message, statusCode) => {
 
 	return ApiResponse.success(
 		res.cookie('refreshToken', refreshToken, options),
-		{ admin, accessToken },
+		{ user: admin, accessToken },
 		message,
 		statusCode
 	);
@@ -89,7 +89,7 @@ const currentAdmin = asyncHandler(async (req, res) => {
 	if (!admin) {
 		throw ApiError.Unauthorized('Unauthorized request');
 	}
-	return ApiResponse.success(res, { admin }, 'Current admin retrieved successfully');
+	return ApiResponse.success(res, { user: admin }, 'Current admin retrieved successfully');
 });
 
 export { createAdmin, loginAdmin, logoutAdmin, currentAdmin };
