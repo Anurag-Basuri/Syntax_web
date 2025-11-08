@@ -4,7 +4,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const generateAndSendTokens = async (admin, res, message, statusCode) => {
-	const accessToken = admin.generateAccessToken();
+	const accessToken = admin.generateAuthToken();
 	const refreshToken = admin.generateRefreshToken();
 
 	// Save the new refresh token to the database
