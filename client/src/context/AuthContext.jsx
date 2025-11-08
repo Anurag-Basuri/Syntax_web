@@ -37,8 +37,11 @@ export const AuthProvider = ({ children }) => {
 
 		try {
 			const decoded = decodeToken(accessToken);
-			let currentUser;
+			if (!decoded || !decoded.role) {
+				throw new Error('Invalid token');
+			}
 
+			let currentUser;
 			// Fetch user data based on role stored in the token
 			if (decoded.role === 'admin') {
 				currentUser = await getCurrentAdmin();
@@ -51,7 +54,7 @@ export const AuthProvider = ({ children }) => {
 			setUser(currentUser);
 			setIsAuthenticated(true);
 		} catch (error) {
-			console.error('Authentication check failed:', error);
+			console.error('Authentication check failed, clearing session:', error);
 			clearAuth();
 		} finally {
 			setLoading(false);
