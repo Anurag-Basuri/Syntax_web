@@ -19,7 +19,7 @@ export const memberLogin = async (credentials) => {
 		setToken({ accessToken, refreshToken });
 		return user;
 	} catch (error) {
-		throw getApiError(error, 'Failed to log in.');
+		throw getApiError(error, 'Login failed. Please check your credentials.');
 	}
 };
 
@@ -27,11 +27,11 @@ export const memberLogin = async (credentials) => {
 export const memberLogout = async () => {
 	try {
 		await apiClient.post('/api/v1/members/logout');
-		removeToken();
 	} catch (error) {
-		// Even if the API call fails, we should clear the token to log the user out client-side.
+		console.error('Server logout failed, but logging out client-side anyway.', error);
+	} finally {
+		// Always remove the token from local storage on logout.
 		removeToken();
-		throw getApiError(error, 'Failed to log out.');
 	}
 };
 
@@ -39,9 +39,9 @@ export const memberLogout = async () => {
 export const getCurrentMember = async () => {
 	try {
 		const response = await apiClient.get('/api/v1/members/me');
-		return response.data.data.user;
+		return response.data.data;
 	} catch (error) {
-		throw getApiError(error, 'Failed to fetch member profile.');
+		throw getApiError(error, 'Failed to fetch your profile.');
 	}
 };
 
@@ -57,7 +57,7 @@ export const adminLogin = async (credentials) => {
 		setToken({ accessToken, refreshToken });
 		return user;
 	} catch (error) {
-		throw getApiError(error, 'Failed to log in as admin.');
+		throw getApiError(error, 'Admin login failed. Please check your credentials.');
 	}
 };
 
@@ -65,11 +65,11 @@ export const adminLogin = async (credentials) => {
 export const adminLogout = async () => {
 	try {
 		await apiClient.post('/api/v1/admin/logout');
-		removeToken();
 	} catch (error) {
-		// Even if the API call fails, we should clear the token to log the user out client-side.
+		console.error('Server logout failed, but logging out client-side anyway.', error);
+	} finally {
+		// Always remove the token from local storage on logout.
 		removeToken();
-		throw getApiError(error, 'Failed to log out as admin.');
 	}
 };
 
@@ -77,7 +77,7 @@ export const adminLogout = async () => {
 export const getCurrentAdmin = async () => {
 	try {
 		const response = await apiClient.get('/api/v1/admin/me');
-		return response.data.data.user;
+		return response.data.data;
 	} catch (error) {
 		throw getApiError(error, 'Failed to fetch admin profile.');
 	}
@@ -98,10 +98,8 @@ export const adminRegister = async (adminDetails) => {
 // Registers a new member (Admin only).
 export const memberRegister = async (memberDetails) => {
 	try {
-		// This requires an admin to be logged in, hence `apiClient`.
 		const response = await apiClient.post('/api/v1/members/register', memberDetails);
-		// Assuming the response for creating a user returns the user object
-		return response.data.data.user;
+		return response.data.data;
 	} catch (error) {
 		throw getApiError(error, 'Failed to register member.');
 	}
