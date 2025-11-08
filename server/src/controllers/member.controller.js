@@ -312,11 +312,7 @@ const getCurrentMember = asyncHandler(async (req, res) => {
 		throw ApiError.Unauthorized('Unauthorized access');
 	}
 
-	return ApiResponse.success(
-		res,
-		{ user: member.toJSON() },
-		'Current member retrieved successfully'
-	);
+	return ApiResponse.success(res, member.toJSON(), 'Current member retrieved successfully');
 });
 
 // Get the leaders

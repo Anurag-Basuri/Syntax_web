@@ -39,7 +39,7 @@ export const memberLogout = async () => {
 export const getCurrentMember = async () => {
 	try {
 		const response = await apiClient.get('/api/v1/members/me');
-		return response.data.data;
+		return response.data.data.user;
 	} catch (error) {
 		throw getApiError(error, 'Failed to fetch member profile.');
 	}
@@ -77,7 +77,7 @@ export const adminLogout = async () => {
 export const getCurrentAdmin = async () => {
 	try {
 		const response = await apiClient.get('/api/v1/admin/me');
-		return response.data.data;
+		return response.data.data.user;
 	} catch (error) {
 		throw getApiError(error, 'Failed to fetch admin profile.');
 	}
