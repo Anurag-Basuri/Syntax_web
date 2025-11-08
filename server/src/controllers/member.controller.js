@@ -4,6 +4,7 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import { uploadFile, uploadResume as resumeUpload, deleteFile } from '../utils/cloudinary.js';
 import { sendPasswordResetEmail } from '../services/email.service.js';
+import jwt from 'jsonwebtoken';
 
 // Helper function to generate tokens and set cookies
 const generateAndSendTokens = async (member, res, message, statusCode) => {
@@ -317,19 +318,35 @@ const getCurrentMember = asyncHandler(async (req, res) => {
 
 // Get the leaders
 const getLeaders = asyncHandler(async (req, res) => {
-	const members = await Member.find({
-		designation: { $in: ['CEO', 'CTO', 'CMO', 'COO', 'CFO'] },
-	});
+	const leaders = await Member.find({ isLeader: true }).select(
+		'fullname designation profilePicture socialLinks'
+	);
+	return ApiResponse.success(res, { members: leaders }, 'Club leaders retrieved successfully');
+});
 
-	if (!members || members.length === 0) {
-		throw ApiError.NotFound('No leaders found');
+// Add this new controller function
+const refreshAccessToken = asyncHandler(async (req, res) => {
+	const incomingRefreshToken = req.body.refreshToken || req.cookies.refreshToken;
+
+	if (!incomingRefreshToken) {
+		throw new ApiError(401, 'Refresh token is required');
 	}
 
-	return ApiResponse.success(
-		res,
-		{ members: members.map((member) => member.toJSON()) },
-		'Leaders retrieved successfully'
-	);
+	const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+	const member = await Member.findById(decodedToken._id);
+
+	if (!member) {
+		throw new ApiError(401, 'Invalid refresh token');
+	}
+
+	if (incomingRefreshToken !== member.refreshToken) {
+		throw new ApiError(401, 'Refresh token is expired or has been used');
+	}
+
+	const accessToken = member.generateAuthToken();
+
+	return ApiResponse.success(res, { accessToken }, 'Access token refreshed successfully');
 });
 
 // Send password reset email
@@ -375,6 +392,7 @@ export {
 	uploadResume,
 	getCurrentMember,
 	getLeaders,
+	refreshAccessToken,
 	sendResetPasswordEmail,
 	getAllMembers,
 	banMember,
