@@ -81,7 +81,7 @@ const DepartmentSection = ({
 												'0 0 10px rgba(79, 70, 229, 0.5)',
 												'0 0 20px rgba(79, 70, 229, 0.8)',
 												'0 0 10px rgba(79, 70, 229, 0.5)',
-											]
+										  ]
 										: '0 0 5px rgba(79, 70, 229, 0.3)',
 								}}
 								transition={{ duration: 2, repeat: Infinity }}
