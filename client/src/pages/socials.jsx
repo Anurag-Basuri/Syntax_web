@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
 	Heart,
@@ -17,24 +17,56 @@ import {
 	Video as VideoIcon,
 	Sparkles,
 	Lightbulb,
-	Zap,
-	Code,
-	Globe,
-	TrendingUp,
+	AlertCircle,
+	Loader2,
 } from 'lucide-react';
-import { apiClient } from '../services/api.js';
-import { getToken, decodeToken } from '../utils/handleTokens';
+import { useAuth } from '../hooks/useAuth.js';
+import { createPost, deletePost } from '../services/socialsServices.js';
 import useSocials from '../hooks/useSocials.js';
+import toast from 'react-hot-toast';
 
 // Helper for time ago formatting
 const formatTimeAgo = (dateString) => {
+	if (!dateString) return 'Just now';
 	const date = new Date(dateString);
 	const now = new Date();
 	const diff = Math.floor((now - date) / 1000);
 	if (diff < 60) return `${diff}s ago`;
 	if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
 	if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-	return date.toLocaleDateString();
+	if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+	return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+// Transform backend post to frontend format
+const transformPost = (post) => {
+	const media = (post.media || []).map((item) => ({
+		id: item.publicId || item._id || Math.random().toString(36),
+		url: item.url,
+		type: item.resource_type === 'video' ? 'video' : 'image',
+		publicId: item.publicId,
+	}));
+
+	return {
+		_id: post._id,
+		user: {
+			id: post.author?._id || post.author?.id,
+			name: post.author?.fullname || 'Unknown',
+			fullname: post.author?.fullname || 'Unknown',
+			role: post.author?.role || 'admin',
+			avatar: post.author?.profilePicture?.url || post.author?.avatar || '',
+			verified: post.author?.verified || false,
+		},
+		title: post.title || '',
+		content: post.content || '',
+		media,
+		images: media.filter((m) => m.type === 'image'),
+		videos: media.filter((m) => m.type === 'video'),
+		likes: post.likes || 0,
+		comments: post.comments || 0,
+		createdAt: post.createdAt,
+		updatedAt: post.updatedAt,
+	};
 };
 
 const PostCard = ({ post, currentUser, onDelete }) => {
@@ -43,97 +75,115 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 	const [imageLoaded, setImageLoaded] = useState({});
 	const [videoStates, setVideoStates] = useState({});
 	const videoRefs = useRef({});
+	const optionsRef = useRef(null);
 
-	const canDelete = currentUser.role === 'admin' || currentUser.id === post.user.id;
+	const canDelete = currentUser?.role === 'admin' || currentUser?.id === post.user?.id;
 
-	const toggleVideo = (id) => {
+	useEffect(() => {
+		const handleClickOutside = (e) => {
+			if (optionsRef.current && !optionsRef.current.contains(e.target)) {
+				setShowOptions(false);
+			}
+		};
+		if (showOptions) {
+			document.addEventListener('mousedown', handleClickOutside);
+		}
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, [showOptions]);
+
+	const toggleVideo = useCallback((id) => {
 		const video = videoRefs.current[id];
 		if (video) {
 			if (video.paused) {
-				video.play();
+				video.play().catch(() => {});
 				setVideoStates((prev) => ({ ...prev, [id]: { ...prev[id], playing: true } }));
 			} else {
 				video.pause();
 				setVideoStates((prev) => ({ ...prev, [id]: { ...prev[id], playing: false } }));
 			}
 		}
-	};
+	}, []);
 
-	const toggleMute = (id) => {
+	const toggleMute = useCallback((id) => {
 		const video = videoRefs.current[id];
 		if (video) {
 			video.muted = !video.muted;
 			setVideoStates((prev) => ({ ...prev, [id]: { ...prev[id], muted: video.muted } }));
 		}
-	};
+	}, []);
 
-	// Normalize media for UI (combine images/videos)
-	const media = [
-		...(post.images?.map((img) => ({ ...img, type: 'image', id: img.publicId || img._id })) ||
-			[]),
-		...(post.videos?.map((vid) => ({ ...vid, type: 'video', id: vid.publicId || vid._id })) ||
-			[]),
-	];
+	const media = post.media || [];
 
 	return (
 		<motion.div
-			initial={{ opacity: 0, y: 50 }}
+			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, x: -100 }}
-			transition={{ duration: 0.5 }}
-			className="bg-[#0d1326]/70 backdrop-blur-lg rounded-2xl overflow-hidden border border-[#2a3a72] shadow-[0_10px_30px_rgba(0,0,0,0.3)] group mb-8"
+			transition={{ duration: 0.3 }}
+			className="relative bg-[var(--card-bg)] backdrop-blur-lg rounded-2xl overflow-hidden border border-[var(--card-border)] shadow-[var(--shadow-md)] group mb-6 sm:mb-8 transition-all duration-300 hover:shadow-[var(--shadow-lg)] hover:border-[var(--accent-1)]/30"
 		>
 			{/* Post Header */}
-			<div className="p-6 pb-4">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center space-x-3">
-						<div className="relative">
+			<div className="p-4 sm:p-6 pb-4">
+				<div className="flex items-center justify-between gap-3">
+					<div className="flex items-center space-x-3 flex-1 min-w-0">
+						<div className="relative flex-shrink-0">
 							<motion.img
 								whileHover={{ scale: 1.05 }}
-								src={post.user?.avatar || post.user?.profilePicture}
-								alt={post.user?.name || post.user?.fullname}
-								className="w-12 h-12 rounded-full object-cover ring-2 ring-[#3a56c9] transition-all duration-300"
+								src={
+									post.user?.avatar ||
+									`https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(
+										post.user?.name || 'User'
+									)}`
+								}
+								alt={post.user?.name || 'User'}
+								className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-[var(--accent-1)]/50 transition-all duration-300"
+								onError={(e) => {
+									e.target.src = `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(
+										post.user?.name || 'User'
+									)}`;
+								}}
 							/>
 							{post.user?.verified && (
 								<motion.div
 									initial={{ scale: 0 }}
 									animate={{ scale: 1 }}
 									transition={{ delay: 0.2 }}
-									className="absolute -bottom-1 -right-1 w-5 h-5 bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full flex items-center justify-center"
+									className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-r from-[var(--accent-1)] to-[var(--accent-2)] rounded-full flex items-center justify-center"
 								>
 									<div className="w-2 h-2 bg-white rounded-full"></div>
 								</motion.div>
 							)}
 						</div>
-						<div>
-							<div className="flex items-center space-x-2">
-								<h3 className="font-semibold text-white hover:text-cyan-400 transition-colors cursor-pointer">
-									{post.user?.name || post.user?.fullname}
+						<div className="flex-1 min-w-0">
+							<div className="flex items-center space-x-2 flex-wrap gap-1">
+								<h3 className="font-semibold text-[var(--text-primary)] hover:text-[var(--accent-1)] transition-colors cursor-pointer truncate text-sm sm:text-base">
+									{post.user?.name || post.user?.fullname || 'Unknown'}
 								</h3>
 								{post.user?.role === 'admin' && (
 									<motion.span
 										initial={{ opacity: 0, scale: 0.8 }}
 										animate={{ opacity: 1, scale: 1 }}
-										className="px-2 py-1 text-xs font-medium bg-gradient-to-r from-[#3a56c9] to-[#5d7df5] text-white rounded-full"
+										className="px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-[var(--accent-1)] to-[var(--accent-2)] text-white rounded-full flex-shrink-0"
 									>
 										Admin
 									</motion.span>
 								)}
 							</div>
-							<p className="text-sm text-[#9ca3d4]">
+							<p className="text-xs sm:text-sm text-[var(--text-muted)] mt-0.5">
 								{formatTimeAgo(post.createdAt)}
 							</p>
 						</div>
 					</div>
 					{canDelete && (
-						<div className="relative">
+						<div className="relative flex-shrink-0" ref={optionsRef}>
 							<motion.button
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.95 }}
 								onClick={() => setShowOptions(!showOptions)}
-								className="p-2 hover:bg-[#1a244f] rounded-full transition-colors opacity-0 group-hover:opacity-100"
+								className="p-2 rounded-full transition-colors opacity-0 group-hover:opacity-100 hover:bg-[var(--glass-hover)]"
+								aria-label="Post options"
 							>
-								<MoreHorizontal className="w-5 h-5 text-[#5d7df5]" />
+								<MoreHorizontal className="w-5 h-5 text-[var(--accent-1)]" />
 							</motion.button>
 							<AnimatePresence>
 								{showOptions && (
@@ -141,14 +191,14 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 										initial={{ opacity: 0, scale: 0.95, y: -10 }}
 										animate={{ opacity: 1, scale: 1, y: 0 }}
 										exit={{ opacity: 0, scale: 0.95, y: -10 }}
-										className="absolute right-0 top-full mt-2 bg-[#0d1326] backdrop-blur-lg rounded-lg shadow-lg border border-[#2a3a72] z-10"
+										className="absolute right-0 top-full mt-2 bg-[var(--glass-bg)] backdrop-blur-lg rounded-lg shadow-[var(--shadow-lg)] border border-[var(--glass-border)] z-10 min-w-[150px]"
 									>
 										<button
 											onClick={() => {
 												onDelete(post._id);
 												setShowOptions(false);
 											}}
-											className="flex items-center space-x-2 px-4 py-3 text-red-400 hover:bg-[#1a244f] w-full text-left rounded-lg transition-colors"
+											className="flex items-center space-x-2 px-4 py-3 text-red-400 hover:bg-[var(--glass-hover)] w-full text-left rounded-lg transition-colors text-sm"
 										>
 											<Trash2 className="w-4 h-4" />
 											<span>Delete Post</span>
@@ -160,43 +210,55 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 					)}
 				</div>
 			</div>
+
 			{/* Post Content */}
-			<div className="px-6 pb-4">
-				<motion.p
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					transition={{ delay: 0.1 }}
-					className="text-[#d0d5f7] leading-relaxed"
-				>
-					{post.content}
-				</motion.p>
-			</div>
+			{(post.title || post.content) && (
+				<div className="px-4 sm:px-6 pb-4">
+					{post.title && (
+						<h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] mb-2">
+							{post.title}
+						</h2>
+					)}
+					<motion.p
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						transition={{ delay: 0.1 }}
+						className="text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words text-sm sm:text-base"
+					>
+						{post.content}
+					</motion.p>
+				</div>
+			)}
+
 			{/* Media Grid */}
 			{media.length > 0 && (
 				<div className="mb-4">
 					{media.length === 1 ? (
-						<div className="px-6">
+						<div className="px-4 sm:px-6">
 							<div className="rounded-xl overflow-hidden">
 								{media[0].type === 'image' ? (
 									<motion.div
 										initial={{ opacity: 0, scale: 1.05 }}
 										animate={{ opacity: 1, scale: 1 }}
-										transition={{ duration: 0.6 }}
+										transition={{ duration: 0.4 }}
 										className="relative overflow-hidden"
 									>
 										<img
 											src={media[0].url}
 											alt="Post media"
-											className="w-full h-96 object-cover transition-transform duration-700 hover:scale-105"
+											className="w-full h-64 sm:h-80 md:h-96 object-cover transition-transform duration-500 hover:scale-105"
 											onLoad={() =>
 												setImageLoaded((prev) => ({
 													...prev,
 													[media[0].id]: true,
 												}))
 											}
+											onError={(e) => {
+												e.target.style.display = 'none';
+											}}
 										/>
 										{!imageLoaded[media[0].id] && (
-											<div className="absolute inset-0 bg-[#1a244f] animate-pulse"></div>
+											<div className="absolute inset-0 bg-[var(--bg-soft)] animate-pulse"></div>
 										)}
 									</motion.div>
 								) : (
@@ -204,35 +266,45 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 										<video
 											ref={(el) => (videoRefs.current[media[0].id] = el)}
 											src={media[0].url}
-											poster={media[0].thumbnail}
-											className="w-full h-96 object-cover"
+											className="w-full h-64 sm:h-80 md:h-96 object-cover"
 											muted
 											loop
+											playsInline
 										/>
 										<div className="absolute inset-0 flex items-center justify-center">
-											<div className="flex space-x-4">
+											<div className="flex space-x-3 sm:space-x-4">
 												<motion.button
 													whileHover={{ scale: 1.1 }}
 													whileTap={{ scale: 0.95 }}
 													onClick={() => toggleVideo(media[0].id)}
-													className="p-3 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
+													className="p-2.5 sm:p-3 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
+													aria-label={
+														videoStates[media[0].id]?.playing
+															? 'Pause'
+															: 'Play'
+													}
 												>
 													{videoStates[media[0].id]?.playing ? (
-														<Pause className="w-6 h-6 text-white" />
+														<Pause className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
 													) : (
-														<Play className="w-6 h-6 text-white ml-1" />
+														<Play className="w-5 h-5 sm:w-6 sm:h-6 text-white ml-0.5" />
 													)}
 												</motion.button>
 												<motion.button
 													whileHover={{ scale: 1.1 }}
 													whileTap={{ scale: 0.95 }}
 													onClick={() => toggleMute(media[0].id)}
-													className="p-3 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
+													className="p-2.5 sm:p-3 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
+													aria-label={
+														videoStates[media[0].id]?.muted !== false
+															? 'Unmute'
+															: 'Mute'
+													}
 												>
 													{videoStates[media[0].id]?.muted !== false ? (
-														<VolumeX className="w-6 h-6 text-white" />
+														<VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
 													) : (
-														<Volume2 className="w-6 h-6 text-white" />
+														<Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
 													)}
 												</motion.button>
 											</div>
@@ -242,19 +314,19 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 							</div>
 						</div>
 					) : (
-						<div className="px-6">
+						<div className="px-4 sm:px-6">
 							<motion.div
 								initial={{ opacity: 0 }}
 								animate={{ opacity: 1 }}
-								transition={{ duration: 0.6 }}
+								transition={{ duration: 0.4 }}
 								className={`grid gap-2 rounded-xl overflow-hidden ${
 									media.length === 2
 										? 'grid-cols-2'
 										: media.length === 3
-											? 'grid-cols-3'
-											: media.length === 4
-												? 'grid-cols-2 grid-rows-2'
-												: 'grid-cols-2 grid-rows-3'
+										? 'grid-cols-3'
+										: media.length === 4
+										? 'grid-cols-2 grid-rows-2'
+										: 'grid-cols-2 grid-rows-3'
 								}`}
 							>
 								{media.slice(0, 4).map((m, index) => (
@@ -262,7 +334,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 										key={m.id}
 										initial={{ opacity: 0, scale: 0.9 }}
 										animate={{ opacity: 1, scale: 1 }}
-										transition={{ duration: 0.5, delay: index * 0.1 }}
+										transition={{ duration: 0.3, delay: index * 0.1 }}
 										className={`relative overflow-hidden ${
 											media.length === 5 && index === 0 ? 'row-span-2' : ''
 										}`}
@@ -271,21 +343,29 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 											<img
 												src={m.url}
 												alt="Post media"
-												className="w-full h-full object-cover min-h-[150px] transition-transform duration-300 hover:scale-110"
+												className="w-full h-full object-cover min-h-[120px] sm:min-h-[150px] transition-transform duration-300 hover:scale-110"
+												onError={(e) => {
+													e.target.style.display = 'none';
+												}}
 											/>
 										) : (
 											<div className="relative">
 												<video
 													ref={(el) => (videoRefs.current[m.id] = el)}
 													src={m.url}
-													poster={m.thumbnail}
-													className="w-full h-full object-cover min-h-[150px]"
+													className="w-full h-full object-cover min-h-[120px] sm:min-h-[150px]"
 													muted
 													loop
+													playsInline
 												/>
 												<button
 													onClick={() => toggleVideo(m.id)}
 													className="absolute inset-0 flex items-center justify-center"
+													aria-label={
+														videoStates[m.id]?.playing
+															? 'Pause'
+															: 'Play'
+													}
 												>
 													<motion.div
 														whileHover={{ scale: 1.1 }}
@@ -293,9 +373,9 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 														className="p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors backdrop-blur-sm"
 													>
 														{videoStates[m.id]?.playing ? (
-															<Pause className="w-5 h-5 text-white" />
+															<Pause className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
 														) : (
-															<Play className="w-5 h-5 text-white ml-0.5" />
+															<Play className="w-4 h-4 sm:w-5 sm:h-5 text-white ml-0.5" />
 														)}
 													</motion.div>
 												</button>
@@ -307,7 +387,7 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 												animate={{ opacity: 1 }}
 												className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm"
 											>
-												<span className="text-white font-semibold text-lg">
+												<span className="text-white font-semibold text-base sm:text-lg">
 													+{media.length - 4}
 												</span>
 											</motion.div>
@@ -319,19 +399,25 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 					)}
 				</div>
 			)}
+
 			{/* Post Actions */}
-			<div className="px-6 py-4 border-t border-[#2a3a72]">
-				<div className="flex items-center space-x-6">
+			<div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-[var(--glass-border)]">
+				<div className="flex items-center space-x-4 sm:space-x-6">
 					<motion.button
 						whileHover={{ scale: 1.05 }}
 						whileTap={{ scale: 0.95 }}
 						onClick={() => setIsLiked(!isLiked)}
 						className={`flex items-center space-x-2 transition-all duration-300 ${
-							isLiked ? 'text-[#ff5c8d]' : 'text-[#9ca3d4] hover:text-[#ff5c8d]'
+							isLiked
+								? 'text-red-500 dark:text-red-400'
+								: 'text-[var(--text-muted)] hover:text-red-500 dark:hover:text-red-400'
 						}`}
+						aria-label={isLiked ? 'Unlike' : 'Like'}
 					>
 						<Heart
-							className={`w-5 h-5 transition-all duration-300 ${isLiked ? 'fill-current scale-110' : ''}`}
+							className={`w-5 h-5 transition-all duration-300 ${
+								isLiked ? 'fill-current scale-110' : ''
+							}`}
 						/>
 						<span className="text-sm font-medium">
 							{(post.likes || 0) + (isLiked ? 1 : 0)}
@@ -340,7 +426,8 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 					<motion.button
 						whileHover={{ scale: 1.05 }}
 						whileTap={{ scale: 0.95 }}
-						className="flex items-center space-x-2 text-[#9ca3d4] hover:text-cyan-400 transition-colors"
+						className="flex items-center space-x-2 text-[var(--text-muted)] hover:text-[var(--accent-1)] transition-colors"
+						aria-label="Comments"
 					>
 						<MessageCircle className="w-5 h-5" />
 						<span className="text-sm font-medium">{post.comments || 0}</span>
@@ -348,10 +435,11 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 					<motion.button
 						whileHover={{ scale: 1.05 }}
 						whileTap={{ scale: 0.95 }}
-						className="flex items-center space-x-2 text-[#9ca3d4] hover:text-emerald-400 transition-colors"
+						className="flex items-center space-x-2 text-[var(--text-muted)] hover:text-emerald-400 transition-colors"
+						aria-label="Share"
 					>
 						<Share2 className="w-5 h-5" />
-						<span className="text-sm font-medium">Share</span>
+						<span className="text-sm font-medium hidden sm:inline">Share</span>
 					</motion.button>
 				</div>
 			</div>
@@ -361,48 +449,81 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 
 const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 	const [content, setContent] = useState('');
+	const [title, setTitle] = useState('');
 	const [selectedFiles, setSelectedFiles] = useState([]);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [error, setError] = useState('');
 	const fileInputRef = useRef();
 
 	const handleFileSelect = (e) => {
 		const files = Array.from(e.target.files);
-		if (selectedFiles.length + files.length > 5) return;
-		const mapped = files.map((file) => ({
-			id: Math.random().toString(36).substr(2, 9),
-			url: URL.createObjectURL(file),
-			file,
-			type: file.type.startsWith('image') ? 'image' : 'video',
-		}));
+		if (selectedFiles.length + files.length > 5) {
+			setError('Maximum 5 files allowed');
+			return;
+		}
+		const mapped = files
+			.map((file) => {
+				if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+					setError('Only images and videos are allowed');
+					return null;
+				}
+				return {
+					id: Math.random().toString(36).substr(2, 9),
+					url: URL.createObjectURL(file),
+					file,
+					type: file.type.startsWith('image/') ? 'image' : 'video',
+				};
+			})
+			.filter(Boolean);
 		setSelectedFiles((prev) => [...prev, ...mapped]);
+		setError('');
 	};
 
 	const removeFile = (id) => {
-		setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
+		setSelectedFiles((prev) => {
+			const file = prev.find((f) => f.id === id);
+			if (file?.url) URL.revokeObjectURL(file.url);
+			return prev.filter((f) => f.id !== id);
+		});
 	};
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+		setError('');
+
+		if (!content.trim() && selectedFiles.length === 0) {
+			setError('Please add content or media');
+			return;
+		}
+
+		if (!title.trim()) {
+			setError('Title is required');
+			return;
+		}
+
+		if (selectedFiles.length === 0) {
+			setError('At least one image or video is required');
+			return;
+		}
+
 		setIsSubmitting(true);
 		try {
-			const token = getToken();
-			const user = decodeToken(token);
 			const formData = new FormData();
-			formData.append('userId', user.id);
-			formData.append('content', content);
-			selectedFiles.forEach((f) => formData.append('files', f.file));
-			await apiClient.post('/api/socials/create', formData, {
-				headers: {
-					'Content-Type': 'multipart/form-data',
-					Authorization: `Bearer ${token}`,
-				},
-			});
+			formData.append('title', title.trim());
+			formData.append('content', content.trim());
+			formData.append('status', 'published');
+			selectedFiles.forEach((f) => formData.append('media', f.file));
+
+			await createPost(formData);
+			toast.success('Post created successfully!');
 			setContent('');
+			setTitle('');
 			setSelectedFiles([]);
 			onSubmit();
 			onClose();
 		} catch (err) {
-			// Optionally show error
+			setError(err.message || 'Failed to create post. Please try again.');
+			toast.error(err.message || 'Failed to create post');
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -410,45 +531,83 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 
 	const handleClose = () => {
 		setContent('');
+		setTitle('');
+		setSelectedFiles.forEach((f) => {
+			if (f.url) URL.revokeObjectURL(f.url);
+		});
 		setSelectedFiles([]);
+		setError('');
 		onClose();
 	};
 
 	if (!isOpen) return null;
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center">
+		<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 			<motion.div
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
-				className="absolute inset-0 bg-[#0a0f1f]/90 backdrop-blur-sm"
+				className="absolute inset-0 bg-black/50 backdrop-blur-sm"
 				onClick={handleClose}
 			></motion.div>
 			<motion.div
 				initial={{ opacity: 0, scale: 0.9, y: 20 }}
 				animate={{ opacity: 1, scale: 1, y: 0 }}
 				exit={{ opacity: 0, scale: 0.9, y: 20 }}
-				className="relative bg-[#0d1326] backdrop-blur-lg rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden border border-[#2a3a72]"
+				onClick={(e) => e.stopPropagation()}
+				className="relative bg-[var(--glass-bg)] backdrop-blur-xl rounded-2xl shadow-[var(--shadow-xl)] max-w-2xl w-full max-h-[90vh] overflow-hidden border border-[var(--glass-border)] flex flex-col"
 			>
-				<div className="flex items-center justify-between p-6 border-b border-[#2a3a72]">
-					<h2 className="text-xl font-semibold text-white">Create Post</h2>
+				<div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--glass-border)] flex-shrink-0">
+					<h2 className="text-lg sm:text-xl font-semibold text-[var(--text-primary)]">
+						Create Post
+					</h2>
 					<motion.button
 						whileHover={{ scale: 1.1 }}
 						whileTap={{ scale: 0.95 }}
 						onClick={handleClose}
-						className="p-2 hover:bg-[#1a244f] rounded-full transition-colors"
+						className="p-2 rounded-full transition-colors hover:bg-[var(--glass-hover)]"
+						aria-label="Close"
 					>
-						<X className="w-5 h-5 text-[#5d7df5]" />
+						<X className="w-5 h-5 text-[var(--accent-1)]" />
 					</motion.button>
 				</div>
-				<form onSubmit={handleSubmit} className="p-6 space-y-4">
-					<textarea
-						value={content}
-						onChange={(e) => setContent(e.target.value)}
-						placeholder="What's on your mind?"
-						className="w-full h-32 p-4 bg-[#1a244f] border border-[#2a3a72] text-white rounded-xl resize-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
-					/>
+				<form
+					onSubmit={handleSubmit}
+					className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1"
+				>
+					{error && (
+						<div className="flex items-center gap-2 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+							<AlertCircle className="w-4 h-4 flex-shrink-0" />
+							<span>{error}</span>
+						</div>
+					)}
+					<div>
+						<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+							Title <span className="text-red-400">*</span>
+						</label>
+						<input
+							type="text"
+							value={title}
+							onChange={(e) => setTitle(e.target.value)}
+							placeholder="Enter post title"
+							className="w-full p-3 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-xl focus:ring-2 focus:ring-[var(--accent-1)] focus:border-transparent transition-all duration-300 placeholder:text-[var(--input-placeholder)]"
+							maxLength={200}
+							required
+						/>
+					</div>
+					<div>
+						<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+							Content
+						</label>
+						<textarea
+							value={content}
+							onChange={(e) => setContent(e.target.value)}
+							placeholder="What's on your mind?"
+							className="w-full h-32 p-4 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-xl resize-none focus:ring-2 focus:ring-[var(--accent-1)] focus:border-transparent transition-all duration-300 placeholder:text-[var(--input-placeholder)]"
+							maxLength={5000}
+						/>
+					</div>
 					{selectedFiles.length > 0 && (
 						<motion.div
 							initial={{ opacity: 0, y: 20 }}
@@ -470,8 +629,8 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 											className="w-full h-32 object-cover rounded-lg"
 										/>
 									) : (
-										<div className="w-full h-32 bg-[#1a244f] rounded-lg flex items-center justify-center">
-											<VideoIcon className="w-8 h-8 text-[#5d7df5]" />
+										<div className="w-full h-32 bg-[var(--bg-soft)] rounded-lg flex items-center justify-center">
+											<VideoIcon className="w-8 h-8 text-[var(--accent-1)]" />
 										</div>
 									)}
 									<motion.button
@@ -480,6 +639,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 										type="button"
 										onClick={() => removeFile(file.id)}
 										className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+										aria-label="Remove file"
 									>
 										<X className="w-4 h-4" />
 									</motion.button>
@@ -487,7 +647,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 							))}
 						</motion.div>
 					)}
-					<div className="flex items-center justify-between pt-4 border-t border-[#2a3a72]">
+					<div className="flex items-center justify-between pt-4 border-t border-[var(--glass-border)] flex-wrap gap-3">
 						<div className="flex items-center space-x-4">
 							<input
 								ref={fileInputRef}
@@ -503,9 +663,9 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 								type="button"
 								onClick={() => fileInputRef.current?.click()}
 								disabled={selectedFiles.length >= 5}
-								className="flex items-center space-x-2 px-4 py-2 bg-[#1a244f] text-cyan-400 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+								className="flex items-center space-x-2 px-4 py-2 bg-[var(--button-secondary-bg)] border border-[var(--button-secondary-border)] text-[var(--accent-1)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base hover:bg-[var(--button-secondary-hover)]"
 							>
-								<Upload className="w-5 h-5" />
+								<Upload className="w-4 h-4 sm:w-5 sm:h-5" />
 								<span>Add Media ({selectedFiles.length}/5)</span>
 							</motion.button>
 						</div>
@@ -515,7 +675,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 								whileTap={{ scale: 0.95 }}
 								type="button"
 								onClick={handleClose}
-								className="px-6 py-2 text-[#9ca3d4] hover:bg-[#1a244f] rounded-lg transition-colors"
+								className="px-4 sm:px-6 py-2 text-[var(--text-secondary)] hover:bg-[var(--glass-hover)] rounded-lg transition-colors text-sm sm:text-base"
 							>
 								Cancel
 							</motion.button>
@@ -524,13 +684,13 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 								whileTap={{ scale: 0.95 }}
 								type="submit"
 								disabled={
-									(!content.trim() && selectedFiles.length === 0) || isSubmitting
+									isSubmitting || !title.trim() || selectedFiles.length === 0
 								}
-								className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+								className="px-4 sm:px-6 py-2 bg-[var(--button-primary-bg)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-sm sm:text-base shadow-[var(--shadow-md)]"
 							>
 								{isSubmitting ? (
 									<>
-										<div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+										<Loader2 className="w-4 h-4 animate-spin" />
 										<span>Posting...</span>
 									</>
 								) : (
@@ -546,42 +706,47 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 };
 
 const SocialsFeedPage = () => {
-	const { socials, loading, refetch } = useSocials();
+	const { isAuthenticated, user } = useAuth();
+	const { socials, loading, error, refetch } = useSocials();
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [showScrollTop, setShowScrollTop] = useState(false);
 
-	// Get current user from token
-	const token = getToken();
-	const user = token ? decodeToken(token) : null;
-	const currentUser = user
-		? {
-				id: user.id,
-				name: user.fullname,
-				role: user.role,
-				avatar: user.profilePicture,
-			}
-		: {
+	const transformedPosts = useMemo(() => {
+		if (!socials || !Array.isArray(socials)) return [];
+		return socials.map(transformPost);
+	}, [socials]);
+
+	const currentUser = useMemo(() => {
+		if (!isAuthenticated || !user) {
+			return {
 				id: 'guest',
 				name: 'Guest',
 				role: 'guest',
 				avatar: '',
 			};
+		}
+		return {
+			id: user._id || user.id,
+			name: user.fullname || 'User',
+			role: user.role || 'member',
+			avatar: user.profilePicture?.url || user.avatar || '',
+		};
+	}, [isAuthenticated, user]);
 
-	// Scroll to top logic
-	React.useEffect(() => {
+	useEffect(() => {
 		const handleScroll = () => setShowScrollTop(window.scrollY > 200);
 		window.addEventListener('scroll', handleScroll);
 		return () => window.removeEventListener('scroll', handleScroll);
 	}, []);
 
 	const handleDeletePost = async (id) => {
+		if (!window.confirm('Are you sure you want to delete this post?')) return;
 		try {
-			await apiClient.delete(`/api/socials/${id}/delete`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
+			await deletePost(id);
+			toast.success('Post deleted successfully');
 			refetch();
 		} catch (err) {
-			// Optionally show error
+			toast.error(err.message || 'Failed to delete post');
 		}
 	};
 
@@ -591,38 +756,40 @@ const SocialsFeedPage = () => {
 
 	const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
+	const canCreatePost = isAuthenticated && (user?.role === 'admin' || user?.role === 'member');
+
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-[#0a0f1f] to-[#1a1f3a]">
+		<div className="relative min-h-screen bg-transparent overflow-x-hidden">
 			{/* Header */}
-			<div className="bg-[#0a0f1f]/80 backdrop-blur-lg border-b border-[#2a3a72] sticky top-0 z-40">
-				<div className="max-w-4xl mx-auto px-6 py-6">
-					<div className="flex items-center justify-between mb-6">
+			<div className="sticky top-0 z-40 bg-[var(--nav-bg)] backdrop-blur-lg border-b border-[var(--nav-border)] shadow-[var(--nav-shadow)]">
+				<div className="page-container">
+					<div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-4 py-4 sm:py-6">
 						<motion.div
 							initial={{ opacity: 0, x: -20 }}
 							animate={{ opacity: 1, x: 0 }}
 							transition={{ duration: 0.6 }}
 							className="flex items-center gap-3"
 						>
-							<div className="bg-gradient-to-r from-cyan-500 to-emerald-500 p-2 rounded-xl">
-								<Sparkles className="w-8 h-8 text-white" />
+							<div className="bg-gradient-to-r from-[var(--accent-1)] to-[var(--accent-2)] p-2 rounded-xl shadow-[var(--shadow-md)]">
+								<Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
 							</div>
 							<div>
-								<h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+								<h1 className="text-2xl sm:text-3xl font-bold brand-text">
 									Vibrant Community
 								</h1>
-								<p className="text-[#9ca3d4] mt-1">
+								<p className="text-[var(--text-secondary)] mt-1 text-xs sm:text-sm">
 									Where technology meets purpose
 								</p>
 							</div>
 						</motion.div>
-						{(currentUser.role === 'admin' || currentUser.role === 'member') && (
+						{canCreatePost && (
 							<motion.button
 								whileHover={{ scale: 1.05 }}
 								whileTap={{ scale: 0.95 }}
 								onClick={() => setShowCreateModal(true)}
-								className="flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold shadow-lg hover:shadow-cyan-500/20 transition-all"
+								className="btn btn-primary flex items-center gap-2 text-sm sm:text-base"
 							>
-								<Plus className="w-5 h-5" />
+								<Plus className="w-4 h-4 sm:w-5 sm:h-5" />
 								<span>Create Post</span>
 							</motion.button>
 						)}
@@ -631,58 +798,71 @@ const SocialsFeedPage = () => {
 			</div>
 
 			{/* Content Tips Banner */}
-			<div className="max-w-4xl mx-auto px-4 py-3 bg-gradient-to-r from-[#1a244f] to-[#2a3a72] rounded-lg border border-[#3a56c9] m-6">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-3">
-						<Lightbulb className="w-5 h-5 text-cyan-400" />
-						<p className="text-cyan-300 text-sm">
-							<span className="font-semibold">Content Tip:</span> Share your
-							tech-for-good journey with #TechForGood
-						</p>
-					</div>
-					<div className="flex gap-2">
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							className="text-xs px-3 py-1 bg-[#0d1326]/60 rounded-full text-[#9ca3d4]"
-						>
-							#ImpactCoding
-						</motion.button>
-						<motion.button
-							whileHover={{ scale: 1.05 }}
-							className="text-xs px-3 py-1 bg-[#0d1326]/60 rounded-full text-[#9ca3d4]"
-						>
-							#TechForGood
-						</motion.button>
+			<div className="page-container mt-6 sm:mt-8">
+				<div className="bg-[var(--glass-bg)] backdrop-blur-lg rounded-xl border border-[var(--glass-border)] p-3 sm:p-4 shadow-[var(--shadow-sm)]">
+					<div className="flex items-center justify-between flex-wrap gap-3">
+						<div className="flex items-center gap-3 flex-1 min-w-0">
+							<Lightbulb className="w-5 h-5 text-[var(--accent-1)] flex-shrink-0" />
+							<p className="text-[var(--text-secondary)] text-xs sm:text-sm">
+								<span className="font-semibold text-[var(--text-primary)]">
+									Content Tip:
+								</span>{' '}
+								Share your tech-for-good journey with #TechForGood
+							</p>
+						</div>
+						<div className="flex gap-2">
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								className="text-xs px-3 py-1 bg-[var(--glass-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--accent-1)] transition-colors"
+							>
+								#ImpactCoding
+							</motion.button>
+							<motion.button
+								whileHover={{ scale: 1.05 }}
+								className="text-xs px-3 py-1 bg-[var(--glass-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--accent-1)] transition-colors"
+							>
+								#TechForGood
+							</motion.button>
+						</div>
 					</div>
 				</div>
 			</div>
 
 			{/* Feed */}
-			<div className="max-w-4xl mx-auto px-4 py-10">
+			<div className="page-container py-6 sm:py-10">
+				{error && (
+					<div className="flex items-center gap-2 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 mb-6">
+						<AlertCircle className="w-5 h-5" />
+						<span>{error}</span>
+					</div>
+				)}
 				<AnimatePresence>
-					{(!socials || socials.length === 0) && !loading && (
+					{!loading && transformedPosts.length === 0 && (
 						<motion.div
 							initial={{ opacity: 0, y: 20 }}
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: 20 }}
-							className="text-center text-[#9ca3d4] py-20"
+							className="text-center text-[var(--text-secondary)] py-20"
 						>
-							No posts found. Be the first to share!
+							<Sparkles className="w-16 h-16 mx-auto mb-4 text-[var(--accent-1)] opacity-50" />
+							<p className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+								No posts found
+							</p>
+							<p className="text-sm">Be the first to share something amazing!</p>
 						</motion.div>
 					)}
-					{socials &&
-						socials.map((post) => (
-							<PostCard
-								key={post._id}
-								post={post}
-								currentUser={currentUser}
-								onDelete={handleDeletePost}
-							/>
-						))}
+					{transformedPosts.map((post) => (
+						<PostCard
+							key={post._id}
+							post={post}
+							currentUser={currentUser}
+							onDelete={handleDeletePost}
+						/>
+					))}
 				</AnimatePresence>
 				{loading && (
 					<div className="flex justify-center py-10">
-						<div className="w-8 h-8 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+						<Loader2 className="w-8 h-8 border-4 border-[var(--accent-1)] border-t-transparent rounded-full animate-spin" />
 					</div>
 				)}
 			</div>
@@ -695,10 +875,10 @@ const SocialsFeedPage = () => {
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: 40 }}
 						onClick={scrollToTop}
-						className="fixed bottom-8 right-8 z-50 p-3 rounded-full bg-gradient-to-tr from-cyan-500 to-emerald-500 text-white shadow-lg hover:scale-110 transition-transform"
+						className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 p-3 rounded-full bg-[var(--button-primary-bg)] text-white shadow-[var(--shadow-lg)] hover:scale-110 transition-transform"
 						aria-label="Scroll to top"
 					>
-						<ChevronUp className="w-6 h-6" />
+						<ChevronUp className="w-5 h-5 sm:w-6 sm:h-6" />
 					</motion.button>
 				)}
 			</AnimatePresence>
