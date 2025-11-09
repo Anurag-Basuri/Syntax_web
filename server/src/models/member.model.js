@@ -202,6 +202,11 @@ const memberSchema = new mongoose.Schema(
 			type: Date,
 			default: Date.now,
 		},
+		role: {
+			type: String,
+			default: 'member',
+			enum: ['member'],
+		},
 		status: {
 			type: String,
 			enum: ['active', 'banned', 'removed'],
@@ -296,11 +301,9 @@ memberSchema.methods.generateAuthToken = function () {
 };
 
 memberSchema.methods.generateRefreshToken = function () {
-	return jwt.sign(
-		{ id: this._id, role: this.role },
-		process.env.REFRESH_TOKEN_SECRET,
-		{ expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d' }
-	);
+	return jwt.sign({ id: this._id, role: this.role }, process.env.REFRESH_TOKEN_SECRET, {
+		expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '7d',
+	});
 };
 
 // Helper methods
