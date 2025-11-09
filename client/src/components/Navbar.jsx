@@ -38,7 +38,7 @@ const useClickOutside = (ref, callback) => {
 // --- Data ---
 const navItems = [
 	{ name: 'Home', icon: Home, path: '/' },
-	{ name: 'Events', icon: Calendar, path: '/events' },
+	{ name: 'Events', icon: Calendar, path: '/event' },
 	{ name: 'Team', icon: Users, path: '/team' },
 	{ name: 'Arvantis', icon: Sparkles, path: '/arvantis' },
 	{ name: 'Socials', icon: Info, path: '/socials' },

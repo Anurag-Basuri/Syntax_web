@@ -30,9 +30,6 @@ const PrivacyPolicy = lazy(() => import('../pages/policies/privacy.jsx'));
 const TermsPolicy = lazy(() => import('../pages/policies/terms.jsx'));
 const RefundPolicy = lazy(() => import('../pages/policies/refund.jsx'));
 
-// Lazy-load heavy components that are not pages.
-const Background3D = lazy(() => import('../components/Background3D.jsx'));
-
 const AppRoutes = () => {
 	return (
 		<Suspense fallback={<PageLoadingFallback />}>
