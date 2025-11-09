@@ -346,39 +346,41 @@ const Navbar = ({ scrollProgress, isVisible }) => {
 				Skip to content
 			</a>
 
-			<nav
-				ref={navRef}
-				role="navigation"
-				aria-label="Primary"
-				className="navbar"
-				data-elevated={isElevated}
-				data-visible={isVisible}
-			>
-				<div className="navbar-progress-bar" style={{ width: `${scrollProgress}%` }} />
-				<div className="navbar-grid">
-					<div className="navbar-section-left">
-						<NavLogo onClick={() => handleNavigation('/')} />
-					</div>
-
-					<DesktopNav onNavigate={handleNavigation} />
-
-					<div className="navbar-section-right">
-						<div className="navbar-theme-toggle">
-							<ThemeToggle size="sm" />
+			{/* Sliding wrapper */}
+			<div className={`nav-shell ${isVisible ? 'show' : 'hide'}`}>
+				<nav
+					ref={navRef}
+					role="navigation"
+					aria-label="Primary"
+					className="navbar"
+					data-elevated={isElevated}
+				>
+					<div className="navbar-progress-bar" style={{ width: `${scrollProgress}%` }} />
+					<div className="navbar-grid">
+						<div className="navbar-section-left">
+							<NavLogo onClick={() => handleNavigation('/')} />
 						</div>
-						<AuthSection onNavigate={handleNavigation} />
-						<button
-							className="mobile-menu-button"
-							onClick={() => setIsMobileMenuOpen(true)}
-							aria-label="Open menu"
-							aria-controls="mobile-drawer"
-							aria-expanded={isMobileMenuOpen}
-						>
-							<Menu className="w-6 h-6" />
-						</button>
+
+						<DesktopNav onNavigate={handleNavigation} />
+
+						<div className="navbar-section-right">
+							<div className="navbar-theme-toggle">
+								<ThemeToggle size="sm" />
+							</div>
+							<AuthSection onNavigate={handleNavigation} />
+							<button
+								className="mobile-menu-button"
+								onClick={() => setIsMobileMenuOpen(true)}
+								aria-label="Open menu"
+								aria-controls="mobile-drawer"
+								aria-expanded={isMobileMenuOpen}
+							>
+								<Menu className="w-6 h-6" />
+							</button>
+						</div>
 					</div>
-				</div>
-			</nav>
+				</nav>
+			</div>
 
 			<MobileDrawer
 				isOpen={isMobileMenuOpen}
