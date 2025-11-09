@@ -87,7 +87,7 @@ const EventSchema = new mongoose.Schema(
 		registeredUsers: [
 			{
 				type: mongoose.Schema.Types.ObjectId,
-				ref: 'User',
+				ref: 'Member', // FIX: Corrected model name (no generic 'User' model)
 			},
 		],
 		status: {
@@ -181,6 +181,15 @@ EventSchema.pre('save', function (next) {
 		return next(new Error('Registration open date cannot be after the close date.'));
 	}
 	next();
+});
+
+// Ensure array defaults exist
+EventSchema.add({
+	registeredUsers: {
+		type: [mongoose.Schema.Types.ObjectId],
+		ref: 'Member',
+		default: [],
+	},
 });
 
 EventSchema.plugin(aggregatePaginate);

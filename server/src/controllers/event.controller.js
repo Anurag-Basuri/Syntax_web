@@ -27,34 +27,39 @@ const createEvent = asyncHandler(async (req, res) => {
 		organizer,
 		category,
 		tags,
-		totalSpots,
-		ticketPrice,
+		totalSpots = 0,
+		ticketPrice = 0,
 		registrationOpenDate,
 		registrationCloseDate,
 	} = req.body;
 
-	if (!req.files || req.files.length === 0) {
+	if (!req.files?.length) {
 		throw new ApiError(400, 'At least one event poster is required.');
 	}
 
-	const posterUploadPromises = req.files.map((file) =>
-		uploadFile(file, { folder: 'events/posters' })
+	const uploadedPosters = await Promise.all(
+		req.files.map((file) => uploadFile(file, { folder: 'events/posters' }))
 	);
-	const uploadedPosters = await Promise.all(posterUploadPromises);
 
 	const newEvent = await Event.create({
-		title,
-		description,
+		title: title?.trim(),
+		description: description?.trim(),
 		eventDate: new Date(eventDate),
-		venue,
-		organizer,
-		category,
+		venue: venue?.trim(),
+		organizer: organizer?.trim(),
+		category: category?.trim(),
 		posters: uploadedPosters,
-		tags: tags ? tags.split(',').map((tag) => tag.trim()) : [],
-		totalSpots,
-		ticketPrice,
+		tags: tags
+			? tags
+					.split(',')
+					.map((t) => t.trim())
+					.filter(Boolean)
+			: [],
+		totalSpots: Number(totalSpots),
+		ticketPrice: Number(ticketPrice),
 		registrationOpenDate: registrationOpenDate ? new Date(registrationOpenDate) : null,
 		registrationCloseDate: registrationCloseDate ? new Date(registrationCloseDate) : null,
+		registeredUsers: [], // Explicit default
 	});
 
 	return ApiResponse.success(res, newEvent, 'Event created successfully', 201);
@@ -67,32 +72,31 @@ const getAllEvents = asyncHandler(async (req, res) => {
 		limit = 10,
 		status,
 		search,
-		period, // 'upcoming', 'past'
+		period,
 		sortBy = 'eventDate',
 		sortOrder = 'asc',
 	} = req.query;
 
 	const pipeline = [];
-	const matchStage = {};
+	const match = {};
 	const now = new Date();
 
-	if (search) matchStage.$text = { $search: search.trim() };
-	if (status) matchStage.status = status;
-	if (period === 'upcoming') matchStage.eventDate = { $gte: now };
-	if (period === 'past') matchStage.eventDate = { $lt: now };
+	if (search) match.$text = { $search: search.trim() };
+	if (status) match.status = status;
+	if (period === 'upcoming') match.eventDate = { $gte: now };
+	if (period === 'past') match.eventDate = { $lt: now };
 
-	if (Object.keys(matchStage).length > 0) {
-		pipeline.push({ $match: matchStage });
-	}
+	if (Object.keys(match).length) pipeline.push({ $match: match });
 
-	// Add a field for the count of registered users instead of populating
+	// FIX: Safe size computation even if field missing
 	pipeline.push({
 		$addFields: {
-			registeredUsersCount: { $size: '$registeredUsers' },
+			registeredUsersCount: {
+				$size: { $ifNull: ['$registeredUsers', []] },
+			},
 		},
 	});
 
-	// Project the final fields to send in the response
 	pipeline.push({
 		$project: {
 			title: 1,
@@ -101,18 +105,16 @@ const getAllEvents = asyncHandler(async (req, res) => {
 			category: 1,
 			status: 1,
 			ticketPrice: 1,
-			posters: { $slice: ['$posters', 1] }, // Only get the first poster for list view
+			posters: { $slice: ['$posters', 1] },
 			registeredUsersCount: 1,
-			isFree: 1, // Include virtuals if needed
+			isFree: 1,
 			spotsLeft: 1,
 			isFull: 1,
 			registrationStatus: 1,
 		},
 	});
 
-	// Add sorting stage to the pipeline
-	const sortStage = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
-	pipeline.push({ $sort: sortStage });
+	pipeline.push({ $sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1, _id: 1 } });
 
 	const aggregate = Event.aggregate(pipeline);
 	const options = {
@@ -121,7 +123,6 @@ const getAllEvents = asyncHandler(async (req, res) => {
 		lean: true,
 	};
 
-	// FIX: The model now has the correct aggregatePaginate method
 	const events = await Event.aggregatePaginate(aggregate, options);
 	return ApiResponse.paginated(res, events.docs, events, 'Events retrieved successfully');
 });
@@ -194,7 +195,16 @@ const getEventStats = asyncHandler(async (req, res) => {
 			$facet: {
 				byStatus: [{ $group: { _id: '$status', count: { $sum: 1 } } }],
 				totalRegistrations: [
-					{ $group: { _id: null, total: { $sum: { $size: '$registeredUsers' } } } },
+					{
+						$group: {
+							_id: null,
+							total: {
+								$sum: {
+									$size: { $ifNull: ['$registeredUsers', []] }, // FIX
+								},
+							},
+						},
+					},
 				],
 				totalEvents: [{ $count: 'count' }],
 			},
@@ -209,8 +219,8 @@ const getEventStats = asyncHandler(async (req, res) => {
 					$arrayToObject: {
 						$map: {
 							input: '$byStatus',
-							as: 'status',
-							in: { k: '$$status._id', v: '$$status.count' },
+							as: 's',
+							in: { k: '$$s._id', v: '$$s.count' },
 						},
 					},
 				},
