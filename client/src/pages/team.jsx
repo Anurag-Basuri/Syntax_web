@@ -27,7 +27,6 @@ const TeamsPage = () => {
 	const [query, setQuery] = useState('');
 	const [activeFilter, setActiveFilter] = useState('All');
 	const [sortBy, setSortBy] = useState('name'); // name | role | dept
-	const [density, setDensity] = useState('cozy'); // compact | cozy | comfortable
 
 	const enrichedMembers = useMemo(() => {
 		const members = data?.members || [];
@@ -125,7 +124,7 @@ const TeamsPage = () => {
 					</p>
 				</header>
 
-				{/* Controls: search + sort + density + count */}
+				{/* Controls: search + sort + count */}
 				<div className="team-controls">
 					<div className="search-bar-wrapper">
 						<Search className="search-icon" style={{ color: 'var(--text-muted)' }} />
@@ -160,34 +159,6 @@ const TeamsPage = () => {
 								<option value="dept">Department</option>
 							</select>
 						</div>
-
-						<div className="control-field">
-							<label className="control-label">Density</label>
-							<div className="segmented">
-								<button
-									type="button"
-									className={density === 'compact' ? 'active' : ''}
-									onClick={() => setDensity('compact')}
-								>
-									Compact
-								</button>
-								<button
-									type="button"
-									className={density === 'cozy' ? 'active' : ''}
-									onClick={() => setDensity('cozy')}
-								>
-									Cozy
-								</button>
-								<button
-									type="button"
-									className={density === 'comfortable' ? 'active' : ''}
-									onClick={() => setDensity('comfortable')}
-								>
-									Comfort
-								</button>
-							</div>
-						</div>
-
 						<div className="result-count">
 							{isLoading ? '—' : `${filteredMembers.length} results`}
 						</div>
@@ -197,7 +168,7 @@ const TeamsPage = () => {
 				{isLoading ? (
 					<TeamSkeleton />
 				) : (
-					<TeamGrid members={filteredMembers} onCardClick={openModal} density={density} />
+					<TeamGrid members={filteredMembers} onCardClick={openModal} />
 				)}
 			</main>
 

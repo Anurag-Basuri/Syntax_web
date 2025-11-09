@@ -2,7 +2,7 @@ import React from 'react';
 import { AnimatePresence } from 'framer-motion';
 import TeamMemberCard from './TeamMemberCard.jsx';
 
-const TeamGrid = ({ members, onCardClick, density = 'cozy' }) => {
+const TeamGrid = ({ members, onCardClick }) => {
 	if (!members || members.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center text-center py-16">
@@ -19,7 +19,7 @@ const TeamGrid = ({ members, onCardClick, density = 'cozy' }) => {
 	}
 
 	return (
-		<div className={`team-grid density-${density}`}>
+		<div className="team-grid">
 			<AnimatePresence>
 				{members.map((member) => (
 					<TeamMemberCard key={member._id} member={member} onClick={onCardClick} />
