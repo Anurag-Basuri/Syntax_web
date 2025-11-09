@@ -20,6 +20,7 @@ const JoinPage = lazy(() => import('../pages/auth/Join.jsx'));
 const AdminAuthPage = lazy(() => import('../pages/auth/adminAuth.jsx'));
 const AdminDashboard = lazy(() => import('../pages/adminDash.jsx'));
 const MemberDashboard = lazy(() => import('../pages/member.jsx'));
+const ArvantisPage = lazy(() => import('../pages/arvantis.jsx'));
 const EventPage = lazy(() => import('../pages/event.jsx'));
 const TeamPage = lazy(() => import('../pages/team.jsx'));
 const ContactPage = lazy(() => import('../pages/contact.jsx'));
@@ -36,6 +37,7 @@ const AppRoutes = () => {
 			<Routes>
 				{/* Public routes */}
 				<Route path="/" element={<Home />} />
+				<Route path="/arvantis" element={<ArvantisPage />} />
 				<Route path="/event" element={<EventPage />} />
 				<Route path="/team" element={<TeamPage />} />
 				<Route path="/contact" element={<ContactPage />} />
