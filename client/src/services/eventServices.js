@@ -4,7 +4,8 @@ import { apiClient, publicClient } from './api.js';
 export const getAllEvents = async (params) => {
 	try {
 		const response = await publicClient.get('/api/v1/events', { params });
-		return response.data;
+		// Return the paginated payload only
+		return response.data.data; // { docs, totalDocs, page, totalPages, ... }
 	} catch (error) {
 		throw new Error(error.response?.data?.message || 'Failed to fetch events.');
 	}
@@ -28,7 +29,7 @@ export const createEvent = async (formData) => {
 		});
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to create event.');
+		throw new Error(error.response?.data?.message || 'Failed to create event.');
 	}
 };
 
@@ -38,7 +39,7 @@ export const updateEventDetails = async (id, updateData) => {
 		const response = await apiClient.patch(`/api/v1/events/${id}/details`, updateData);
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to update event details.');
+		throw new Error(error.response?.data?.message || 'Failed to update event details.');
 	}
 };
 
@@ -48,7 +49,7 @@ export const deleteEvent = async (id) => {
 		const response = await apiClient.delete(`/api/v1/events/${id}`);
 		return response.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to delete event.');
+		throw new Error(error.response?.data?.message || 'Failed to delete event.');
 	}
 };
 
@@ -58,21 +59,21 @@ export const getEventStats = async () => {
 		const response = await apiClient.get('/api/v1/events/admin/statistics');
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to fetch event stats.');
+		throw new Error(error.response?.data?.message || 'Failed to fetch event stats.');
 	}
 };
 
-// Fetches a list of all users registered for a specific event (Admin only).
+// Fetches registrations for a specific event (Admin only).
 export const getEventRegistrations = async (id) => {
 	try {
 		const response = await apiClient.get(`/api/v1/events/${id}/registrations`);
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to fetch event registrations.');
+		throw new Error(error.response?.data?.message || 'Failed to fetch event registrations.');
 	}
 };
 
-// Adds a new poster to an event (Admin only).
+// Adds a poster (Admin only).
 export const addEventPoster = async (id, formData) => {
 	try {
 		const response = await apiClient.post(`/api/v1/events/${id}/posters`, formData, {
@@ -80,16 +81,16 @@ export const addEventPoster = async (id, formData) => {
 		});
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to add poster.');
+		throw new Error(error.response?.data?.message || 'Failed to add poster.');
 	}
 };
 
-// Removes a poster from an event (Admin only).
+// Removes a poster (Admin only).
 export const removeEventPoster = async (id, publicId) => {
 	try {
 		const response = await apiClient.delete(`/api/v1/events/${id}/posters/${publicId}`);
 		return response.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to remove poster.');
+		throw new Error(error.response?.data?.message || 'Failed to remove poster.');
 	}
 };
