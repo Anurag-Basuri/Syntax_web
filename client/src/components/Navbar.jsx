@@ -50,7 +50,7 @@ const navItems = [
 const DesktopNav = ({ onNavigate }) => {
 	const { pathname } = useLocation();
 	return (
-		<div className="navbar-section-center">
+		<div className="navbar-section-center" role="menubar" aria-label="Primary navigation">
 			{navItems.map((item) => {
 				const isActive =
 					item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
@@ -60,8 +60,10 @@ const DesktopNav = ({ onNavigate }) => {
 						onClick={() => onNavigate(item.path)}
 						className={`nav-link ${isActive ? 'active' : ''}`}
 						aria-current={isActive ? 'page' : undefined}
+						role="menuitem"
+						aria-label={item.name}
 					>
-						<item.icon size={18} className="nav-link-icon" />
+						<item.icon size={18} className="nav-link-icon" aria-hidden="true" />
 						<span className="nav-link-text">{item.name}</span>
 						{isActive && <motion.span layoutId="nav-pill" className="nav-pill" />}
 					</button>
@@ -189,7 +191,7 @@ const MobileDrawer = ({ isOpen, onClose, onNavigate }) => {
 					className="mobile-drawer-overlay"
 					role="dialog"
 					aria-modal="true"
-					id="mobile-drawer"
+					aria-label="Mobile navigation"
 				>
 					<motion.div
 						className="mobile-drawer-backdrop"
@@ -206,7 +208,7 @@ const MobileDrawer = ({ isOpen, onClose, onNavigate }) => {
 						initial={{ x: '100%' }}
 						animate={{ x: 0 }}
 						exit={{ x: '100%' }}
-						transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+						transition={{ type: 'spring', stiffness: 260, damping: 28 }}
 					>
 						<div className="mobile-drawer-content">
 							<div className="mobile-drawer-header">
@@ -222,20 +224,23 @@ const MobileDrawer = ({ isOpen, onClose, onNavigate }) => {
 									</button>
 								</div>
 							</div>
-							<div className="mobile-drawer-nav">
-								<ul className="mobile-nav-list">
+							<nav className="mobile-drawer-nav" aria-label="Mobile menu">
+								<ul className="mobile-nav-list" role="menubar">
 									{navItems.map((item) => {
 										const isActive = pathname.startsWith(item.path);
 										return (
-											<li key={item.name}>
+											<li key={item.name} role="none">
 												<button
 													onClick={() => onNavigate(item.path)}
 													className={`mobile-nav-item ${
 														isActive ? 'active' : ''
 													}`}
+													role="menuitem"
+													aria-current={isActive ? 'page' : undefined}
+													aria-label={item.name}
 												>
 													<div className="mobile-nav-icon">
-														<item.icon size={20} />
+														<item.icon size={20} aria-hidden="true" />
 													</div>
 													<span className="mobile-nav-text">
 														{item.name}
@@ -245,7 +250,7 @@ const MobileDrawer = ({ isOpen, onClose, onNavigate }) => {
 										);
 									})}
 								</ul>
-							</div>
+							</nav>
 							{!isAuthenticated && (
 								<div className="mobile-drawer-auth">
 									<button
@@ -339,30 +344,27 @@ const Navbar = ({ scrollProgress, isVisible }) => {
 
 	return (
 		<>
-			<a
-				href="#main"
-				className="sr-only focus:not-sr-only fixed top-2 left-2 z-[1000] px-3 py-2 rounded-lg bg-white/80 dark:bg-black/80 backdrop-blur-sm border border-gray-300 dark:border-gray-700"
-			>
+			<a href="#main" className="skip-link">
 				Skip to content
 			</a>
-
-			{/* Sliding wrapper */}
-			<div className={`nav-shell ${isVisible ? 'show' : 'hide'}`}>
+			<div className={`nav-shell ${isVisible ? 'show' : 'hide'}`} aria-hidden={!isVisible}>
 				<nav
 					ref={navRef}
 					role="navigation"
-					aria-label="Primary"
+					aria-label="Site navigation"
 					className="navbar"
 					data-elevated={isElevated}
 				>
-					<div className="navbar-progress-bar" style={{ width: `${scrollProgress}%` }} />
+					<div
+						className="navbar-progress-bar"
+						style={{ width: `${scrollProgress}%` }}
+						aria-hidden="true"
+					/>
 					<div className="navbar-grid">
 						<div className="navbar-section-left">
 							<NavLogo onClick={() => handleNavigation('/')} />
 						</div>
-
 						<DesktopNav onNavigate={handleNavigation} />
-
 						<div className="navbar-section-right">
 							<div className="navbar-theme-toggle">
 								<ThemeToggle size="sm" />
@@ -375,13 +377,12 @@ const Navbar = ({ scrollProgress, isVisible }) => {
 								aria-controls="mobile-drawer"
 								aria-expanded={isMobileMenuOpen}
 							>
-								<Menu className="w-6 h-6" />
+								<Menu className="w-6 h-6" aria-hidden="true" />
 							</button>
 						</div>
 					</div>
 				</nav>
 			</div>
-
 			<MobileDrawer
 				isOpen={isMobileMenuOpen}
 				onClose={() => setIsMobileMenuOpen(false)}
