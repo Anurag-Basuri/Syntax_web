@@ -1,4 +1,5 @@
 import React from 'react';
+// eslint-disable-next-line
 import { motion } from 'framer-motion';
 import { Linkedin, Twitter, Github, Star } from 'lucide-react';
 
@@ -7,10 +8,10 @@ const cardVariants = {
 	visible: { opacity: 1, y: 0 },
 };
 
-const TeamMemberCard = ({ member, onClick }) => {
+const TeamMemberCard = React.forwardRef(({ member, onClick }, ref) => {
 	const hasSocials = member.linkedin || member.twitter || member.github;
 	const avatarUrl =
-		member.profilePicture?.secure_url ||
+		member.profilePicture?.url ||
 		`https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(member.fullname)}`;
 	const isLeader = member.isLeader;
 
@@ -28,6 +29,7 @@ const TeamMemberCard = ({ member, onClick }) => {
 			role="button"
 			aria-label={`Open profile for ${member.fullname}`}
 			onKeyDown={(e) => e.key === 'Enter' && onClick(member)}
+			ref={ref}
 		>
 			<div className="team-card-image-wrapper">
 				<img
@@ -90,6 +92,6 @@ const TeamMemberCard = ({ member, onClick }) => {
 			</div>
 		</motion.div>
 	);
-};
+});
 
 export default TeamMemberCard;
