@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useMembers } from '../hooks/useMembers.js';
 import DepartmentSection from '../components/team/DepartmentSection.jsx';
 import TeamMemberModal from '../components/team/TeamMemberModal.jsx';
 import TeamSkeleton from '../components/team/TeamSkeleton.jsx';
 import ErrorBoundary from '../components/team/ErrorBoundary.jsx';
 import { Search } from 'lucide-react';
+import { isLeadershipRole } from '../constants/team.js';
 
 // Error & Empty blocks unchanged
 const ErrorBlock = ({ message, onRetry }) => (
@@ -35,8 +36,6 @@ const EmptyState = () => (
 	</div>
 );
 
-const leadershipRoles = ['CEO', 'CTO', 'CFO', 'CMO', 'COO', 'Head', 'President', 'Lead'];
-
 const TeamsPage = () => {
 	const { data, isLoading, isError, error, refetch } = useMembers();
 	const [selectedMember, setSelectedMember] = useState(null);
@@ -45,75 +44,73 @@ const TeamsPage = () => {
 
 	const members = data?.members || [];
 
-	// Fallback isLeader if backend hasn't added it
-	const withLeaderFlag = useMemo(
+	// Normalize + enrich members once
+	const enrichedMembers = useMemo(
 		() =>
-			members.map((m) => ({
-				...m,
-				isLeader:
-					m.isLeader ||
-					(Array.isArray(m.designation)
-						? m.designation.some((d) => leadershipRoles.includes(d))
-						: leadershipRoles.includes(m.designation)),
-			})),
+			members.map((m) => {
+				const isLeader =
+					m.isLeader || isLeadershipRole(m.designation || m.primaryDesignation);
+				const primaryDept =
+					m.primaryDepartment ||
+					(Array.isArray(m.department) ? m.department[0] : m.department) ||
+					'Other';
+				const primaryRole =
+					m.primaryDesignation ||
+					(Array.isArray(m.designation) ? m.designation[0] : m.designation) ||
+					'Member';
+				return {
+					...m,
+					isLeader,
+					primaryDept,
+					primaryRole,
+					_searchHaystack: [
+						m.fullname,
+						primaryDept,
+						primaryRole,
+						Array.isArray(m.designation) ? m.designation.join(' ') : m.designation,
+						Array.isArray(m.department) ? m.department.join(' ') : m.department,
+						...(m.skills || []),
+					]
+						.filter(Boolean)
+						.join(' ')
+						.toLowerCase(),
+				};
+			}),
 		[members]
 	);
 
-	// Text match helper
-	const matchesQuery = (m) => {
-		if (!query) return true;
-		const hay = [
-			m.fullname,
-			m.primaryDesignation,
-			m.primaryDepartment,
-			Array.isArray(m.designation) ? m.designation.join(' ') : m.designation,
-			Array.isArray(m.department) ? m.department.join(' ') : m.department,
-			...(m.skills || []),
-		]
-			.filter(Boolean)
-			.join(' ')
-			.toLowerCase();
-		return hay.includes(query.toLowerCase());
-	};
+	const filtered = useMemo(() => {
+		if (!query) return enrichedMembers;
+		const q = query.toLowerCase();
+		return enrichedMembers.filter((m) => m._searchHaystack.includes(q));
+	}, [query, enrichedMembers]);
 
-	const leadership = useMemo(
-		() => withLeaderFlag.filter((m) => m.isLeader && matchesQuery(m)),
-		[withLeaderFlag, query]
-	);
-	const nonLeadership = useMemo(
-		() => withLeaderFlag.filter((m) => !m.isLeader && matchesQuery(m)),
-		[withLeaderFlag, query]
-	);
+	const leadership = useMemo(() => filtered.filter((m) => m.isLeader), [filtered]);
+	const nonLeadership = useMemo(() => filtered.filter((m) => !m.isLeader), [filtered]);
 
 	const departments = useMemo(() => {
-		return nonLeadership.reduce((acc, member) => {
-			const dept =
-				member.primaryDepartment ||
-				(Array.isArray(member.department) ? member.department[0] : member.department) ||
-				'Other';
-			if (!acc[dept]) acc[dept] = [];
-			acc[dept].push(member);
-			return acc;
-		}, {});
+		const map = {};
+		for (const m of nonLeadership) {
+			map[m.primaryDept] ||= [];
+			map[m.primaryDept].push(m);
+		}
+		return map;
 	}, [nonLeadership]);
 
-	const openModal = (member) => setSelectedMember(member);
-	const closeModal = () => setSelectedMember(null);
+	const totalDepartments = Object.keys(departments).length;
 
-	const toggleDepartment = (deptName) => {
-		setExpandedDepartments((prev) => ({ ...prev, [deptName]: !prev[deptName] }));
-	};
+	const openModal = useCallback((member) => setSelectedMember(member), []);
+	const closeModal = useCallback(() => setSelectedMember(null), []);
+
+	const toggleDepartment = (dept) =>
+		setExpandedDepartments((prev) => ({ ...prev, [dept]: !prev[dept] }));
 
 	const expandAll = () => {
 		const next = {};
-		Object.keys(departments).forEach((k) => (next[k] = true));
+		Object.keys(departments).forEach((d) => (next[d] = true));
 		setExpandedDepartments(next);
 	};
-	const collapseAll = () => {
-		const next = {};
-		Object.keys(departments).forEach((k) => (next[k] = false));
-		setExpandedDepartments(next);
-	};
+	const collapseAll = () => setExpandedDepartments({});
 
 	if (isError) {
 		return (
@@ -122,8 +119,6 @@ const TeamsPage = () => {
 			</div>
 		);
 	}
-
-	const totalDepartments = Object.keys(departments).length;
 
 	return (
 		<div className="min-h-screen max-w-7xl mx-auto px-4 py-8 text-gray-900 dark:text-gray-100">
@@ -195,13 +190,13 @@ const TeamsPage = () => {
 						/>
 					)}
 
-					{Object.entries(departments).map(([dept, memberList]) => (
+					{Object.entries(departments).map(([dept, list]) => (
 						<DepartmentSection
 							key={dept}
 							title={dept}
-							members={memberList}
+							members={list}
 							onClick={openModal}
-							isExpanded={expandedDepartments[dept] ?? false}
+							isExpanded={expandedDepartments[dept] || false}
 							onToggle={() => toggleDepartment(dept)}
 						/>
 					))}
