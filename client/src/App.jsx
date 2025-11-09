@@ -29,7 +29,7 @@ function App() {
 		const handleScroll = () => {
 			const currentScrollY = window.scrollY;
 			const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-			const progress = (currentScrollY / Math.max(docHeight, 1)) * 100;
+			const progress = docHeight > 0 ? (currentScrollY / docHeight) * 100 : 0;
 
 			setScrollProgress(Math.min(100, Math.max(0, progress)));
 
@@ -94,9 +94,8 @@ function App() {
 
 			<main
 				id="main"
-				className={`relative z-10 transition-all duration-300 ${
-					!shouldHideNavbar ? 'pt-28' : ''
-				}`}
+				className="relative z-10"
+				style={{ paddingTop: !shouldHideNavbar ? 'var(--navbar-height, 7rem)' : '0' }}
 			>
 				<AnimatePresence mode="wait">
 					<motion.div
