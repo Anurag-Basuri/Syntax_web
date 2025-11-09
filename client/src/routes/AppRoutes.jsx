@@ -37,7 +37,6 @@ const AppRoutes = () => {
 	return (
 		<Suspense fallback={<PageLoadingFallback />}>
 			<Routes>
-				<Route path="/background" element={<Background3D />} />
 				{/* Public routes */}
 				<Route path="/" element={<Home />} />
 				<Route path="/event" element={<Event />} />
