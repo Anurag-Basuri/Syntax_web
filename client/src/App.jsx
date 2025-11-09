@@ -11,11 +11,9 @@ import './App.css';
 function App() {
 	const location = useLocation();
 	const [scrollProgress, setScrollProgress] = useState(0);
-	const [showNavbar, setShowNavbar] = useState(true);
+	const [isNavbarVisible, setIsNavbarVisible] = useState(true);
 	const lastScrollY = useRef(0);
-	const scrollTimeout = useRef(null);
 
-	// Updated list of routes where the navbar should be hidden
 	const hideNavbarRoutes = [
 		'/login',
 		'/join',
@@ -25,7 +23,7 @@ function App() {
 		'/policy/privacy',
 		'/policy/cookie',
 	];
-	const hideNavbar = hideNavbarRoutes.includes(location.pathname);
+	const shouldHideNavbar = hideNavbarRoutes.includes(location.pathname);
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -35,27 +33,28 @@ function App() {
 
 			setScrollProgress(Math.min(100, Math.max(0, progress)));
 
-			if (currentScrollY < 100) setShowNavbar(true);
-			else if (currentScrollY > lastScrollY.current + 22) setShowNavbar(false);
-			else if (currentScrollY < lastScrollY.current - 18) setShowNavbar(true);
+			// Navbar visibility logic
+			if (currentScrollY < 100) {
+				setIsNavbarVisible(true);
+			} else if (currentScrollY > lastScrollY.current) {
+				// Scrolling down
+				setIsNavbarVisible(false);
+			} else {
+				// Scrolling up
+				setIsNavbarVisible(true);
+			}
 
 			lastScrollY.current = currentScrollY;
-
-			if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-			scrollTimeout.current = setTimeout(() => setShowNavbar(true), 900);
 		};
 
-		if (!hideNavbar) {
+		if (!shouldHideNavbar) {
 			window.addEventListener('scroll', handleScroll, { passive: true });
-			return () => {
-				window.removeEventListener('scroll', handleScroll);
-				if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-			};
+			return () => window.removeEventListener('scroll', handleScroll);
 		} else {
-			// Reset scroll progress on routes without a navbar
 			setScrollProgress(0);
+			setIsNavbarVisible(true); // Ensure it's visible if we navigate back to a page with a navbar
 		}
-	}, [hideNavbar]);
+	}, [shouldHideNavbar]);
 
 	const pageVariants = {
 		initial: { opacity: 0, y: 15 },
@@ -87,14 +86,16 @@ function App() {
 				}}
 			/>
 
-			{!hideNavbar && <Navbar scrollProgress={scrollProgress} />}
+			{!shouldHideNavbar && (
+				<Navbar scrollProgress={scrollProgress} isVisible={isNavbarVisible} />
+			)}
 
 			<Background3D />
 
 			<main
 				id="main"
 				className={`relative z-10 transition-all duration-300 ${
-					!hideNavbar ? 'pt-28' : ''
+					!shouldHideNavbar ? 'pt-28' : ''
 				}`}
 			>
 				<AnimatePresence mode="wait">
@@ -112,7 +113,7 @@ function App() {
 			</main>
 
 			{/* Restyled Scroll Progress Indicator */}
-			{!hideNavbar && (
+			{!shouldHideNavbar && (
 				<div
 					className="fixed right-4 bottom-4 w-10 h-10 rounded-full flex items-center justify-center font-mono text-xs font-semibold"
 					style={{
