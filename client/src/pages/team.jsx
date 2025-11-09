@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useMembers } from '../hooks/useMembers.js';
 import TeamGrid from '../components/team/TeamGrid.jsx';
 import TeamMemberModal from '../components/team/TeamMemberModal.jsx';
 import TeamSkeleton from '../components/team/TeamSkeleton.jsx';
-import { Search, X, Users, Briefcase, Star, Filter } from 'lucide-react';
+import { Search, X, Users, Briefcase, Star, Filter, ChevronDown } from 'lucide-react';
 import { isLeadershipRole } from '../constants/team.js';
 
 const ErrorBlock = ({ message, onRetry }) => (
@@ -28,6 +28,20 @@ const TeamsPage = () => {
 	const [activeFilter, setActiveFilter] = useState('All');
 	const [sortBy, setSortBy] = useState('name');
 	const [showMobileFilters, setShowMobileFilters] = useState(false);
+	const [showMobileSort, setShowMobileSort] = useState(false);
+
+	// Close mobile menus when clicking outside
+	useEffect(() => {
+		const handleClickOutside = (e) => {
+			if (showMobileFilters && !e.target.closest('.team-sidebar')) {
+				setShowMobileFilters(false);
+			}
+		};
+		if (showMobileFilters) {
+			document.addEventListener('click', handleClickOutside);
+		}
+		return () => document.removeEventListener('click', handleClickOutside);
+	}, [showMobileFilters]);
 
 	const enrichedMembers = useMemo(() => {
 		const members = data?.members || [];
@@ -89,16 +103,32 @@ const TeamsPage = () => {
 		<div className="page-container tight-top team-page-layout">
 			{/* Mobile Filter Toggle Button */}
 			<button
-				onClick={() => setShowMobileFilters(!showMobileFilters)}
-				className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+				onClick={() => {
+					setShowMobileFilters(!showMobileFilters);
+					setShowMobileSort(false);
+				}}
+				className="lg:hidden fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9998] w-14 h-14 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
 				aria-label="Toggle filters"
+				aria-expanded={showMobileFilters}
 			>
 				<Filter size={20} />
 			</button>
 
+			{/* Mobile Filter Overlay */}
+			{showMobileFilters && (
+				<div
+					className="lg:hidden fixed inset-0 z-[9997] bg-black/50 backdrop-blur-sm"
+					onClick={() => setShowMobileFilters(false)}
+				/>
+			)}
+
 			{/* Sidebar */}
-			<aside className={`team-sidebar ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
-				<div className="team-sidebar-content">
+			<aside
+				className={`team-sidebar ${
+					showMobileFilters ? 'block' : 'hidden lg:block'
+				} lg:relative fixed lg:fixed top-0 right-0 lg:right-auto lg:top-auto h-full lg:h-auto w-80 max-w-[85vw] lg:w-auto z-[9998] lg:z-auto`}
+			>
+				<div className="team-sidebar-content h-full lg:h-auto overflow-y-auto">
 					<div className="flex items-center justify-between mb-4 lg:mb-0">
 						<h2 className="filter-header flex-1">
 							<Users size={20} />
@@ -106,7 +136,7 @@ const TeamsPage = () => {
 						</h2>
 						<button
 							onClick={() => setShowMobileFilters(false)}
-							className="lg:hidden p-2 rounded-lg hover:bg-glass-hover"
+							className="lg:hidden p-2 rounded-lg hover:bg-glass-hover transition-colors"
 							aria-label="Close filters"
 						>
 							<X size={18} />
@@ -134,11 +164,11 @@ const TeamsPage = () => {
 			{/* Main Content */}
 			<main className="team-main-content">
 				<header>
-					<h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-2 sm:mb-3 brand-text">
+					<h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-2 sm:mb-3 brand-text">
 						Our Team
 					</h1>
 					<p
-						className="text-sm sm:text-base md:text-lg"
+						className="text-xs sm:text-sm md:text-base lg:text-lg"
 						style={{ color: 'var(--text-secondary)' }}
 					>
 						{isLoading
@@ -175,7 +205,63 @@ const TeamsPage = () => {
 					</div>
 
 					<div className="controls-right">
-						<div className="control-field">
+						{/* Mobile Sort Dropdown */}
+						<div className="lg:hidden relative">
+							<button
+								onClick={() => setShowMobileSort(!showMobileSort)}
+								className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[120px]"
+								aria-label="Sort team members"
+								aria-expanded={showMobileSort}
+							>
+								<span>
+									Sort:{' '}
+									{sortBy === 'name'
+										? 'Name'
+										: sortBy === 'role'
+										? 'Role'
+										: 'Dept'}
+								</span>
+								<ChevronDown
+									size={16}
+									className={`transition-transform ${
+										showMobileSort ? 'rotate-180' : ''
+									}`}
+								/>
+							</button>
+							{showMobileSort && (
+								<>
+									<div
+										className="fixed inset-0 z-[-1]"
+										onClick={() => setShowMobileSort(false)}
+									/>
+									<div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
+										{['name', 'role', 'dept'].map((option) => (
+											<button
+												key={option}
+												onClick={() => {
+													setSortBy(option);
+													setShowMobileSort(false);
+												}}
+												className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+													sortBy === option
+														? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+														: ''
+												}`}
+											>
+												{option === 'name'
+													? 'Name'
+													: option === 'role'
+													? 'Role'
+													: 'Department'}
+											</button>
+										))}
+									</div>
+								</>
+							)}
+						</div>
+
+						{/* Desktop Sort */}
+						<div className="hidden lg:flex control-field">
 							<label htmlFor="sort-select" className="control-label">
 								Sort
 							</label>
