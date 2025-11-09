@@ -118,54 +118,51 @@ const TeamsPage = () => {
 	}
 
 	return (
-		<div className="min-h-screen max-w-7xl mx-auto px-4 py-8 text-gray-900 dark:text-gray-100">
-			<header className="mb-6">
-				<h1 className="text-3xl font-bold tracking-tight mb-2">
-					Team
-					<span className="ml-2 text-base font-medium text-gray-500 dark:text-gray-400">
-						/ people behind the club
-					</span>
+		<div className="page-container min-h-screen text-gray-900 dark:text-gray-100">
+			<header className="mb-8">
+				<h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+					Our Team
 				</h1>
-				<p className="text-sm text-gray-600 dark:text-gray-400">
+				<p className="text-base md:text-lg text-gray-600 dark:text-gray-400">
 					{isLoading
-						? 'Loading…'
-						: `Total: ${members.length} • Leadership: ${leadership.length} • Departments: ${totalDepartments}`}
+						? 'Loading amazing people…'
+						: `${members.length} talented members across ${totalDepartments} departments`}
 				</p>
 			</header>
 
-			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
-				<div className="relative w-full sm:w-80">
-					<Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+			<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-10">
+				<div className="relative w-full lg:w-96">
+					<Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
 					<input
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
 						placeholder="Search members, roles, departments, skills…"
-						className="w-full pl-9 pr-8 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+						className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm md:text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
 					/>
 					{query && (
 						<button
 							type="button"
 							aria-label="Clear search"
 							onClick={() => setQuery('')}
-							className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs"
+							className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
 						>
-							✕
+							<span className="text-lg leading-none">×</span>
 						</button>
 					)}
 				</div>
 
-				<div className="flex gap-2">
+				<div className="flex gap-3">
 					<button
 						onClick={expandAll}
-						className="px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+						className="px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
 					>
-						Expand all
+						Expand All
 					</button>
 					<button
 						onClick={collapseAll}
-						className="px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+						className="px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
 					>
-						Collapse all
+						Collapse All
 					</button>
 				</div>
 			</div>
@@ -175,7 +172,7 @@ const TeamsPage = () => {
 			) : members.length === 0 ? (
 				<EmptyState />
 			) : (
-				<>
+				<div className="space-y-6">
 					{leadership.length > 0 && (
 						<DepartmentSection
 							title="Leadership"
@@ -196,7 +193,7 @@ const TeamsPage = () => {
 							onToggle={() => toggleDepartment(dept)}
 						/>
 					))}
-				</>
+				</div>
 			)}
 
 			<TeamMemberModal

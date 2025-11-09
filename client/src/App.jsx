@@ -102,11 +102,7 @@ function App() {
 
 			<Background3D />
 
-			<main
-				id="main"
-				className="relative z-10"
-				style={{ paddingTop: !shouldHideNavbar ? 'var(--navbar-height, 7rem)' : '0' }}
-			>
+			<main id="main" className="relative z-10">
 				<AnimatePresence mode="wait">
 					<motion.div
 						key={location.pathname}
