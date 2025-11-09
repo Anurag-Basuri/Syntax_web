@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import mongoosePaginate from 'mongoose-paginate-v2';
+import aggregatePaginate from 'mongoose-aggregate-paginate-v2';
 
 const posterSchema = new mongoose.Schema({
 	url: {
@@ -99,7 +99,7 @@ const EventSchema = new mongoose.Schema(
 			},
 			default: 'upcoming',
 		},
-		
+
 		registrationOpenDate: {
 			type: Date,
 		},
@@ -135,6 +135,7 @@ EventSchema.virtual('isFull').get(function () {
 	return this.registeredUsers.length >= this.totalSpots;
 });
 
+// Virtual property for registration status
 EventSchema.virtual('registrationStatus').get(function () {
 	const now = new Date();
 
@@ -167,9 +168,9 @@ EventSchema.index({ title: 'text', description: 'text', tags: 'text', category: 
 // Index for common filtering and sorting
 EventSchema.index({ eventDate: 1, status: 1 });
 
-// Pre-save hook to sanitize tags array
+// Pre-save hook to sanitize tags and validate dates
 EventSchema.pre('save', function (next) {
-	if (this.isModified('tags')) {
+	if (this.isModified('tags') && this.tags) {
 		this.tags = this.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
 	}
 	if (
@@ -182,8 +183,7 @@ EventSchema.pre('save', function (next) {
 	next();
 });
 
-// Add pagination plugin
-EventSchema.plugin(mongoosePaginate);
+EventSchema.plugin(aggregatePaginate);
 
 const Event = mongoose.model('Event', EventSchema);
 
