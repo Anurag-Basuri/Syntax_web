@@ -3,7 +3,6 @@ import { useMembers } from '../hooks/useMembers.js';
 import TeamGrid from '../components/team/TeamGrid.jsx';
 import TeamMemberModal from '../components/team/TeamMemberModal.jsx';
 import TeamSkeleton from '../components/team/TeamSkeleton.jsx';
-import ErrorBoundary from '../components/common/ErrorBoundary.jsx';
 import { Search, X, Users, Briefcase, Star } from 'lucide-react';
 import { isLeadershipRole } from '../constants/team.js';
 
@@ -28,9 +27,8 @@ const TeamsPage = () => {
 	const [query, setQuery] = useState('');
 	const [activeFilter, setActiveFilter] = useState('All');
 
-	const members = data?.members || [];
-
 	const enrichedMembers = useMemo(() => {
+		const members = data?.members || [];
 		return members.map((m) => {
 			const designation = Array.isArray(m.designation) ? m.designation[0] : m.designation;
 			const department = Array.isArray(m.department) ? m.department[0] : m.department;
@@ -47,7 +45,7 @@ const TeamsPage = () => {
 
 			return { ...m, isLeader, primaryDept, primaryRole, _searchHaystack: haystack };
 		});
-	}, [members]);
+	}, [data?.members]);
 
 	const departments = useMemo(() => {
 		const depts = new Set(enrichedMembers.map((m) => m.primaryDept));
@@ -158,10 +156,6 @@ const TeamsPage = () => {
 	);
 };
 
-const TeamsPageWrapper = () => (
-	<ErrorBoundary>
-		<TeamsPage />
-	</ErrorBoundary>
-);
+const TeamsPageWrapper = () => <TeamsPage />;
 
 export default TeamsPageWrapper;
