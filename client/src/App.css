@@ -1,3 +1,7 @@
+/* ========================================================================== */
+/* NAVBAR STYLES - COMPLETE & RESPONSIVE */
+/* ========================================================================== */
+
 /* Main shell for smooth sliding animation */
 .nav-shell {
 	position: fixed;
@@ -14,7 +18,7 @@
 	transform: translateY(-100%);
 }
 
-/* Core navbar container - FIXED HEIGHT */
+/* Core navbar container */
 .navbar {
 	position: relative;
 	height: 4.75rem;
@@ -26,7 +30,7 @@
 	transition: box-shadow 320ms ease;
 }
 .navbar[data-elevated='true'] {
-	box-shadow: var(--nav-shadow-elevated), 0 0 0 1px var(--nav-border-elevated);
+	box-shadow: var(--nav-shadow-elevated);
 }
 
 /* Progress bar */
@@ -41,7 +45,7 @@
 	z-index: 1;
 }
 
-/* Three-section grid - FIXED */
+/* Three-section grid */
 .navbar-grid {
 	display: grid;
 	grid-template-columns: auto 1fr auto;
@@ -50,20 +54,7 @@
 	max-width: 92rem;
 	margin: 0 auto;
 	padding: 0 1rem;
-	gap: 2rem;
-}
-
-@media (min-width: 768px) {
-	.navbar-grid {
-		padding: 0 1.5rem;
-	}
-}
-
-@media (min-width: 1280px) {
-	.navbar-grid {
-		padding: 0 2rem;
-		gap: 3rem;
-	}
+	gap: 1.5rem;
 }
 
 /* Left section - Logo */
@@ -78,8 +69,8 @@
 	display: none;
 	justify-content: center;
 	align-items: center;
-	gap: 0.5rem;
-	padding: 0.5rem 0.75rem;
+	gap: 0.375rem;
+	padding: 0.5rem 0.625rem;
 	border-radius: 999px;
 	background: var(--glass-bg);
 	border: 1px solid var(--glass-border);
@@ -88,23 +79,11 @@
 	margin: 0 auto;
 }
 
-@media (min-width: 1024px) {
-	.navbar-section-center {
-		display: flex;
-	}
-}
-
-@media (min-width: 1800px) {
-	.navbar-section-center {
-		max-width: 880px;
-	}
-}
-
 /* Right section - Actions */
 .navbar-section-right {
 	display: flex;
 	align-items: center;
-	gap: 0.75rem;
+	gap: 0.625rem;
 	justify-content: flex-end;
 	min-width: 0;
 }
@@ -119,19 +98,13 @@
 	padding: 0;
 }
 
-@media (min-width: 1280px) {
-	.nav-list {
-		gap: 0.5rem;
-	}
-}
-
 /* Nav links */
 .nav-link {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
 	gap: 0.5rem;
-	padding: 0.625rem 1rem;
+	padding: 0.625rem 0.875rem;
 	border-radius: 999px;
 	font-size: 0.875rem;
 	font-weight: 500;
@@ -164,23 +137,6 @@
 	display: none;
 }
 
-@media (min-width: 1280px) {
-	.nav-link {
-		font-size: 0.9375rem;
-		padding: 0.65rem 1.125rem;
-	}
-	.nav-link-text {
-		display: inline;
-	}
-}
-
-@media (min-width: 1400px) {
-	.nav-link {
-		font-size: 1rem;
-		padding: 0.75rem 1.25rem;
-	}
-}
-
 /* Active pill indicator */
 .nav-pill {
 	position: absolute;
@@ -198,12 +154,6 @@
 	display: none;
 }
 
-@media (min-width: 768px) {
-	.navbar-theme-toggle {
-		display: block;
-	}
-}
-
 /* User menu */
 .navbar-user-menu {
 	position: relative;
@@ -213,7 +163,7 @@
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
-	padding: 0.5rem 0.875rem;
+	padding: 0.5rem 0.75rem;
 	border-radius: 9999px;
 	background: var(--glass-bg);
 	border: 1px solid var(--glass-border);
@@ -251,12 +201,6 @@
 	font-size: 0.875rem;
 	color: var(--text-primary);
 	white-space: nowrap;
-}
-
-@media (min-width: 640px) {
-	.user-role-text {
-		display: inline;
-	}
 }
 
 .user-menu-chevron {
@@ -345,20 +289,14 @@
 .navbar-auth-buttons {
 	display: none;
 	align-items: center;
-	gap: 0.75rem;
-}
-
-@media (min-width: 768px) {
-	.navbar-auth-buttons {
-		display: flex;
-	}
+	gap: 0.625rem;
 }
 
 .auth-button {
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
-	padding: 0.625rem 1.125rem;
+	padding: 0.625rem 1rem;
 	border-radius: 0.875rem;
 	font-weight: 600;
 	font-size: 0.875rem;
@@ -410,14 +348,196 @@
 	transform: translateY(-1px);
 }
 
-@media (min-width: 1024px) {
-	.mobile-menu-button {
-		display: none;
-	}
+/* ========================================================================== */
+/* MOBILE DRAWER STYLES */
+/* ========================================================================== */
+
+.mobile-drawer-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	align-items: stretch;
+	justify-content: flex-end;
 }
 
-/* Mobile drawer - keep existing styles */
-/* ...existing code... */
+.mobile-drawer-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(4px);
+	-webkit-backdrop-filter: blur(4px);
+}
+
+.mobile-drawer {
+	position: relative;
+	width: min(22rem, 85vw);
+	height: 100vh;
+	height: 100dvh;
+	background: var(--bg-soft);
+	border-left: 1px solid var(--glass-border);
+	box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	z-index: 10;
+}
+
+.mobile-drawer-content {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+	padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+.mobile-drawer-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 1.25rem 1.5rem;
+	border-bottom: 1px solid var(--glass-border);
+	background: var(--bg-base);
+	position: sticky;
+	top: 0;
+	z-index: 10;
+}
+
+.mobile-drawer-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.mobile-drawer-close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.5rem;
+	height: 2.5rem;
+	border-radius: 0.75rem;
+	background: var(--glass-bg);
+	border: 1px solid var(--glass-border);
+	color: var(--text-primary);
+	cursor: pointer;
+	transition: all 200ms ease;
+}
+
+.mobile-drawer-close:hover {
+	background: var(--glass-hover);
+	transform: scale(1.05);
+}
+
+.mobile-drawer-nav {
+	flex: 1;
+	padding: 1.5rem 0;
+}
+
+.mobile-nav-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.mobile-nav-item {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	width: 100%;
+	padding: 1rem 1.5rem;
+	font-size: 1rem;
+	font-weight: 500;
+	text-align: left;
+	background: transparent;
+	border: none;
+	border-left: 3px solid transparent;
+	cursor: pointer;
+	transition: all 200ms ease;
+	color: var(--text-secondary);
+}
+
+.mobile-nav-item:hover {
+	background: var(--glass-bg);
+	color: var(--text-primary);
+	border-left-color: var(--accent-1);
+}
+
+.mobile-nav-item.active {
+	background: var(--glass-hover);
+	color: var(--text-primary);
+	border-left-color: var(--accent-1);
+	font-weight: 600;
+}
+
+.mobile-nav-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 0.75rem;
+	background: var(--glass-bg);
+	border: 1px solid var(--glass-border);
+	flex-shrink: 0;
+}
+
+.mobile-nav-item.active .mobile-nav-icon {
+	background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+	border-color: transparent;
+	color: white;
+}
+
+.mobile-nav-text {
+	flex: 1;
+}
+
+.mobile-drawer-auth {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 1.5rem;
+	border-top: 1px solid var(--glass-border);
+	background: var(--bg-base);
+	position: sticky;
+	bottom: 0;
+}
+
+.mobile-auth-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.625rem;
+	padding: 0.875rem 1.25rem;
+	font-size: 0.9375rem;
+	font-weight: 600;
+	border-radius: 0.875rem;
+	border: none;
+	cursor: pointer;
+	transition: all 250ms ease;
+	white-space: nowrap;
+}
+
+.mobile-auth-button.secondary {
+	background: var(--glass-bg);
+	border: 1px solid var(--glass-border);
+	color: var(--text-primary);
+}
+
+.mobile-auth-button.secondary:hover {
+	background: var(--glass-hover);
+	box-shadow: var(--shadow-sm);
+}
+
+.mobile-auth-button.primary {
+	background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+	color: white;
+}
+
+.mobile-auth-button.primary:hover {
+	box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+	transform: translateY(-1px);
+}
 
 /* Skip link */
 .skip-link {
@@ -442,14 +562,90 @@
 	outline-offset: 2px;
 }
 
-/* Safe area support */
-@supports (padding: env(safe-area-inset-top)) {
-	.nav-shell {
-		padding-top: env(safe-area-inset-top);
+/* ========================================================================== */
+/* RESPONSIVE BREAKPOINTS */
+/* ========================================================================== */
+
+/* Small tablets and up - 640px */
+@media (min-width: 640px) {
+	.user-role-text {
+		display: inline;
+	}
+	.mobile-drawer {
+		width: min(24rem, 85vw);
 	}
 }
 
-/* Responsive adjustments */
+/* Tablets and up - 768px */
+@media (min-width: 768px) {
+	.navbar-grid {
+		padding: 0 1.5rem;
+		gap: 2rem;
+	}
+	.navbar-theme-toggle {
+		display: block;
+	}
+	.navbar-auth-buttons {
+		display: flex;
+	}
+	.user-menu-button {
+		padding: 0.5rem 0.875rem;
+	}
+}
+
+/* Large tablets and up - 1024px */
+@media (min-width: 1024px) {
+	.navbar-section-center {
+		display: flex;
+	}
+	.mobile-menu-button {
+		display: none;
+	}
+	.nav-list {
+		gap: 0.375rem;
+	}
+	.nav-link {
+		padding: 0.625rem 1rem;
+	}
+}
+
+/* Desktop - 1280px */
+@media (min-width: 1280px) {
+	.navbar-grid {
+		padding: 0 2rem;
+		gap: 2.5rem;
+	}
+	.nav-list {
+		gap: 0.5rem;
+	}
+	.nav-link {
+		font-size: 0.9375rem;
+		padding: 0.65rem 1.125rem;
+	}
+	.nav-link-text {
+		display: inline;
+	}
+}
+
+/* Large desktop - 1400px */
+@media (min-width: 1400px) {
+	.navbar-grid {
+		gap: 3rem;
+	}
+	.nav-link {
+		font-size: 1rem;
+		padding: 0.75rem 1.25rem;
+	}
+}
+
+/* Ultra-wide - 1800px */
+@media (min-width: 1800px) {
+	.navbar-section-center {
+		max-width: 880px;
+	}
+}
+
+/* Mobile adjustments - 640px and below */
 @media (max-width: 640px) {
 	.navbar {
 		height: 4.25rem;
@@ -458,8 +654,12 @@
 		gap: 0.75rem;
 		padding: 0 0.875rem;
 	}
+	.navbar-section-right {
+		gap: 0.5rem;
+	}
 }
 
+/* Extra small mobile - 480px and below */
 @media (max-width: 480px) {
 	.navbar-grid {
 		gap: 0.5rem;
@@ -468,10 +668,26 @@
 	.mobile-menu-button {
 		padding: 0.5rem;
 	}
+	.user-menu-button {
+		padding: 0.5rem;
+	}
+	.mobile-drawer {
+		width: 90vw;
+	}
+}
+
+/* Safe area support for notched devices */
+@supports (padding: env(safe-area-inset-top)) {
+	.nav-shell {
+		padding-top: env(safe-area-inset-top);
+	}
+	.mobile-drawer-header {
+		padding-top: calc(1.25rem + env(safe-area-inset-top));
+	}
 }
 
 /* Hover states for devices that support it */
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
 	.nav-link:hover {
 		background: var(--glass-hover);
 	}
@@ -484,7 +700,18 @@
 	.nav-link,
 	.user-menu-button,
 	.auth-button,
-	.mobile-menu-button {
+	.mobile-menu-button,
+	.mobile-drawer,
+	.mobile-drawer-backdrop,
+	.mobile-nav-item {
 		transition: none !important;
+		animation: none !important;
+	}
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+	.mobile-drawer-backdrop {
+		background: rgba(0, 0, 0, 0.75);
 	}
 }
