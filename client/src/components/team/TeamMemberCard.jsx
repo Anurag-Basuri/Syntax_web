@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Linkedin, Twitter, Github } from 'lucide-react';
+import { Linkedin, Twitter, Github, Star } from 'lucide-react';
 
 const cardVariants = {
 	hidden: { opacity: 0, y: 20 },
@@ -9,6 +9,10 @@ const cardVariants = {
 
 const TeamMemberCard = ({ member, onClick }) => {
 	const hasSocials = member.linkedin || member.twitter || member.github;
+	const avatarUrl =
+		member.profilePicture?.secure_url ||
+		`https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(member.fullname)}`;
+	const isLeader = member.isLeader;
 
 	return (
 		<motion.div
@@ -18,24 +22,31 @@ const TeamMemberCard = ({ member, onClick }) => {
 			animate="visible"
 			exit="hidden"
 			transition={{ duration: 0.3, ease: 'easeInOut' }}
-			className="team-card"
+			className="team-card enhanced-card"
 			onClick={() => onClick(member)}
+			tabIndex={0}
+			role="button"
+			aria-label={`Open profile for ${member.fullname}`}
+			onKeyDown={(e) => e.key === 'Enter' && onClick(member)}
 		>
 			<div className="team-card-image-wrapper">
 				<img
-					src={
-						member.profilePicture?.secure_url ||
-						`https://api.dicebear.com/8.x/initials/svg?seed=${member.fullname}`
-					}
+					src={avatarUrl}
 					alt={member.fullname}
 					className="team-card-image"
 					loading="lazy"
 				/>
 				<div className="team-card-image-overlay" />
+				{isLeader && (
+					<div className="absolute top-2 left-2 bg-amber-600 text-white rounded-full px-2 py-0.5 text-xs font-semibold flex items-center gap-1 shadow">
+						<Star size={12} /> Leader
+					</div>
+				)}
 			</div>
 			<div className="team-card-content">
 				<h3 className="team-card-name">{member.fullname}</h3>
 				<p className="team-card-role">{member.primaryRole}</p>
+				<p className="team-card-dept">{member.primaryDept}</p>
 				{hasSocials && (
 					<div className="team-card-socials">
 						{member.linkedin && (
