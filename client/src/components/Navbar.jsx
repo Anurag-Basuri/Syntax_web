@@ -50,26 +50,29 @@ const navItems = [
 const DesktopNav = ({ onNavigate }) => {
 	const { pathname } = useLocation();
 	return (
-		<div className="navbar-section-center" role="menubar" aria-label="Primary navigation">
-			{navItems.map((item) => {
-				const isActive =
-					item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
-				return (
-					<button
-						key={item.name}
-						onClick={() => onNavigate(item.path)}
-						className={`nav-link ${isActive ? 'active' : ''}`}
-						aria-current={isActive ? 'page' : undefined}
-						role="menuitem"
-						aria-label={item.name}
-					>
-						<item.icon size={18} className="nav-link-icon" aria-hidden="true" />
-						<span className="nav-link-text">{item.name}</span>
-						{isActive && <motion.span layoutId="nav-pill" className="nav-pill" />}
-					</button>
-				);
-			})}
-		</div>
+		<nav className="navbar-section-center" role="menubar" aria-label="Primary navigation">
+			<ul className="nav-list">
+				{navItems.map((item) => {
+					const isActive =
+						item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
+					return (
+						<li key={item.name} role="none">
+							<button
+								onClick={() => onNavigate(item.path)}
+								className={`nav-link ${isActive ? 'active' : ''}`}
+								aria-current={isActive ? 'page' : undefined}
+								role="menuitem"
+								aria-label={item.name}
+							>
+								<item.icon size={18} className="nav-link-icon" aria-hidden="true" />
+								<span className="nav-link-text">{item.name}</span>
+								{isActive && <span className="nav-pill" aria-hidden="true" />}
+							</button>
+						</li>
+					);
+				})}
+			</ul>
+		</nav>
 	);
 };
 

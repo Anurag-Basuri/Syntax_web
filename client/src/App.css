@@ -43,7 +43,8 @@
 /* Three-section grid */
 .navbar-grid {
 	display: grid;
-	grid-template-columns: minmax(160px, auto) 1fr auto;
+	/* Fix: center section now shrinks to content; right section gets remaining flex space for alignment */
+	grid-template-columns: minmax(160px, auto) auto 1fr;
 	align-items: center;
 	height: 100%;
 	max-width: 92rem;
@@ -51,14 +52,132 @@
 	padding: 0 1rem;
 	gap: 1rem;
 }
-
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
 	.navbar-grid {
-		padding: 0 2rem;
+		gap: 1.75rem;
 	}
+}
+
+/* Center section refined */
+.navbar-section-center {
+	display: none;
+	flex: 0 0 auto;
+	justify-content: center;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.4rem 0.55rem;
+	border-radius: 999px;
+	background: var(--glass-bg);
+	border: 1px solid var(--glass-border);
+	white-space: nowrap;
+}
+@media (min-width: 1024px) {
 	.navbar-section-center {
 		display: flex;
 	}
+}
+
+/* Right section: push items to end on large screens */
+.navbar-section-right {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	justify-content: flex-end;
+	min-width: 0;
+}
+
+/* Nav list for better structure + spacing consistency */
+.nav-list {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+@media (min-width: 1280px) {
+	.nav-list {
+		gap: 0.35rem;
+	}
+}
+
+/* Nav link tweaks for large screen clarity */
+.nav-link {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.55rem;
+	padding: 0.55rem 0.95rem;
+	border-radius: 999px;
+	font-size: 0.84rem;
+	font-weight: 500;
+	line-height: 1;
+	color: var(--text-secondary);
+	background: transparent;
+	transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
+}
+@media (min-width: 1400px) {
+	.nav-link {
+		font-size: 0.9rem;
+		padding: 0.6rem 1.05rem;
+	}
+}
+.nav-link:hover {
+	color: var(--text-primary);
+}
+.nav-link.active {
+	color: var(--text-primary);
+	font-weight: 600;
+}
+
+/* Pill indicator (no layout jump on wide screens) */
+.nav-pill {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	background: var(--glass-hover);
+	border: 1px solid var(--glass-border);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-1) 35%, transparent);
+	pointer-events: none;
+	z-index: -1;
+}
+
+/* Prevent center bar from stretching awkwardly on ultra-wide — cap width if many items */
+@media (min-width: 1800px) {
+	.navbar-section-center {
+		max-width: 880px;
+	}
+}
+
+/* Shadow consistency on large screens (remove flicker) */
+.navbar[data-elevated='true'] {
+	box-shadow: var(--nav-shadow-elevated), 0 0 0 1px var(--nav-border-elevated);
+}
+
+/* Large screen fix: ensure theme toggle & auth buttons align */
+@media (min-width: 1024px) {
+	.navbar-theme-toggle {
+		display: block;
+	}
+	.navbar-auth-buttons {
+		display: flex;
+	}
+}
+
+/* Truncation safety on very narrow wide displays */
+.navbar-section-right > * {
+	min-width: 0;
+}
+
+/* Progress bar */
+.navbar-progress-bar {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 2px;
+	background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+	box-shadow: 0 0 12px var(--accent-1);
+	transition: width 180ms ease-out;
 }
 
 /* Section alignment */
@@ -86,28 +205,34 @@
 /* Navigation links */
 .nav-link {
 	position: relative;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	gap: 0.55rem;
 	padding: 0.55rem 0.95rem;
 	border-radius: 999px;
-	font-size: 0.85rem;
+	font-size: 0.84rem;
 	font-weight: 500;
+	line-height: 1;
 	color: var(--text-secondary);
-	transition: color 0.25s ease, background 0.25s ease;
+	background: transparent;
+	transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
 }
 .nav-link:hover {
 	color: var(--text-primary);
 }
 .nav-link.active {
 	color: var(--text-primary);
+	font-weight: 600;
 }
 .nav-pill {
 	position: absolute;
 	inset: 0;
-	border-radius: 999px;
+	border-radius: inherit;
 	background: var(--glass-hover);
 	border: 1px solid var(--glass-border);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-1) 35%, transparent);
+	pointer-events: none;
+	z-index: -1;
 }
 
 /* User menu */
@@ -683,25 +808,6 @@
 	}
 }
 
-@media (hover: hover) {
-	.nav-link:hover,
-	.mobile-nav-item:hover {
-		background: var(--glass-hover);
-	}
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.nav-shell,
-	.navbar,
-	.nav-link,
-	.user-menu-button,
-	.mobile-drawer,
-	.mobile-drawer-backdrop {
-		transition: none !important;
-		animation: none !important;
-	}
-}
-
 /* Ensure theme toggle and auth buttons show on tablet/desktop */
 @media (min-width: 768px) {
 	.navbar-theme-toggle {
@@ -712,4 +818,3 @@
 	}
 }
 
-/* Remove duplicate CSS animations; framer-motion handles it now */
