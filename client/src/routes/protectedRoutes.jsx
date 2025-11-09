@@ -50,13 +50,13 @@ export const AdminRoute = () => {
 		return <Outlet />;
 	}
 
-	// If authenticated but not an admin, redirect to member dashboard.
+	// If authenticated but not an admin, redirect to the member dashboard.
 	if (isAuthenticated) {
-		return <Navigate to="/member" replace />;
+		return <Navigate to="/member/dashboard" replace />;
 	}
 
 	// If not authenticated at all, redirect to the admin login page.
-	return <Navigate to="/auth/admin" state={{ from: location }} replace />;
+	return <Navigate to="/admin/secret/auth" state={{ from: location }} replace />;
 };
 
 // A route guard for public routes that should not be accessible to authenticated users.
@@ -70,7 +70,7 @@ export const PublicRoute = () => {
 
 	if (isAuthenticated) {
 		// Redirect to the appropriate dashboard based on role.
-		const redirectTo = user?.role === 'admin' ? '/admin/dashboard' : '/member';
+		const redirectTo = user?.role === 'admin' ? '/admin/dashboard' : '/member/dashboard';
 		return <Navigate to={redirectTo} replace />;
 	}
 

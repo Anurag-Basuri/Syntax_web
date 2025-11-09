@@ -2,7 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { ReactLenis } from 'lenis/react';
 import { Toaster } from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion'; // Import motion and AnimatePresence
+import { motion, AnimatePresence } from 'framer-motion';
 import AppRoutes from './routes/AppRoutes.jsx';
 import Navbar from './components/Navbar.jsx';
 import Background3D from './components/Background3D.jsx';
@@ -19,7 +19,7 @@ function App() {
 	const hideNavbarRoutes = [
 		'/login',
 		'/join',
-		'/admin/auth',
+		'/admin/secret/auth',
 		'/policy/terms',
 		'/policy/refund',
 		'/policy/privacy',
