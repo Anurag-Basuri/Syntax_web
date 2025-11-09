@@ -3,16 +3,16 @@ import { useMembers } from '../hooks/useMembers.js';
 import TeamGrid from '../components/team/TeamGrid.jsx';
 import TeamMemberModal from '../components/team/TeamMemberModal.jsx';
 import TeamSkeleton from '../components/team/TeamSkeleton.jsx';
-import { Search, X, Users, Briefcase, Star } from 'lucide-react';
+import { Search, X, Users, Briefcase, Star, Filter } from 'lucide-react';
 import { isLeadershipRole } from '../constants/team.js';
 
 const ErrorBlock = ({ message, onRetry }) => (
-	<div className="flex flex-col items-center justify-center text-center py-24">
+	<div className="flex flex-col items-center justify-center text-center py-24 px-4">
 		<div className="text-5xl mb-4">⚠️</div>
 		<h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--accent-error)' }}>
 			Failed to load team
 		</h2>
-		<p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+		<p className="text-sm mb-6 max-w-md" style={{ color: 'var(--text-secondary)' }}>
 			{message}
 		</p>
 		<button onClick={onRetry} className="btn btn-secondary">
@@ -26,7 +26,8 @@ const TeamsPage = () => {
 	const [selectedMember, setSelectedMember] = useState(null);
 	const [query, setQuery] = useState('');
 	const [activeFilter, setActiveFilter] = useState('All');
-	const [sortBy, setSortBy] = useState('name'); // name | role | dept
+	const [sortBy, setSortBy] = useState('name');
+	const [showMobileFilters, setShowMobileFilters] = useState(false);
 
 	const enrichedMembers = useMemo(() => {
 		const members = data?.members || [];
@@ -78,7 +79,7 @@ const TeamsPage = () => {
 
 	if (isError) {
 		return (
-			<div className="page-container">
+			<div className="page-container tight-top">
 				<ErrorBlock message={error?.message || 'Unknown error'} onRetry={refetch} />
 			</div>
 		);
@@ -86,22 +87,43 @@ const TeamsPage = () => {
 
 	return (
 		<div className="page-container tight-top team-page-layout">
-			{/* --- Sticky Sidebar for Filters --- */}
-			<aside className="team-sidebar">
+			{/* Mobile Filter Toggle Button */}
+			<button
+				onClick={() => setShowMobileFilters(!showMobileFilters)}
+				className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+				aria-label="Toggle filters"
+			>
+				<Filter size={20} />
+			</button>
+
+			{/* Sidebar */}
+			<aside className={`team-sidebar ${showMobileFilters ? 'block' : 'hidden lg:block'}`}>
 				<div className="team-sidebar-content">
-					<h2 className="filter-header">
-						<Users size={20} />
-						<span>Departments</span>
-					</h2>
+					<div className="flex items-center justify-between mb-4 lg:mb-0">
+						<h2 className="filter-header flex-1">
+							<Users size={20} />
+							<span>Departments</span>
+						</h2>
+						<button
+							onClick={() => setShowMobileFilters(false)}
+							className="lg:hidden p-2 rounded-lg hover:bg-glass-hover"
+							aria-label="Close filters"
+						>
+							<X size={18} />
+						</button>
+					</div>
 					<nav className="filter-nav">
 						{departments.map((dept) => (
 							<button
 								key={dept}
 								className={`filter-button ${activeFilter === dept ? 'active' : ''}`}
-								onClick={() => setActiveFilter(dept)}
+								onClick={() => {
+									setActiveFilter(dept);
+									setShowMobileFilters(false);
+								}}
 							>
-								{dept === 'Leadership' && <Star size={14} />}
-								{dept !== 'Leadership' && dept !== 'All' && <Briefcase size={14} />}
+								{dept === 'Leadership' && <Star size={16} />}
+								{dept !== 'Leadership' && dept !== 'All' && <Briefcase size={16} />}
 								<span>{dept}</span>
 							</button>
 						))}
@@ -109,22 +131,27 @@ const TeamsPage = () => {
 				</div>
 			</aside>
 
-			{/* --- Main Content Area --- */}
+			{/* Main Content */}
 			<main className="team-main-content">
-				<header className="mb-6 md:mb-8">
-					<h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3 brand-text">
+				<header>
+					<h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-2 sm:mb-3 brand-text">
 						Our Team
 					</h1>
-					<p className="text-base md:text-lg" style={{ color: 'var(--text-secondary)' }}>
+					<p
+						className="text-sm sm:text-base md:text-lg"
+						style={{ color: 'var(--text-secondary)' }}
+					>
 						{isLoading
 							? 'Loading amazing people…'
-							: `${enrichedMembers.length} talented members across ${
-									departments.length - 2
-							  } departments`}
+							: `${enrichedMembers.length} talented member${
+									enrichedMembers.length !== 1 ? 's' : ''
+							  } across ${departments.length - 2} department${
+									departments.length - 2 !== 1 ? 's' : ''
+							  }`}
 					</p>
 				</header>
 
-				{/* Controls: search + sort + count */}
+				{/* Controls */}
 				<div className="team-controls">
 					<div className="search-bar-wrapper">
 						<Search className="search-icon" style={{ color: 'var(--text-muted)' }} />
