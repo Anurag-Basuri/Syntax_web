@@ -398,6 +398,8 @@ const EventCard = ({ event }) => {
 		}).format(date);
 	};
 
+	if (!event) return null;
+
 	return (
 		<>
 			<motion.div
