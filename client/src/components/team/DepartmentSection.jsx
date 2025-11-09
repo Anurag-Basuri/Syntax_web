@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import UnifiedTeamCard from './UnifiedTeamCard';
+import UnifiedTeamCard from './UnifiedTeamCard.jsx';
 import { ChevronRight } from 'lucide-react';
 
 const DepartmentSection = ({ title, members, onClick, isExpanded, onToggle }) => {
@@ -8,9 +8,11 @@ const DepartmentSection = ({ title, members, onClick, isExpanded, onToggle }) =>
 
 	return (
 		<motion.section layout className="mb-8">
-			<div
+			<button
+				type="button"
 				onClick={onToggle}
-				className="flex items-center justify-between p-3 mb-4 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+				className="w-full flex items-center justify-between p-3 mb-4 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+				aria-expanded={isExpanded}
 			>
 				<div className="flex items-center gap-3">
 					<h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -23,15 +25,15 @@ const DepartmentSection = ({ title, members, onClick, isExpanded, onToggle }) =>
 				<motion.div animate={{ rotate: isExpanded ? 90 : 0 }}>
 					<ChevronRight size={20} className="text-gray-500" />
 				</motion.div>
-			</div>
+			</button>
 
-			<AnimatePresence>
+			<AnimatePresence initial={false}>
 				{isExpanded && (
 					<motion.div
 						initial={{ opacity: 0, height: 0 }}
 						animate={{ opacity: 1, height: 'auto' }}
 						exit={{ opacity: 0, height: 0 }}
-						transition={{ duration: 0.25, ease: 'easeInOut' }}
+						transition={{ duration: 0.25 }}
 						className="overflow-hidden"
 					>
 						<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pt-2">
