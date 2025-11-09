@@ -1,10 +1,10 @@
 import { apiClient, publicClient } from './api.js';
 
 // Fetches all social posts with pagination.
-export const getAllPosts = async (params) => {
+export const getAllPosts = async (params = {}) => {
 	try {
 		const response = await publicClient.get('/api/v1/socials', { params });
-		return response.data;
+		return response.data?.data || response.data || [];
 	} catch (error) {
 		throw new Error(error.response?.data?.message || 'Failed to fetch posts.');
 	}
@@ -28,7 +28,7 @@ export const createPost = async (formData) => {
 		});
 		return response.data.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to create post.');
+		throw new Error(error.response?.data?.message || error.message || 'Failed to create post.');
 	}
 };
 
@@ -38,6 +38,6 @@ export const deletePost = async (id) => {
 		const response = await apiClient.delete(`/api/v1/socials/${id}`);
 		return response.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to delete post.');
+		throw new Error(error.response?.data?.message || error.message || 'Failed to delete post.');
 	}
 };
