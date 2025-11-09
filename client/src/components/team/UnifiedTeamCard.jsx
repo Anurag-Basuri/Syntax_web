@@ -1,12 +1,9 @@
 import React from 'react';
-
-const leadershipRoles = ['CEO', 'CTO', 'CFO', 'CMO', 'COO', 'Head', 'President', 'Lead'];
+import { isLeadershipRole } from '../../constants/team.js';
 
 const getAvatarUrl = (profilePicture) => {
 	if (!profilePicture) return null;
-	if (typeof profilePicture === 'string') return profilePicture;
-	if (typeof profilePicture === 'object' && profilePicture.url) return profilePicture.url;
-	return null;
+	return typeof profilePicture === 'string' ? profilePicture : profilePicture?.url || null;
 };
 
 const UnifiedTeamCard = ({ member, onClick }) => {
@@ -14,25 +11,21 @@ const UnifiedTeamCard = ({ member, onClick }) => {
 
 	const initials = (member.fullname || '??')
 		.split(' ')
-		.map((n) => n?.[0] || '')
+		.map((p) => p[0])
+		.filter(Boolean)
 		.join('')
 		.substring(0, 2)
 		.toUpperCase();
 
-	const isLeader =
-		member.isLeader ||
-		(Array.isArray(member.designation)
-			? member.designation.some((d) => leadershipRoles.includes(d))
-			: leadershipRoles.includes(member.designation));
-
 	const avatar = getAvatarUrl(member.profilePicture);
+	const isLeader =
+		member.isLeader || isLeadershipRole(member.designation || member.primaryDesignation);
 
 	return (
 		<div
 			onClick={() => onClick?.(member)}
 			className="group relative cursor-pointer rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-3 hover:shadow-md transition bg-transparent"
 		>
-			{/* Leader badge */}
 			{isLeader && (
 				<span className="absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-white font-semibold shadow">
 					Leader
@@ -66,18 +59,10 @@ const UnifiedTeamCard = ({ member, onClick }) => {
 					{member.fullname || 'Member'}
 				</h3>
 				<p className="text-xs text-blue-600 dark:text-blue-300 truncate">
-					{member.primaryDesignation ||
-						(Array.isArray(member.designation)
-							? member.designation[0]
-							: member.designation) ||
-						'Member'}
+					{member.primaryRole || 'Member'}
 				</p>
 				<p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-					{member.primaryDepartment ||
-						(Array.isArray(member.department)
-							? member.department[0]
-							: member.department) ||
-						'Department'}
+					{member.primaryDept || 'Department'}
 				</p>
 			</div>
 
