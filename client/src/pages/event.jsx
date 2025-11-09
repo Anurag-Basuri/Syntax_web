@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useEvents } from '../hooks/useEvents.js';
 import EventCard from '../components/event/EventCard.jsx';
 import EventFilter from '../components/event/EventFilter.jsx';
@@ -70,18 +70,51 @@ const ErrorBlock = ({ message, onRetry }) => (
 	</div>
 );
 
-const Stat = ({ label, value }) => (
-	<div className="flex flex-col items-center p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent">
-		<div className="text-xl font-bold text-gray-900 dark:text-gray-100">{value}</div>
-		<div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
+const Pager = ({ page, totalPages, onPrev, onNext, disabledPrev, disabledNext }) => (
+	<div className="flex items-center justify-center gap-2 mt-8">
+		<button
+			onClick={onPrev}
+			disabled={disabledPrev}
+			className="px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-transparent text-sm disabled:opacity-50"
+		>
+			Previous
+		</button>
+		<span className="text-sm text-gray-600 dark:text-gray-400">
+			Page {page} of {Math.max(1, totalPages || 1)}
+		</span>
+		<button
+			onClick={onNext}
+			disabled={disabledNext}
+			className="px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-transparent text-sm disabled:opacity-50"
+		>
+			Next
+		</button>
 	</div>
 );
 
 const EventPage = () => {
 	const [filter, setFilter] = useState('all');
 	const [search, setSearch] = useState('');
-	const { data, isLoading, isError, error, refetch } = useEvents();
+	const [page, setPage] = useState(1);
+	const limit = 9;
+
+	const { data, isLoading, isError, error, refetch, isFetching } = useEvents({
+		page,
+		limit,
+		sortBy: 'eventDate',
+		sortOrder: 'desc',
+		// send search/filter to server if desired:
+		// search,
+		// period: filter === 'all' ? undefined : filter
+	});
+
 	const events = data?.docs || [];
+	const {
+		totalDocs = events.length,
+		totalPages = 1,
+		hasPrevPage = page > 1,
+		hasNextPage = page < (data?.totalPages || 1),
+	} = data || {};
 
 	const categorized = useMemo(() => categorize(events), [events]);
 
@@ -112,18 +145,14 @@ const EventPage = () => {
 		return { [filter]: applySearch(categorized[filter]) };
 	}, [categorized, filter, search]);
 
-	const totalUpcoming = categorized.upcoming.length;
-	const totalOngoing = categorized.ongoing.length;
-	const totalPast = categorized.past.length;
 	const empty = Object.values(filtered).reduce((sum, list) => sum + list.length, 0) === 0;
 
-	if (isError) {
+	if (isError)
 		return <ErrorBlock message={error?.message || 'Unknown error'} onRetry={refetch} />;
-	}
 
 	return (
 		<div className="min-h-screen mx-auto max-w-7xl px-4 py-8 text-gray-900 dark:text-gray-100 bg-transparent">
-			<header className="space-y-6 mb-10">
+			<header className="space-y-6 mb-8">
 				<div className="space-y-2">
 					<h1 className="text-3xl font-bold tracking-tight">
 						Events
@@ -132,7 +161,9 @@ const EventPage = () => {
 						</span>
 					</h1>
 					<p className="text-sm text-gray-600 dark:text-gray-400 max-w-xl">
-						Browse live, upcoming and archived activities.
+						{isFetching
+							? 'Loading…'
+							: `Showing ${events.length} of ${totalDocs} events`}
 					</p>
 				</div>
 
@@ -157,12 +188,6 @@ const EventPage = () => {
 							</button>
 						)}
 					</div>
-				</div>
-
-				<div className="grid grid-cols-3 gap-3">
-					<Stat label="Upcoming" value={totalUpcoming} />
-					<Stat label="Live" value={totalOngoing} />
-					<Stat label="Past" value={totalPast} />
 				</div>
 			</header>
 
@@ -193,6 +218,16 @@ const EventPage = () => {
 					) : null
 				)
 			)}
+
+			{/* Simple pager (transparent, dark-mode friendly) */}
+			<Pager
+				page={page}
+				totalPages={totalPages}
+				onPrev={() => setPage((p) => Math.max(1, p - 1))}
+				onNext={() => setPage((p) => (hasNextPage ? p + 1 : p))}
+				disabledPrev={!hasPrevPage}
+				disabledNext={!hasNextPage}
+			/>
 		</div>
 	);
 };
