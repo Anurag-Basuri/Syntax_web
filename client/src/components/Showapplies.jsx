@@ -45,7 +45,6 @@ const Toolbar = ({
 				Refresh
 			</button>
 
-			{/* Bulk actions */}
 			<button
 				onClick={onBulkApprove}
 				disabled={!anySelected}
@@ -83,7 +82,7 @@ const Card = ({ item, onToggle, expanded, selected, onSelect, onApprove, onRejec
 			<div className="flex items-start gap-3 min-w-0">
 				<input
 					type="checkbox"
-					checked={selected}
+					checked={!!selected}
 					onChange={(e) => onSelect(item._id, e.target.checked)}
 					className="mt-1"
 					aria-label={`Select ${item.fullName}`}
@@ -94,7 +93,7 @@ const Card = ({ item, onToggle, expanded, selected, onSelect, onApprove, onRejec
 						{item.email} • {item.LpuId}
 					</div>
 					<div className="text-xs text-gray-500 mt-1">
-						{new Date(item.createdAt).toLocaleString()}
+						{item.createdAt ? new Date(item.createdAt).toLocaleString() : '—'}
 					</div>
 				</div>
 			</div>
@@ -185,10 +184,8 @@ const ShowApplies = () => {
 		return p;
 	}, [page, limit, debounced, status]);
 
-	const { data, isLoading, refetch } = useApplications(params);
-	// call hook directly (it's always available)
+	const { data, isLoading, error, refetch } = useApplications(params);
 	const statsQuery = useApplicationStats();
-	// now receives async mutate helpers too
 	const {
 		updateStatus,
 		updateStatusAsync,
@@ -198,12 +195,36 @@ const ShowApplies = () => {
 		isDeleting,
 	} = useManageApplication();
 
-	const payload = data?.data ?? data ?? {};
-	const items = payload?.docs ?? [];
-	const totalPages = payload?.totalPages ?? 1;
+	// Normalize data shapes from the service / API (be defensive)
+	const dataObj = data ?? {};
+	const items = dataObj.docs ?? dataObj.data?.docs ?? dataObj._raw?.docs ?? [];
+	const totalPages =
+		Number(
+			dataObj.totalPages ??
+				dataObj.total_pages ??
+				dataObj.meta?.totalPages ??
+				dataObj._raw?.totalPages
+		) || 1;
+	const serverPage =
+		Number(dataObj.page ?? dataObj.currentPage ?? dataObj.meta?.page ?? dataObj._raw?.page) ||
+		page;
 
-	// reset page when filters change
-	useEffect(() => setPage(1), [debounced, status]);
+	// Always keep local page within bounds returned by server (avoid surprising UI)
+	useEffect(() => {
+		if (serverPage && serverPage !== page) {
+			// only adjust if server claims a different page (prevents tiny loops)
+			setPage(serverPage);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [serverPage]);
+
+	// show fetch error inline so user knows
+	useEffect(() => {
+		if (error) {
+			console.error('Applications fetch error', error);
+			toast.error(error.message || 'Failed to load applications');
+		}
+	}, [error]);
 
 	// prefetch next page for snappy UX
 	useEffect(() => {
@@ -216,28 +237,30 @@ const ShowApplies = () => {
 
 	// keep selected consistent when items change
 	useEffect(() => {
-		// only change selection state when necessary to avoid infinite re-renders
+		// if no items, clear selection
 		if (!items || items.length === 0) {
-			// clear selection only if something is selected or selectAllOnPage is true
-			if (selectedIds.size > 0 || selectAllOnPage) {
-				setSelectedIds(new Set());
-				setSelectAllOnPage(false);
-			}
+			setSelectedIds((prev) => {
+				if (prev.size === 0) return prev;
+				return new Set();
+			});
+			setSelectAllOnPage(false);
 			return;
 		}
 
-		// if "select all on page" is active, ensure every current page id exists in selectedIds
+		// if selectAllOnPage active, ensure current page ids are included once
 		if (selectAllOnPage) {
-			const pageIds = items.map((it) => it._id);
-			const missing = pageIds.some((id) => !selectedIds.has(id));
-			if (missing) {
-				const s = new Set(selectedIds);
+			setSelectedIds((prev) => {
+				const pageIds = items.map((it) => it._id);
+				const needAdd = pageIds.some((id) => !prev.has(id));
+				if (!needAdd) return prev;
+				const s = new Set(prev);
 				pageIds.forEach((id) => s.add(id));
-				setSelectedIds(s);
-			}
+				return s;
+			});
 		}
+		// only depend on items & selectAllOnPage to avoid eql problems with Set identity
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [items, selectAllOnPage, selectedIds]);
+	}, [items, selectAllOnPage]);
 
 	const toggleSelect = (id, checked) => {
 		setSelectedIds((prev) => {
@@ -288,7 +311,6 @@ const ShowApplies = () => {
 			if (updateStatusAsync) {
 				await updateStatusAsync({ id, status: 'approved' });
 			} else {
-				// fallback to fire-and-forget
 				updateStatus({ id, status: 'approved' });
 			}
 		} catch (err) {
@@ -319,9 +341,15 @@ const ShowApplies = () => {
 			} else {
 				removeApplication(id);
 			}
-			// ensure queries are fresh
 			queryClient.invalidateQueries({ queryKey: ['applications'] });
 			queryClient.invalidateQueries({ queryKey: ['applicationStats'] });
+			// remove id from selected set if present
+			setSelectedIds((prev) => {
+				if (!prev.has(id)) return prev;
+				const s = new Set(prev);
+				s.delete(id);
+				return s;
+			});
 		} catch (err) {
 			console.error('Delete failed', err);
 			toast.error('Failed to delete');
@@ -341,18 +369,15 @@ const ShowApplies = () => {
 
 		try {
 			if (action === 'delete') {
-				// use mutation async helper for deletes so React Query lifecycle is respected
 				if (removeApplicationAsync) {
 					await Promise.all(idsArray.map((id) => removeApplicationAsync(id)));
 				} else {
-					// fallback: trigger deletes (not awaitable)
 					idsArray.forEach((id) => removeApplication(id));
 				}
 				toast.success('Bulk delete completed');
 				queryClient.invalidateQueries({ queryKey: ['applications'] });
 				queryClient.invalidateQueries({ queryKey: ['applicationStats'] });
 			} else {
-				// bulk status update via API
 				await bulkUpdateService(idsArray, action);
 				toast.success(`Bulk ${action} successful`);
 				queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -394,7 +419,6 @@ const ShowApplies = () => {
 	};
 
 	const exportAllCsv = async () => {
-		// attempt to fetch many entries (server caps may apply)
 		try {
 			const resp = await fetchAllApplicationsService({
 				page: 1,
@@ -402,7 +426,7 @@ const ShowApplies = () => {
 				search: debounced || undefined,
 				status: status !== 'all' ? status : undefined,
 			});
-			const allDocs = resp?.data?.docs ?? resp?.docs ?? [];
+			const allDocs = resp?.docs ?? resp?.data?.docs ?? resp?._raw?.docs ?? [];
 			if (!allDocs.length) return alert('No data to export');
 			const headers = ['Name', 'LPU ID', 'Email', 'Phone', 'Course', 'Status', 'Created At'];
 			const rows = allDocs.map((r) =>
