@@ -23,8 +23,8 @@ const ContactPage = () => {
 	const [fieldError, setFieldError] = useState(null);
 
 	const panelCls = isDark
-		? 'rounded-3xl p-8 md:p-10 backdrop-blur-md bg-slate-900/55 border border-white/6 text-white shadow-2xl'
-		: 'rounded-3xl p-8 md:p-10 backdrop-blur-md bg-white/90 border border-slate-200/40 text-slate-900 shadow-lg';
+		? 'rounded-3xl p-8 md:p-10 backdrop-blur-md bg-gradient-to-br from-slate-900/60 to-slate-800/50 border border-white/6 text-white shadow-2xl'
+		: 'rounded-3xl p-8 md:p-10 backdrop-blur-md bg-gradient-to-br from-white/80 to-slate-50/80 border border-slate-200/40 text-slate-900 shadow-lg';
 
 	const accentGradient = 'bg-[linear-gradient(90deg,#06b6d4,#3b82f6)]';
 
@@ -34,14 +34,12 @@ const ContactPage = () => {
 		setFormData((s) => ({ ...s, [name]: value }));
 	};
 
-	// Normalize phone robustly (drop spaces, parentheses, plus, leading 0 or country codes)
+	// Robust phone normalization: strip non-digits, drop leading 0s or country code, return last 10 digits
 	const normalizePhone = (raw) => {
 		if (!raw) return null;
 		const digits = String(raw).replace(/\D/g, '');
 		if (!digits) return null;
-		// drop leading zeros
 		let d = digits.replace(/^0+/, '');
-		// drop leading 91 (India) if present and length > 10
 		if (d.length > 10 && d.startsWith('91')) d = d.slice(2);
 		if (d.length >= 10) return d.slice(-10);
 		return null;
@@ -118,7 +116,7 @@ const ContactPage = () => {
 						<aside className="md:col-span-2 flex flex-col gap-6">
 							<div className="flex items-start gap-4">
 								<div
-									className="w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg"
+									className="w-16 h-16 rounded-3xl flex items-center justify-center shadow-xl"
 									style={{
 										background: 'linear-gradient(135deg,#06b6d4,#3b82f6)',
 									}}
@@ -130,8 +128,8 @@ const ContactPage = () => {
 										Get in touch
 									</h1>
 									<p className="mt-2 text-sm text-slate-400">
-										Questions, feedback or partnership enquiries — send a
-										message and our team will respond within 24–48 hours.
+										We’re here to help — send a message and our team will
+										respond within 48–72 hours.
 									</p>
 								</div>
 							</div>
@@ -151,7 +149,7 @@ const ContactPage = () => {
 									<div>
 										<h4 className="font-semibold">Phone</h4>
 										<p className="text-sm text-slate-400">
-											+91 97710 72294 (Mon–Fri, 9am–6pm)
+											+91 93349 86732 (Mon–Fri, 9am–6pm)
 										</p>
 									</div>
 								</div>
@@ -170,7 +168,7 @@ const ContactPage = () => {
 									<div>
 										<h4 className="font-semibold">Email</h4>
 										<p className="text-sm text-slate-400">
-											vibranta.helpdesk@gmail.com
+											syntax.studorg@gmail.com
 										</p>
 									</div>
 								</div>
@@ -199,7 +197,7 @@ const ContactPage = () => {
 										<CheckCircle2 className="text-emerald-400 w-5 h-5" />
 										<div className="text-sm font-medium text-emerald-400">
 											Thanks — your message was sent successfully. We'll reply
-											soon.
+											within 48–72 hours.
 										</div>
 									</motion.div>
 								)}
@@ -286,7 +284,7 @@ const ContactPage = () => {
 											onChange={handleChange}
 											required
 											className="px-4 py-3 rounded-lg bg-transparent border border-white/10 focus:ring-2 focus:ring-cyan-400 outline-none"
-											placeholder="+91 98765 43210 or 09876543210"
+											placeholder="+91 93349 86732 or 09334986732"
 											aria-invalid={fieldError?.field === 'phone'}
 										/>
 										{fieldError?.field === 'phone' && (
@@ -294,7 +292,6 @@ const ContactPage = () => {
 												{fieldError.msg}
 											</div>
 										)}
-										{/* show preview of normalized phone */}
 										{formData.phone.trim().length > 0 &&
 											normalizePhone(formData.phone) && (
 												<div className="text-xs text-slate-400 mt-1">
@@ -382,7 +379,7 @@ const ContactPage = () => {
 										<div>
 											Typical response time:{' '}
 											<span className="font-medium text-slate-200">
-												24–48 hours
+												48–72 hours
 											</span>
 										</div>
 									</div>
