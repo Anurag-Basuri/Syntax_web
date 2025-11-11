@@ -6,11 +6,6 @@ import {
 	deleteTicket as deleteTicketService,
 } from '../services/ticketServices.js';
 
-// Note: This file exposes the compatibility hooks used by the admin TicketsTab:
-// - useGetTicketsByEvent -> { getTicketsByEvent(eventId, token), tickets, loading, error, reset }
-// - useUpdateTicket -> { updateTicket(ticketId, data, token), loading, error, reset }
-// - useDeleteTicket -> { deleteTicket(ticketId, token), loading, error, reset }
-
 // Hook for admins to get tickets for a specific event (imperative fetch)
 export const useGetTicketsByEvent = () => {
 	const [tickets, setTickets] = useState(null);
@@ -21,37 +16,35 @@ export const useGetTicketsByEvent = () => {
 		setError(null);
 	}, []);
 
-	// eventId can be a string id; token is optional and forwarded to service if needed
-	const getTicketsByEvent = useCallback(
-		async (eventId, token) => {
-			if (!eventId) {
-				setTickets([]);
-				return [];
-			}
-			setLoading(true);
-			setError(null);
-			try {
-				// service expects params object
-				const params = { eventId };
-				// some services might accept token via headers internally; we just forward token if needed
-				const data = await getTicketsByEventService(params, token);
-				// service may return different shapes; try common ones
-				const payload = data?.data ?? data?.tickets ?? data?.docs ?? data ?? [];
-				// normalize to array
-				const list = Array.isArray(payload) ? payload : payload?.results ?? [];
-				setTickets(list);
-				return list;
-			} catch (err) {
-				const msg = err?.response?.data?.message || err?.message || String(err);
-				setError(msg);
-				setTickets([]);
-				throw err;
-			} finally {
-				setLoading(false);
-			}
-		},
-		[tickets]
-	);
+	const getTicketsByEvent = useCallback(async (eventId, token) => {
+		if (!eventId) {
+			setTickets([]);
+			return [];
+		}
+		setLoading(true);
+		setError(null);
+		try {
+			const params = { eventId };
+			const response = await getTicketsByEventService(params, token);
+			// response may be { data: {...} } or full payload depending on service
+			const payload = response?.data ?? response ?? {};
+			// common shapes: payload.docs, payload.results, payload (array)
+			let list = [];
+			if (Array.isArray(payload)) list = payload;
+			else if (Array.isArray(payload.docs)) list = payload.docs;
+			else if (Array.isArray(payload.results)) list = payload.results;
+			else list = [];
+			setTickets(list);
+			return list;
+		} catch (err) {
+			const msg = err?.response?.data?.message || err?.message || String(err);
+			setError(msg);
+			setTickets([]);
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	}, []);
 
 	return {
 		getTicketsByEvent,
@@ -71,37 +64,43 @@ export const useUpdateTicket = () => {
 		setError(null);
 	}, []);
 
-	const updateTicket = useCallback(
-		async (ticketId, data = {}, token) => {
-			if (!ticketId) {
-				throw new Error('Missing ticket id');
-			}
-			setLoading(true);
-			setError(null);
-			try {
-				// If backend expects status value, prefer sending a clear payload.
-				// When caller passes { isUsed: boolean }, forward it as { isUsed }.
-				// If caller passes { status: '...' } forward as-is.
-				if (typeof data === 'object' && 'isUsed' in data) {
-					// use updateTicketStatusService which sends { status: <value> }.
-					// Some backends accept boolean status; pass boolean directly.
-					await updateTicketStatusService(ticketId, { isUsed: !!data.isUsed }, token);
-				} else {
-					// fallback: send data as status payload
-					await updateTicketStatusService(ticketId, data, token);
+	const updateTicket = useCallback(async (ticketId, data = {}, token) => {
+		if (!ticketId) {
+			throw new Error('Missing ticket id');
+		}
+		setLoading(true);
+		setError(null);
+		try {
+			// Normalize payloads for backend:
+			// - If caller sends { isUsed: boolean } -> translate to status string
+			// - If caller sends { status: 'used' } -> send status string
+			// - If caller passes a raw string, treat as status
+			let statusPayload = null;
+			if (typeof data === 'string') {
+				statusPayload = data;
+			} else if (typeof data === 'object') {
+				if ('isUsed' in data) {
+					statusPayload = data.isUsed ? 'used' : 'active';
+				} else if ('status' in data && typeof data.status === 'string') {
+					statusPayload = data.status;
 				}
-				toast.success('Ticket updated.');
-			} catch (err) {
-				const msg = err?.response?.data?.message || err?.message || String(err);
-				setError(msg);
-				toast.error(msg || 'Failed to update ticket');
-				throw err;
-			} finally {
-				setLoading(false);
 			}
-		},
-		[]
-	);
+			if (statusPayload === null) {
+				// fallback: try to send data as-is (best-effort)
+				await updateTicketStatusService(ticketId, data, token);
+			} else {
+				await updateTicketStatusService(ticketId, statusPayload, token);
+			}
+			toast.success('Ticket updated.');
+		} catch (err) {
+			const msg = err?.response?.data?.message || err?.message || String(err);
+			setError(msg);
+			toast.error(msg || 'Failed to update ticket');
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	}, []);
 
 	return { updateTicket, loading, error, reset };
 };
@@ -115,27 +114,24 @@ export const useDeleteTicket = () => {
 		setError(null);
 	}, []);
 
-	const deleteTicket = useCallback(
-		async (ticketId, token) => {
-			if (!ticketId) {
-				throw new Error('Missing ticket id');
-			}
-			setLoading(true);
-			setError(null);
-			try {
-				await deleteTicketService(ticketId, token);
-				toast.success('Ticket deleted.');
-			} catch (err) {
-				const msg = err?.response?.data?.message || err?.message || String(err);
-				setError(msg);
-				toast.error(msg || 'Failed to delete ticket');
-				throw err;
-			} finally {
-				setLoading(false);
-			}
-		},
-		[]
-	);
+	const deleteTicket = useCallback(async (ticketId, token) => {
+		if (!ticketId) {
+			throw new Error('Missing ticket id');
+		}
+		setLoading(true);
+		setError(null);
+		try {
+			await deleteTicketService(ticketId, token);
+			toast.success('Ticket deleted.');
+		} catch (err) {
+			const msg = err?.response?.data?.message || err?.message || String(err);
+			setError(msg);
+			toast.error(msg || 'Failed to delete ticket');
+			throw err;
+		} finally {
+			setLoading(false);
+		}
+	}, []);
 
 	return { deleteTicket, loading, error, reset };
 };
