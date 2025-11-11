@@ -41,7 +41,8 @@ export const useGetAllMembers = () => {
 	// Provide a friendly API compatible with existing components
 	return {
 		getAllMembers: query.refetch, // async refetch function
-		members: query.data?.members ?? query.data ?? [], // support various response shapes
+		members: query.data?.members ?? [], // consistent: array
+		totalMembers: query.data?.totalMembers ?? query.data?.members?.length ?? 0,
 		loading: query.isLoading,
 		error: query.error,
 	};
