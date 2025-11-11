@@ -22,11 +22,12 @@ export const useGetAllContacts = () => {
 		mutationFn: (params) => svcGetAllContacts(params),
 		onSuccess: (data, params) => {
 			// prime cache for this params set (useful if other hooks read the same key)
-			queryClient.setQueryData(['contacts', params], data);
+			const key = ['contacts', JSON.stringify(params)];
+			queryClient.setQueryData(key, data);
 		},
 	});
 
-	// getAllContacts(params) -> resolves to response data
+	// getAllContacts(params) -> resolves to normalized paginated object
 	const getAllContacts = async (params) => {
 		return await fetchAll(params);
 	};

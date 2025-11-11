@@ -115,13 +115,18 @@ const ShowContacts = () => {
 		return p;
 	}, [page, limit, debounced, status]);
 
+	// Reset to page 1 when filters/search change
+	useEffect(() => {
+		setPage(1);
+	}, [debounced, status]);
+
 	useEffect(() => {
 		const load = async () => {
 			try {
 				const resp = await getAllContacts(params);
-				const payload = resp?.data ?? resp ?? {};
-				setItems(payload?.docs ?? []);
-				setTotalPages(payload?.totalPages ?? 1);
+				// svc returns normalized paginated object
+				setItems(resp?.docs ?? []);
+				setTotalPages(resp?.totalPages ?? 1);
 			} catch (e) {
 				console.error(e);
 			}
@@ -134,9 +139,8 @@ const ShowContacts = () => {
 		setPage(1);
 		try {
 			const resp = await getAllContacts(params);
-			const payload = resp?.data ?? resp ?? {};
-			setItems(payload?.docs ?? []);
-			setTotalPages(payload?.totalPages ?? 1);
+			setItems(resp?.docs ?? []);
+			setTotalPages(resp?.totalPages ?? 1);
 		} catch (e) {
 			console.error(e);
 		}
