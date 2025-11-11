@@ -19,6 +19,7 @@ import {
 	RefreshCw,
 	Grid,
 	List,
+	X,
 } from 'lucide-react';
 import { useGetTicketsByEvent, useUpdateTicket, useDeleteTicket } from '../../hooks/useTickets';
 import TicketStats from './TicketStats';
@@ -78,7 +79,7 @@ const MobileFilterMenu = React.memo(
 							className="text-gray-400 hover:text-white"
 							aria-label="Close filters"
 						>
-							<CrossIcon />
+							<X className="h-5 w-5" />
 						</button>
 					</div>
 					<div className="space-y-4">
@@ -131,11 +132,8 @@ const MobileFilterMenu = React.memo(
 	}
 );
 
-const CrossIcon = () => <X className="h-5 w-5" />;
-
 const TicketRow = React.memo(
 	({ ticket, onToggleIsUsed, onDeleteTicket, updateLoading, deleteLoading }) => {
-		// derive status (backwards compatible with isUsed/isCancelled flags)
 		const status =
 			ticket.status || (ticket.isUsed ? 'used' : ticket.isCancelled ? 'cancelled' : 'active');
 
@@ -520,6 +518,22 @@ const TicketsTab = ({ token, events = [], setDashboardError }) => {
 				</div>
 
 				<div className="flex gap-2 w-full md:w-auto items-center">
+					{/* Event select (desktop) */}
+					<div className="hidden md:block">
+						<select
+							className="appearance-none bg-gray-700/50 border border-gray-600 rounded-lg pl-4 pr-10 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+							value={selectedEventId}
+							onChange={(e) => setSelectedEventId(e.target.value)}
+						>
+							<option value="">Select event</option>
+							{(events || []).map((event) => (
+								<option key={event._id} value={event._id}>
+									{event.title}
+								</option>
+							))}
+						</select>
+					</div>
+
 					<div className="relative w-full md:w-72">
 						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
 						<input
