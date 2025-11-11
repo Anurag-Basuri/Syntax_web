@@ -21,28 +21,28 @@ const MemberProfile = () => {
 	// --- react-query / services setup ---
 	const queryClient = useQueryClient();
 
-	// fetch current member (not auto-run; component controls first fetch similar to prior behavior)
-	const memberQuery = useQuery(
-		['currentMember'],
-		async () => {
+	// fetch current member (object signature required by v5)
+	const memberQuery = useQuery({
+		queryKey: ['currentMember'],
+		queryFn: async () => {
 			const resp = await apiClient.get('/api/v1/members/me');
-			// server should return member in data.data
 			return resp.data?.data;
 		},
-		{ enabled: false }
-	);
+		enabled: false,
+	});
 
 	const getCurrentMember = memberQuery.refetch;
 	const member = memberQuery.data;
 	const memberLoading = memberQuery.isLoading;
 	const memberError = memberQuery.error;
 
-	// mutations
+	// mutations (v5 object signature)
 	const {
 		mutateAsync: updateProfileMut,
 		isLoading: updateLoading,
 		error: updateError,
-	} = useMutation(({ memberId, data }) => updateMyProfile(memberId, data), {
+	} = useMutation({
+		mutationFn: ({ memberId, data }) => updateMyProfile(memberId, data),
 		onSuccess: () => queryClient.invalidateQueries({ queryKey: ['currentMember'] }),
 	});
 
@@ -50,7 +50,8 @@ const MemberProfile = () => {
 		mutateAsync: uploadProfilePicMut,
 		isLoading: uploadLoading,
 		error: uploadError,
-	} = useMutation(({ memberId, formData }) => svcUploadProfilePicture(memberId, formData), {
+	} = useMutation({
+		mutationFn: ({ memberId, formData }) => svcUploadProfilePicture(memberId, formData),
 		onSuccess: () => queryClient.invalidateQueries({ queryKey: ['currentMember'] }),
 	});
 
@@ -58,7 +59,8 @@ const MemberProfile = () => {
 		mutateAsync: uploadResumeMut,
 		isLoading: uploadResumeLoading,
 		error: uploadResumeError,
-	} = useMutation(({ memberId, formData }) => svcUploadResume(memberId, formData), {
+	} = useMutation({
+		mutationFn: ({ memberId, formData }) => svcUploadResume(memberId, formData),
 		onSuccess: () => queryClient.invalidateQueries({ queryKey: ['currentMember'] }),
 	});
 
@@ -66,7 +68,9 @@ const MemberProfile = () => {
 		mutateAsync: resetPasswordMut,
 		isLoading: resetLoading,
 		error: resetError,
-	} = useMutation(({ LpuId, password }) => svcResetPassword({ LpuId, password }));
+	} = useMutation({
+		mutationFn: ({ LpuId, password }) => svcResetPassword({ LpuId, password }),
+	});
 
 	// --- STATE ---
 	const [isEditing, setIsEditing] = useState(false);
@@ -136,13 +140,11 @@ const MemberProfile = () => {
 			resetError,
 		].filter(Boolean);
 		if (errors.length > 0) {
-			// display first error (string or Error)
 			const first = errors[0];
 			setMessage(typeof first === 'string' ? first : first?.message || 'An error occurred');
 		}
 	}, [memberError, updateError, uploadError, uploadResumeError, resetError]);
 
-	// revoke any created object URLs when component unmounts or image changes
 	useEffect(() => {
 		return () => {
 			if (originalFile && editorImage && editorImage.startsWith('blob:')) {
@@ -153,10 +155,8 @@ const MemberProfile = () => {
 				}
 			}
 		};
-		// we intentionally run this cleanup when editorImage or originalFile changes/unmounts
 	}, [editorImage, originalFile]);
 
-	// Auto-clear messages
 	useEffect(() => {
 		if (message) {
 			const timer = setTimeout(() => setMessage(''), 5000);
@@ -178,7 +178,6 @@ const MemberProfile = () => {
 
 	const handleProfilePictureClick = useCallback((imageUrl) => {
 		if (!imageUrl) return;
-		// open editor in view mode if image exists on server
 		setEditorImage(imageUrl);
 		setIsEditingImage(false);
 		setOriginalFile(null);
@@ -189,7 +188,6 @@ const MemberProfile = () => {
 		const file = e.target.files?.[0];
 		if (!file) return;
 		e.target.value = '';
-		// validate image quickly
 		const validation = validateFile(file, 'image');
 		if (!validation.isValid) {
 			setMessage(validation.errors[0]);
@@ -202,7 +200,6 @@ const MemberProfile = () => {
 		setShowImageEditor(true);
 	}, []);
 
-	// Save/crop/upload
 	const handleImageSave = useCallback(
 		async (croppedBlob) => {
 			if (!croppedBlob) return;
@@ -235,15 +232,12 @@ const MemberProfile = () => {
 
 				await uploadProfilePicMut({ memberId: member._id, formData: formDataToUpload });
 
-				// finish progress
 				if (progressInterval) clearInterval(progressInterval);
 				setUploadProgress((prev) => (prev ? { ...prev, progress: 100 } : null));
 
-				// brief delay for UX then clear
 				setTimeout(() => {
 					setUploadProgress(null);
 					setOriginalFile(null);
-					// revoke local object URL if present
 					if (editorImage && editorImage.startsWith('blob:')) {
 						try {
 							URL.revokeObjectURL(editorImage);
@@ -334,7 +328,6 @@ const MemberProfile = () => {
 			}
 
 			try {
-				// service expects an object payload
 				await resetPasswordMut({ LpuId: member.LpuId, password: newPassword });
 				setMessage('Password reset successfully!');
 				setShowPasswordReset(false);
@@ -348,7 +341,6 @@ const MemberProfile = () => {
 		[member?.LpuId, newPassword, confirmPassword, resetPasswordMut]
 	);
 
-	// Handles changes in form fields
 	const handleInputChange = useCallback((e) => {
 		const { name, value, type, checked } = e.target;
 		setFormData((prev) => ({
@@ -357,7 +349,6 @@ const MemberProfile = () => {
 		}));
 	}, []);
 
-	// Handles changes in social links (object or string)
 	const handleSocialLinkChange = useCallback((index, keyOrValue, valueIfKey) => {
 		setFormData((prev) => {
 			const links = Array.isArray(prev.socialLinks) ? [...prev.socialLinks] : [];
@@ -365,7 +356,6 @@ const MemberProfile = () => {
 			if (typeof keyOrValue === 'string' && valueIfKey !== undefined) {
 				current[keyOrValue] = valueIfKey;
 			} else {
-				// replace whole value
 				links[index] = keyOrValue;
 				return { ...prev, socialLinks: links };
 			}
@@ -409,7 +399,6 @@ const MemberProfile = () => {
 		setFormData((prev) => ({ ...prev, skills: prev.skills.filter((_, i) => i !== index) }));
 	}, []);
 
-	// Handles profile form submission
 	const handleSubmit = useCallback(
 		async (e) => {
 			e.preventDefault();
@@ -430,7 +419,7 @@ const MemberProfile = () => {
 		[member?._id, formData, updateProfileMut, getCurrentMember]
 	);
 
-	// --- RENDER STATES ---
+	// --- RENDER STATES --- (rest unchanged)
 	if (memberLoading && !member) {
 		return (
 			<div className="min-h-screen pt-16 bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -582,7 +571,6 @@ const MemberProfile = () => {
 							onSave={isEditingImage ? handleImageSave : undefined}
 							onCancel={() => {
 								setShowImageEditor(false);
-								// revoke local blob URL when user cancels upload/edit
 								if (
 									originalFile &&
 									editorImage &&
@@ -603,10 +591,7 @@ const MemberProfile = () => {
 
 				{/* Profile picture viewer */}
 				<AnimatePresence>
-					{showProfilePicture && member?.profilePicture?.url && (
-						<div />
-						// ProfilePictureView is already used inside ProfileHeader; kept placeholder to avoid duplicating implementation
-					)}
+					{showProfilePicture && member?.profilePicture?.url && <div />}
 				</AnimatePresence>
 			</div>
 		</div>
