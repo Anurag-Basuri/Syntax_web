@@ -7,8 +7,15 @@ import {
 	adminRegister,
 	getCurrentAdmin,
 	getCurrentMember,
+	refreshAccessToken,
 } from '../services/authServices.js';
-import { getToken, decodeToken, removeToken, isTokenValid } from '../utils/handleTokens.js';
+import {
+	getToken,
+	decodeToken,
+	removeToken,
+	isTokenValid,
+	setToken,
+} from '../utils/handleTokens.js';
 
 export const AuthContext = createContext();
 
@@ -16,51 +23,74 @@ export const AuthProvider = ({ children }) => {
 	const [user, setUser] = useState(null);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [loading, setLoading] = useState(true);
-	// expose current access token string to consumers
-	const [token, setToken] = useState(null);
+	const [token, setLocalToken] = useState(null);
 
 	// Function to clear all authentication state
 	const clearAuth = useCallback(() => {
 		setUser(null);
 		setIsAuthenticated(false);
-		setToken(null);
+		setLocalToken(null);
 		removeToken();
 		setLoading(false);
 	}, []);
+
+	// Try to refresh the access token using the refresh token
+	const attemptRefreshAndFetch = async () => {
+		// Try admin refresh first, then member
+		try {
+			const newAccess = await refreshAccessToken('admin');
+			if (newAccess) {
+				setLocalToken(newAccess);
+				return { accessToken: newAccess, role: 'admin' };
+			}
+		} catch (e) {
+			/* ignore */
+		}
+		try {
+			const newAccess = await refreshAccessToken('members');
+			if (newAccess) {
+				setLocalToken(newAccess);
+				return { accessToken: newAccess, role: 'member' };
+			}
+		} catch (e) {
+			/* ignore */
+		}
+		return null;
+	};
 
 	// Unified function to check token and fetch fresh user data from the backend
 	const checkAuthStatus = useCallback(async () => {
 		setLoading(true);
 		const tokens = getToken();
-		const accessToken = tokens?.accessToken || null;
+		let accessToken = tokens?.accessToken || null;
 
-		// If no token or token invalid, clear local auth state
-		if (!accessToken || !isTokenValid()) {
-			clearAuth();
-			return;
+		// If no token or expired, attempt a refresh (server uses httpOnly cookie)
+		if (!accessToken || isTokenValid() === false) {
+			const refreshed = await attemptRefreshAndFetch();
+			if (!refreshed) {
+				clearAuth();
+				return;
+			}
+			accessToken = refreshed.accessToken;
+			// store refreshed access token
+			setToken(accessToken);
+			setLocalToken(accessToken);
 		}
 
 		try {
 			const decoded = decodeToken(accessToken);
-			if (!decoded || !decoded.role) {
-				throw new Error('Invalid token');
-			}
+			if (!decoded || !decoded.role) throw new Error('Invalid token');
 
 			let currentUser;
-			// Fetch user data based on role stored in the token
-			if (decoded.role === 'admin') {
-				currentUser = await getCurrentAdmin();
-			} else if (decoded.role === 'member') {
-				currentUser = await getCurrentMember();
-			} else {
-				throw new Error('Invalid user role in token');
-			}
+			if (decoded.role === 'admin') currentUser = await getCurrentAdmin();
+			else if (decoded.role === 'member') currentUser = await getCurrentMember();
+			else throw new Error('Invalid role');
 
 			setUser(currentUser);
 			setIsAuthenticated(true);
-			setToken(accessToken);
-		} catch (error) {
-			console.error('Authentication check failed, clearing session:', error);
+			setLocalToken(accessToken);
+		} catch (err) {
+			console.error('Auth check failed:', err);
 			clearAuth();
 		} finally {
 			setLoading(false);
