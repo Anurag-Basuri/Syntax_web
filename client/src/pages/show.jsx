@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ShowContacts from '../components/Showcontacts.jsx';
 import ShowApplies from '../components/Showapplies.jsx';
-import useTheme from '../hooks/useTheme.js';
+import { useTheme } from '../hooks/useTheme.js';
 
 const TabButton = ({ active, onClick, children, isDark }) => {
 	const activeCls = 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-2xl';
@@ -26,6 +26,11 @@ const ShowPage = () => {
 	const { theme } = useTheme();
 	const isDark = theme === 'dark';
 
+	// panel classes that provide backdrop blur + subtle border and shadow
+	const panelCls = isDark
+		? 'rounded-2xl p-6 backdrop-blur-lg bg-slate-900/40 border border-white/6 text-white shadow-xl'
+		: 'rounded-2xl p-6 backdrop-blur-lg bg-white/70 border border-slate-200/20 text-slate-900 shadow-xl';
+
 	return (
 		<div
 			className={`min-h-screen bg-transparent antialiased ${
@@ -34,31 +39,38 @@ const ShowPage = () => {
 		>
 			<div className="relative z-10 p-6">
 				<div className="max-w-6xl mx-auto">
-					<header className="flex items-center justify-between mb-6">
-						<div className="flex gap-3">
-							<TabButton
-								active={view === 'applications'}
-								onClick={() => setView('applications')}
-								isDark={isDark}
+					{/* glass panel */}
+					<div className={panelCls}>
+						<header className="flex items-center justify-between mb-6">
+							<div className="flex gap-3">
+								<TabButton
+									active={view === 'applications'}
+									onClick={() => setView('applications')}
+									isDark={isDark}
+								>
+									Applications
+								</TabButton>
+								<TabButton
+									active={view === 'contacts'}
+									onClick={() => setView('contacts')}
+									isDark={isDark}
+								>
+									Contacts
+								</TabButton>
+							</div>
+							<div
+								className={`${
+									isDark ? 'text-slate-300' : 'text-slate-600'
+								} text-sm`}
 							>
-								Applications
-							</TabButton>
-							<TabButton
-								active={view === 'contacts'}
-								onClick={() => setView('contacts')}
-								isDark={isDark}
-							>
-								Contacts
-							</TabButton>
-						</div>
-						<div className={`${isDark ? 'text-slate-400' : 'text-slate-500'} text-sm`}>
-							Admin Panel
-						</div>
-					</header>
+								Admin Panel
+							</div>
+						</header>
 
-					<main className="bg-transparent">
-						{view === 'applications' ? <ShowApplies /> : <ShowContacts />}
-					</main>
+						<main className="bg-transparent">
+							{view === 'applications' ? <ShowApplies /> : <ShowContacts />}
+						</main>
+					</div>
 				</div>
 			</div>
 		</div>
