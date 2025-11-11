@@ -13,7 +13,6 @@ const ContactPage = () => {
 		name: '',
 		email: '',
 		phone: '',
-		lpuID: '',
 		subject: '',
 		message: '',
 	});
@@ -57,9 +56,6 @@ const ContactPage = () => {
 				field: 'phone',
 				msg: 'Enter a valid 10-digit mobile number (country code/leading zeros supported).',
 			};
-		if (!data.lpuID.trim()) return { field: 'lpuID', msg: 'LPU ID is required.' };
-		if (!/^\d{4,12}$/.test(data.lpuID))
-			return { field: 'lpuID', msg: 'LPU ID must be 4–12 digits.' };
 		if (!data.subject.trim()) return { field: 'subject', msg: 'Please add a subject.' };
 		if (!data.message.trim() || data.message.trim().length < 5)
 			return { field: 'message', msg: 'Message must be at least 5 characters.' };
@@ -86,7 +82,6 @@ const ContactPage = () => {
 			name: formData.name.trim(),
 			email: formData.email.trim(),
 			phone: normalizedPhone,
-			lpuID: String(formData.lpuID).trim(),
 			subject: formData.subject.trim(),
 			message: formData.message.trim(),
 		};
@@ -96,7 +91,7 @@ const ContactPage = () => {
 			await sendContactMessage(payload);
 			setSuccess(true);
 			toast.success('Message sent — thank you!');
-			setFormData({ name: '', email: '', phone: '', lpuID: '', subject: '', message: '' });
+			setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
 			setTimeout(() => setSuccess(false), 3500);
 		} catch (err) {
 			console.error('contact submit', err);
@@ -237,27 +232,6 @@ const ContactPage = () => {
 									</label>
 
 									<label className="flex flex-col">
-										<span className="text-sm mb-2">LPU ID</span>
-										<input
-											name="lpuID"
-											value={formData.lpuID}
-											onChange={handleChange}
-											required
-											pattern="\d{4,12}"
-											className="px-4 py-3 rounded-lg bg-transparent border border-white/10 focus:ring-2 focus:ring-cyan-400 outline-none"
-											placeholder="12345678"
-											aria-invalid={fieldError?.field === 'lpuID'}
-										/>
-										{fieldError?.field === 'lpuID' && (
-											<div className="text-rose-400 text-xs mt-1">
-												{fieldError.msg}
-											</div>
-										)}
-									</label>
-								</div>
-
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<label className="flex flex-col">
 										<span className="text-sm mb-2">Email</span>
 										<input
 											name="email"
@@ -275,7 +249,9 @@ const ContactPage = () => {
 											</div>
 										)}
 									</label>
+								</div>
 
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 									<label className="flex flex-col">
 										<span className="text-sm mb-2">Phone</span>
 										<input
@@ -302,25 +278,25 @@ const ContactPage = () => {
 												</div>
 											)}
 									</label>
-								</div>
 
-								<label className="flex flex-col">
-									<span className="text-sm mb-2">Subject</span>
-									<input
-										name="subject"
-										value={formData.subject}
-										onChange={handleChange}
-										required
-										className="px-4 py-3 rounded-lg bg-transparent border border-white/10 focus:ring-2 focus:ring-cyan-400 outline-none"
-										placeholder="How can we help?"
-										aria-invalid={fieldError?.field === 'subject'}
-									/>
-									{fieldError?.field === 'subject' && (
-										<div className="text-rose-400 text-xs mt-1">
-											{fieldError.msg}
-										</div>
-									)}
-								</label>
+									<label className="flex flex-col">
+										<span className="text-sm mb-2">Subject</span>
+										<input
+											name="subject"
+											value={formData.subject}
+											onChange={handleChange}
+											required
+											className="px-4 py-3 rounded-lg bg-transparent border border-white/10 focus:ring-2 focus:ring-cyan-400 outline-none"
+											placeholder="How can we help?"
+											aria-invalid={fieldError?.field === 'subject'}
+										/>
+										{fieldError?.field === 'subject' && (
+											<div className="text-rose-400 text-xs mt-1">
+												{fieldError.msg}
+											</div>
+										)}
+									</label>
+								</div>
 
 								<label className="flex flex-col">
 									<span className="text-sm mb-2">Message</span>
