@@ -66,11 +66,11 @@ const loginAdmin = asyncHandler(async (req, res) => {
 
 // Logout Admin
 const logoutAdmin = asyncHandler(async (req, res) => {
-    const adminId = req.user?._id;
+	const adminId = req.user?._id;
 
-    if (!adminId) {
-        throw ApiError.Unauthorized('No admin to logout');
-    }
+	if (!adminId) {
+		throw ApiError.Unauthorized('No admin to logout');
+	}
 
 	// Clear the refresh token from the database
 	await Admin.findByIdAndUpdate(adminId, { $unset: { refreshToken: 1 } }, { new: true });
@@ -86,34 +86,42 @@ const logoutAdmin = asyncHandler(async (req, res) => {
 
 // Get current admin
 const currentAdmin = asyncHandler(async (req, res) => {
-    const admin = req.user;
-    if (!admin) {
-        throw ApiError.Unauthorized('Unauthorized request');
-    }
+	const admin = req.user;
+	if (!admin) {
+		throw ApiError.Unauthorized('Unauthorized request');
+	}
 
-    return ApiResponse.success(res, admin, 'Current admin retrieved successfully');
+	return ApiResponse.success(res, admin, 'Current admin retrieved successfully');
 });
 
-// Add this new controller function
+// Add this improved refreshAccessToken
 const refreshAccessToken = asyncHandler(async (req, res) => {
-	const incomingRefreshToken = req.body.refreshToken || req.cookies.refreshToken;
+	const incomingRefreshToken = req.body?.refreshToken || req.cookies?.refreshToken;
 
+	// No token in body; rely on httpOnly cookie (server-managed)
 	if (!incomingRefreshToken) {
-		throw new ApiError(401, 'Refresh token is required');
+		throw ApiError.Unauthorized('Refresh token is required');
 	}
 
-	const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+	let decoded;
+	try {
+		decoded = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+	} catch (err) {
+		throw ApiError.Unauthorized('Invalid or expired refresh token');
+	}
 
-	const admin = await Admin.findById(decodedToken._id);
-
+	// refresh tokens are signed with { id: this._id, role: ... }
+	const admin = await Admin.findById(decoded.id).select('+refreshToken');
 	if (!admin) {
-		throw new ApiError(401, 'Invalid refresh token');
+		throw ApiError.Unauthorized('Invalid refresh token');
 	}
 
-	if (incomingRefreshToken !== admin.refreshToken) {
-		throw new ApiError(401, 'Refresh token is expired or has been used');
+	// Ensure stored token matches (single-session token)
+	if (admin.refreshToken !== incomingRefreshToken) {
+		throw ApiError.Unauthorized('Refresh token is expired or has been used');
 	}
 
+	// Generate a fresh access token (do not rotate refresh token here)
 	const accessToken = admin.generateAuthToken();
 
 	return ApiResponse.success(res, { accessToken }, 'Access token refreshed successfully');
