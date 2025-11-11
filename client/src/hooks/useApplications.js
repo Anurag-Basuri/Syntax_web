@@ -72,8 +72,10 @@ export const useManageApplication = () => {
 
 	return {
 		updateStatus: updateStatusMutation.mutate,
+		updateStatusAsync: updateStatusMutation.mutateAsync,
 		isUpdating: updateStatusMutation.isLoading,
 		removeApplication: deleteMutation.mutate,
+		removeApplicationAsync: deleteMutation.mutateAsync,
 		isDeleting: deleteMutation.isLoading,
 	};
 };
