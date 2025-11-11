@@ -16,11 +16,14 @@ export const AuthProvider = ({ children }) => {
 	const [user, setUser] = useState(null);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [loading, setLoading] = useState(true);
+	// expose current access token string to consumers
+	const [token, setToken] = useState(null);
 
 	// Function to clear all authentication state
 	const clearAuth = useCallback(() => {
 		setUser(null);
 		setIsAuthenticated(false);
+		setToken(null);
 		removeToken();
 		setLoading(false);
 	}, []);
@@ -28,8 +31,10 @@ export const AuthProvider = ({ children }) => {
 	// Unified function to check token and fetch fresh user data from the backend
 	const checkAuthStatus = useCallback(async () => {
 		setLoading(true);
-		const { accessToken } = getToken();
+		const tokens = getToken();
+		const accessToken = tokens?.accessToken || null;
 
+		// If no token or token invalid, clear local auth state
 		if (!accessToken || !isTokenValid()) {
 			clearAuth();
 			return;
@@ -53,6 +58,7 @@ export const AuthProvider = ({ children }) => {
 
 			setUser(currentUser);
 			setIsAuthenticated(true);
+			setToken(accessToken);
 		} catch (error) {
 			console.error('Authentication check failed, clearing session:', error);
 			clearAuth();
@@ -131,6 +137,7 @@ export const AuthProvider = ({ children }) => {
 				user,
 				isAuthenticated,
 				loading,
+				token, // <- expose access token string for consumers
 				loginMember,
 				logoutMember,
 				loginAdmin,

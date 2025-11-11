@@ -27,7 +27,6 @@ import {
 } from '../../hooks/useMembers.js';
 import { memberRegister } from '../../services/authServices.js';
 import LoadingSpinner from './LoadingSpinner.jsx';
-import ErrorMessage from './ErrorMessage.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import Modal from './Modal.jsx';
 
