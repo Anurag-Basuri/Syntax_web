@@ -4,7 +4,7 @@ import { apiClient, publicClient } from './api.js';
 export const submitApplication = async (applicationData) => {
 	try {
 		const response = await publicClient.post('/api/v1/apply', applicationData);
-		return response.data.data ?? response.data;
+		return response.data?.data ?? response.data;
 	} catch (error) {
 		throw new Error(error.response?.data?.message || 'Failed to submit application.');
 	}
@@ -14,23 +14,49 @@ export const submitApplication = async (applicationData) => {
 export const getApplicationStats = async () => {
 	try {
 		const response = await apiClient.get('/api/v1/apply/stats');
-		// Normalise: return the inner stats object when present
 		const payload = response.data?.data ?? response.data;
-		// If server returned { stats: { ... } }, return the stats object directly
 		return payload?.stats ?? payload;
 	} catch (error) {
 		throw new Error(error.message || 'Failed to fetch application stats.');
 	}
 };
 
+// Helper to normalize paginated responses into a stable shape
+const normalizePaginated = (payload = {}, params = {}) => {
+	const source = payload.docs ? payload : payload.data ?? payload;
+
+	const docs = source.docs ?? (Array.isArray(source) ? source : []);
+	const totalDocs = source.totalDocs ?? source.total ?? docs.length;
+	const limit = source.limit ?? params.limit ?? 10;
+	const page = source.page ?? source.currentPage ?? params.page ?? 1;
+	const totalPages =
+		source.totalPages ??
+		(limit ? Math.ceil(totalDocs / limit) : Math.ceil(docs.length / (params.limit || 10)));
+
+	return {
+		docs,
+		totalDocs,
+		totalPages,
+		page: Number(page),
+		limit: Number(limit),
+		hasNextPage: source.hasNextPage ?? page < totalPages,
+		hasPrevPage: source.hasPrevPage ?? page > 1,
+		_raw: payload,
+	};
+};
+
 // Fetches all applications with filtering and pagination (Admin only).
-export const getAllApplications = async (params) => {
+export const getAllApplications = async (params = {}) => {
 	try {
 		const response = await apiClient.get('/api/v1/apply', { params });
-		console.log('Fetched applications:', response.data);
-		return response.data?.data ?? response.data;
+		const payload = response.data?.data ?? response.data;
+		// Return normalized paginated object always
+		return normalizePaginated(payload, params);
 	} catch (error) {
-		throw new Error(error.message || 'Failed to fetch applications.');
+		// Surface server message when available
+		const msg =
+			error.response?.data?.message ?? error.message ?? 'Failed to fetch applications.';
+		throw new Error(msg);
 	}
 };
 
@@ -50,7 +76,7 @@ export const updateApplicationStatus = async (id, status) => {
 		const response = await apiClient.patch(`/api/v1/apply/${id}/status`, { status });
 		return response.data?.data ?? response.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to update application status.');
+		throw new Error(error.response?.data?.message || 'Failed to update application status.');
 	}
 };
 
@@ -60,7 +86,7 @@ export const markApplicationAsSeen = async (id) => {
 		const response = await apiClient.patch(`/api/v1/apply/${id}/seen`);
 		return response.data?.data ?? response.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to mark application as seen.');
+		throw new Error(error.response?.data?.message || 'Failed to mark application as seen.');
 	}
 };
 
@@ -70,7 +96,7 @@ export const bulkUpdateApplicationStatus = async (ids, status) => {
 		const response = await apiClient.patch('/api/v1/apply/bulk/status', { ids, status });
 		return response.data?.data ?? response.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to perform bulk update.');
+		throw new Error(error.response?.data?.message || 'Failed to perform bulk update.');
 	}
 };
 
@@ -80,6 +106,6 @@ export const deleteApplication = async (id) => {
 		const response = await apiClient.delete(`/api/v1/apply/${id}`);
 		return response.data?.data ?? response.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to delete application.');
+		throw new Error(error.response?.data?.message || 'Failed to delete application.');
 	}
 };
