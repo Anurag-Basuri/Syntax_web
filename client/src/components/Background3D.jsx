@@ -369,7 +369,7 @@ const Grid = ({ theme, breakpoint }) => {
 };
 
 // Floating Logo Component
-const FloatingLogo = ({ breakpoint }) => {
+const FloatingLogo = ({ breakpoint, logoOpacity = 0.32 }) => {
 	const base = useRef();
 	const texture = useTexture(logo);
 
@@ -418,7 +418,13 @@ const FloatingLogo = ({ breakpoint }) => {
 		<group ref={base} position={[0, 0, -10]} renderOrder={1}>
 			<mesh>
 				<planeGeometry args={[1, 1]} />
-				<meshBasicMaterial map={texture} transparent depthWrite={false} opacity={1.0} />
+				{/* lowered opacity so logo is unobtrusive */}
+				<meshBasicMaterial
+					map={texture}
+					transparent
+					depthWrite={false}
+					opacity={logoOpacity}
+				/>
 			</mesh>
 		</group>
 	);
@@ -428,6 +434,11 @@ const FloatingLogo = ({ breakpoint }) => {
 const Background3D = () => {
 	const theme = useTheme();
 	const { breakpoint } = useResponsive();
+
+	// reduce overall background prominence (tweak values to taste)
+	const backgroundOpacity = useMemo(() => (theme === 'light' ? 0.55 : 0.6), [theme]);
+	// logo-specific opacity (much lower so logo doesn't draw attention)
+	const logoOpacity = useMemo(() => (theme === 'light' ? 0.28 : 0.32), [theme]);
 
 	const [webglOk, setWebglOk] = useState(true);
 	useEffect(() => {
@@ -450,7 +461,12 @@ const Background3D = () => {
 	}
 
 	return (
-		<div className="fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+		<div
+			className="fixed inset-0 -z-10 overflow-hidden"
+			aria-hidden="true"
+			// apply a wrapper opacity so entire background (grid + logo) is visually muted
+			style={{ opacity: backgroundOpacity }}
+		>
 			<Canvas
 				camera={cameraConfig}
 				gl={{
@@ -464,9 +480,11 @@ const Background3D = () => {
 					gl.outputColorSpace = THREE.SRGBColorSpace;
 				}}
 			>
+				{/* pass opacity to Grid via theme/uniforms (uGlobalFade is set in Grid's uniforms) */}
 				<Grid theme={theme} breakpoint={breakpoint} />
 				<Suspense fallback={null}>
-					<FloatingLogo breakpoint={breakpoint} />
+					{/* pass logoOpacity down by leveraging the existing FloatingLogo component's mesh material below */}
+					<FloatingLogo breakpoint={breakpoint} logoOpacity={logoOpacity} />
 				</Suspense>
 			</Canvas>
 		</div>
