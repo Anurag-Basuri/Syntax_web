@@ -30,13 +30,38 @@ const ContactPage = () => {
 		setFormData((s) => ({ ...s, [name]: value }));
 	};
 
+	// Normalize phone: accept formats like +91 98765 43210, 0919876543210, 919876543210, 09876543210, (98765)43210, etc.
+	// Strategy:
+	//  - remove non-digits
+	//  - if digits length === 10 => ok
+	//  - if starts with '0' and len === 11 => drop leading 0
+	//  - if starts with '91' and len === 12 => drop '91'
+	//  - otherwise if len > 10 => take last 10 digits (fallback)
+	//  - otherwise invalid
+	const normalizePhone = (raw) => {
+		if (!raw) return null;
+		const digits = String(raw).replace(/\D/g, '');
+		if (!digits) return null;
+
+		if (digits.length === 10) return digits;
+		if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+		if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+		// common input like '9198...' (length 12) handle dropping leading country code
+		if (digits.length > 10) return digits.slice(-10);
+		return null;
+	};
+
 	const validate = (data) => {
 		if (!data.name.trim()) return 'Name is required';
 		if (!data.email.trim()) return 'Email is required';
 		// simple email check
 		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return 'Invalid email';
 		if (!data.phone.trim()) return 'Phone is required';
-		if (!/^\+?\d{7,15}$/.test(data.phone.replace(/\s+/g, ''))) return 'Invalid phone';
+
+		const normalized = normalizePhone(data.phone);
+		if (!normalized)
+			return 'Invalid phone — please enter a 10-digit mobile number (country code +91 or leading zero are supported)';
+		// LPU ID basic check
 		if (!data.lpuID.trim()) return 'LPU ID is required';
 		if (!/^\d{4,12}$/.test(data.lpuID)) return 'LPU ID looks invalid';
 		if (!data.subject.trim()) return 'Subject is required';
@@ -54,9 +79,23 @@ const ContactPage = () => {
 			return toast.error(v);
 		}
 
+		// Normalize phone for sending to server (server expects 10-digit number)
+		const normalizedPhone = normalizePhone(formData.phone);
+		if (!normalizedPhone) {
+			const msg = 'Invalid phone number after normalization';
+			setError(msg);
+			return toast.error(msg);
+		}
+
+		const payload = {
+			...formData,
+			phone: Number(normalizedPhone),
+			lpuID: String(formData.lpuID).trim(),
+		};
+
 		setLoading(true);
 		try {
-			await sendContactMessage(formData);
+			await sendContactMessage(payload);
 			setSuccess(true);
 			toast.success('Message sent — thank you!');
 			setFormData({ name: '', email: '', phone: '', lpuID: '', subject: '', message: '' });
@@ -206,7 +245,7 @@ const ContactPage = () => {
 											onChange={handleChange}
 											required
 											className="px-4 py-3 rounded-lg bg-transparent border border-white/10 focus:outline-none"
-											placeholder="+91 98765 43210"
+											placeholder="+91 98765 43210 or 09876543210"
 										/>
 									</label>
 								</div>
