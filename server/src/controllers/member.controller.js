@@ -326,22 +326,30 @@ const getLeaders = asyncHandler(async (req, res) => {
 
 // Add this new controller function
 const refreshAccessToken = asyncHandler(async (req, res) => {
-	const incomingRefreshToken = req.body.refreshToken || req.cookies.refreshToken;
+	const incomingRefreshToken = req.body.refreshToken || req.cookies?.refreshToken;
 
 	if (!incomingRefreshToken) {
-		throw new ApiError(401, 'Refresh token is required');
+		throw ApiError.Unauthorized('Refresh token is required');
 	}
 
-	const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+	let decodedToken;
+	try {
+		decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+	} catch (err) {
+		throw ApiError.Unauthorized('Invalid refresh token');
+	}
 
-	const member = await Member.findById(decodedToken._id);
+	// When refresh tokens are created we sign { id: this._id, role: ... }
+	// so read decodedToken.id (not _id).
+	const member = await Member.findById(decodedToken.id).select('+refreshToken');
 
 	if (!member) {
-		throw new ApiError(401, 'Invalid refresh token');
+		throw ApiError.Unauthorized('Invalid refresh token');
 	}
 
+	// Verify the token matches stored refresh token (single-use/session token)
 	if (incomingRefreshToken !== member.refreshToken) {
-		throw new ApiError(401, 'Refresh token is expired or has been used');
+		throw ApiError.Unauthorized('Refresh token is expired or has been used');
 	}
 
 	const accessToken = member.generateAuthToken();
@@ -378,11 +386,7 @@ const getAllMembers = asyncHandler(async (req, res) => {
 	const members = await Member.find().select('-password -refreshToken');
 	const totalMembers = await Member.countDocuments();
 
-	return ApiResponse.success(
-		res,
-		{ members, totalMembers },
-		'Members retrieved successfully'
-	);
+	return ApiResponse.success(res, { members, totalMembers }, 'Members retrieved successfully');
 });
 
 export {

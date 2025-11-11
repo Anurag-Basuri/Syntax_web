@@ -309,7 +309,8 @@ memberSchema.set('toJSON', {
 });
 
 memberSchema.statics.findByLpuID = async function (lpuID) {
-	return this.findOne({ lpuID }).exec();
+	// The model field is 'LpuId' (camel-case) — keep it consistent
+	return this.findOne({ LpuId: lpuID }).exec();
 };
 
 memberSchema.methods.generateAuthToken = function () {
