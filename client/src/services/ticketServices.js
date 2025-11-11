@@ -31,12 +31,17 @@ export const getTicketById = async (ticketId) => {
 };
 
 // Fetches tickets with filtering by event (Admin only).
-export const getTicketsByEvent = async (params) => {
+export const getTicketsByEvent = async (params = {}) => {
 	try {
-		const response = await apiClient.get('/api/v1/tickets', { params });
+		// Ensure we request enough items to show all tickets/graphs in the admin UI.
+		// You can tweak this value if you expect more tickets.
+		const paramsWithLimit = { ...params, limit: params.limit ?? 10000 };
+		const response = await apiClient.get('/api/v1/tickets', { params: paramsWithLimit });
 		return response.data;
 	} catch (error) {
-		throw new Error(error.message || 'Failed to fetch tickets.');
+		// Preserve any server message when possible
+		const msg = error.response?.data?.message || error.message || 'Failed to fetch tickets.';
+		throw new Error(msg);
 	}
 };
 

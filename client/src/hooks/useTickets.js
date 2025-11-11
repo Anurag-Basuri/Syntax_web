@@ -24,7 +24,8 @@ export const useGetTicketsByEvent = () => {
 		setLoading(true);
 		setError(null);
 		try {
-			const params = { eventId };
+			// Request a large limit so admin UI receives all tickets (graphs will reflect full set).
+			const params = { eventId, limit: 10000 };
 			const response = await getTicketsByEventService(params, token);
 			// response may be { data: {...} } or full payload depending on service
 			const payload = response?.data ?? response ?? {};
