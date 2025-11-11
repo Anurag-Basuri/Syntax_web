@@ -17,6 +17,8 @@ import {
 	CheckCircle,
 	AlertCircle,
 	Loader2,
+	ChevronsLeft,
+	ChevronsRight,
 } from 'lucide-react';
 import {
 	useGetAllMembers,
@@ -43,7 +45,7 @@ const DEPARTMENT_OPTIONS = [
 	'Coordinator',
 	'PR',
 ];
-const DESIGNATION_OPTIONS = ['CEO', 'CTO', 'CFO', 'CMO', 'COO', 'Head', 'member'];
+const DESIGNATION_OPTIONS = ['CEO', 'CTO', 'CFO', 'CMO', 'COO', 'HR', 'Head', 'member'];
 
 const statusString = (member) => {
 	if (member.status === 'banned') return 'Banned';
@@ -184,6 +186,102 @@ const MemberRow = React.memo(({ member, onEdit, onBan, onUnban, onRemove, action
 		</td>
 	</tr>
 ));
+
+// Small card view for mobile (responsive)
+const MemberCard = React.memo(({ member, onEdit, onBan, onUnban, onRemove, actionLoading }) => {
+	return (
+		<div className="bg-gray-800 border border-gray-700 rounded-lg p-4 flex flex-col gap-3">
+			<div className="flex items-start gap-3">
+				<div className="flex-shrink-0 h-12 w-12 rounded-full bg-gray-700 flex items-center justify-center">
+					<User className="h-6 w-6 text-gray-400" />
+				</div>
+				<div className="flex-1">
+					<div className="flex items-center justify-between gap-2">
+						<div>
+							<div className="text-sm font-semibold text-white">
+								{member.fullname}
+							</div>
+							<div className="text-xs text-gray-400">{member.email}</div>
+						</div>
+						<div className="text-right">
+							<StatusBadge status={member.status} />
+						</div>
+					</div>
+
+					<div className="mt-2 text-xs text-gray-300 grid grid-cols-2 gap-2">
+						<div>
+							<div className="text-gray-400">LPU</div>
+							<div className="text-white">{member.LpuId || 'N/A'}</div>
+						</div>
+						<div>
+							<div className="text-gray-400">Dept</div>
+							<div className="text-white">
+								{getFlat(member, 'departmentFlat', 'department') || '-'}
+							</div>
+						</div>
+						<div>
+							<div className="text-gray-400">Designation</div>
+							<div className="text-white">
+								{getFlat(member, 'designationFlat', 'designation') || '-'}
+							</div>
+						</div>
+						<div>
+							<div className="text-gray-400">Status</div>
+							<div className="text-white">{statusString(member)}</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div className="flex items-center justify-between gap-2 pt-2">
+				<div className="flex items-center gap-2">
+					<button
+						className="text-gray-400 hover:text-gray-200 p-2 rounded"
+						title="Edit"
+						onClick={() => onEdit(member)}
+						disabled={actionLoading}
+					>
+						<Pencil className="h-4 w-4" />
+					</button>
+					{member.status === 'active' && (
+						<>
+							<button
+								onClick={() => onBan(member)}
+								className="text-yellow-500 hover:text-yellow-400 p-2 rounded"
+								title="Ban member"
+								disabled={actionLoading}
+							>
+								<Ban className="h-4 w-4" />
+							</button>
+							<button
+								onClick={() => onRemove(member)}
+								className="text-red-500 hover:text-red-400 p-2 rounded"
+								title="Remove member"
+								disabled={actionLoading}
+							>
+								<Trash2 className="h-4 w-4" />
+							</button>
+						</>
+					)}
+					{member.status === 'banned' && (
+						<button
+							onClick={() => onUnban(member)}
+							className="text-green-500 hover:text-green-400 p-2 rounded"
+							title="Unban member"
+							disabled={actionLoading}
+						>
+							<RotateCcw className="h-4 w-4" />
+						</button>
+					)}
+				</div>
+
+				<div className="text-xs text-gray-400">
+					{member.restriction?.isRestricted ? 'Restricted' : ''}
+				</div>
+			</div>
+		</div>
+	);
+});
 
 // Action Modal Component (guard member presence)
 const ActionModal = ({ isOpen, onClose, title, actionType, member, onSubmit, loading, error }) => {
@@ -583,10 +681,16 @@ const RegisterMemberModal = ({ isOpen, onClose, onSubmit, loading, error, succes
 
 // MembersTab (main) — minor UI improvements + safer handlers
 const MembersTab = ({ token, setDashboardError }) => {
+	// debounce search: input vs applied query
+	const [searchInput, setSearchInput] = useState('');
 	const [searchTerm, setSearchTerm] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [departmentFilter, setDepartmentFilter] = useState('all');
 	const [showFilters, setShowFilters] = useState(false);
+
+	// Pagination
+	const [page, setPage] = useState(1);
+	const PAGE_SIZE = 10;
 
 	// Modal states
 	const [banModalOpen, setBanModalOpen] = useState(false);
@@ -605,6 +709,7 @@ const MembersTab = ({ token, setDashboardError }) => {
 	const {
 		getAllMembers,
 		members,
+		totalMembers,
 		loading: membersLoading,
 		error: membersError,
 	} = useGetAllMembers();
@@ -628,6 +733,12 @@ const MembersTab = ({ token, setDashboardError }) => {
 		error: updateError,
 		reset: resetUpdate,
 	} = useUpdateMemberByAdmin();
+
+	// debounce effect for search input
+	useEffect(() => {
+		const t = setTimeout(() => setSearchTerm(searchInput), 250);
+		return () => clearTimeout(t);
+	}, [searchInput]);
 
 	// helper to extract message
 	const formatError = useCallback((err) => {
@@ -659,6 +770,11 @@ const MembersTab = ({ token, setDashboardError }) => {
 		if (removeError) setError('remove', formatError(removeError));
 		if (updateError) setError('update', formatError(updateError));
 	}, [membersError, banError, unbanError, removeError, updateError, formatError, setError]);
+
+	// Reset page when filters/search change
+	useEffect(() => {
+		setPage(1);
+	}, [searchTerm, statusFilter, departmentFilter, members?.length]);
 
 	// Handle ban member
 	const handleBanMember = async (id, reason, reviewTime) => {
@@ -771,6 +887,14 @@ const MembersTab = ({ token, setDashboardError }) => {
 		});
 	}, [members, searchTerm, statusFilter, departmentFilter]);
 
+	// Pagination calculations
+	const totalFiltered = filteredMembers.length;
+	const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+	const paginatedMembers = useMemo(() => {
+		const start = (page - 1) * PAGE_SIZE;
+		return filteredMembers.slice(start, start + PAGE_SIZE);
+	}, [filteredMembers, page]);
+
 	// Open edit modal
 	const openEditModal = (member) => {
 		setSelectedMember(member);
@@ -811,9 +935,7 @@ const MembersTab = ({ token, setDashboardError }) => {
 			<div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
 				<h2 className="text-xl font-bold text-white flex items-center gap-3">
 					Member Management
-					<span className="text-sm text-gray-400 font-medium">
-						({members?.length ?? 0})
-					</span>
+					<span className="text-sm text-gray-400 font-medium">({totalMembers ?? 0})</span>
 				</h2>
 				<div className="flex gap-2 w-full md:w-auto">
 					<div className="relative w-full md:w-64">
@@ -822,14 +944,14 @@ const MembersTab = ({ token, setDashboardError }) => {
 							type="text"
 							placeholder="Search members by name, email or LPU ID"
 							className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-							value={searchTerm}
-							onChange={(e) => setSearchTerm(e.target.value)}
+							value={searchInput}
+							onChange={(e) => setSearchInput(e.target.value)}
 							aria-label="Search members"
 						/>
 					</div>
 					<button
 						className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition"
-						onClick={() => setShowFilters(!showFilters)}
+						onClick={() => setShowFilters((v) => !v)}
 						aria-expanded={showFilters}
 					>
 						<Filter className="h-5 w-5" />
@@ -854,7 +976,7 @@ const MembersTab = ({ token, setDashboardError }) => {
 			{/* Filters Panel */}
 			{showFilters && (
 				<div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
 						<div>
 							<label className="block text-gray-300 mb-2">Status</label>
 							<select
@@ -883,6 +1005,25 @@ const MembersTab = ({ token, setDashboardError }) => {
 								))}
 							</select>
 						</div>
+						<div className="flex gap-2">
+							<button
+								className="px-4 py-2 bg-gray-700 rounded-lg text-white hover:bg-gray-600"
+								onClick={() => {
+									setStatusFilter('all');
+									setDepartmentFilter('all');
+								}}
+							>
+								Clear
+							</button>
+							<button
+								className="px-4 py-2 bg-blue-600 rounded-lg text-white hover:bg-blue-500"
+								onClick={() => {
+									setShowFilters(false);
+								}}
+							>
+								Apply
+							</button>
+						</div>
 					</div>
 				</div>
 			)}
@@ -906,60 +1047,119 @@ const MembersTab = ({ token, setDashboardError }) => {
 
 			{membersLoading ? (
 				<LoadingSpinner />
-			) : filteredMembers.length === 0 ? (
+			) : totalFiltered === 0 ? (
 				<div className="text-center py-12 bg-gray-700/30 rounded-xl border border-gray-600">
 					<Users className="h-12 w-12 mx-auto text-gray-500" />
 					<h3 className="text-xl font-bold text-gray-400 mt-4">No members found</h3>
 					<p className="text-gray-500 mt-2">Try adjusting your search or filters</p>
+					<button
+						className="mt-4 px-4 py-2 bg-blue-600 rounded-lg text-white"
+						onClick={() => setRegisterModalOpen(true)}
+					>
+						Add first member
+					</button>
 				</div>
 			) : (
-				<div className="overflow-x-auto rounded-lg border border-gray-700">
-					<table className="min-w-full divide-y divide-gray-700">
-						<thead className="bg-gray-750 sticky top-0">
-							<tr>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Name
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Email
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									LPU ID
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Department
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Designation
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Status
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Restriction
-								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-									Actions
-								</th>
-							</tr>
-						</thead>
-						<tbody className="bg-gray-800 divide-y divide-gray-700">
-							{filteredMembers.map((member) => (
-								<MemberRow
-									key={member._id}
-									member={member}
-									onEdit={openEditModal}
-									onBan={openBanModal}
-									onUnban={handleUnbanMember}
-									onRemove={openRemoveModal}
-									actionLoading={
-										banLoading || unbanLoading || removeLoading || updateLoading
-									}
-								/>
-							))}
-						</tbody>
-					</table>
-				</div>
+				<>
+					{/* Desktop table */}
+					<div className="hidden md:block overflow-x-auto rounded-lg border border-gray-700">
+						<table className="min-w-full divide-y divide-gray-700">
+							<thead className="bg-gray-750 sticky top-0">
+								<tr>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Name
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Email
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										LPU ID
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Department
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Designation
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Status
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Restriction
+									</th>
+									<th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+										Actions
+									</th>
+								</tr>
+							</thead>
+							<tbody className="bg-gray-800 divide-y divide-gray-700">
+								{paginatedMembers.map((member) => (
+									<MemberRow
+										key={member._id}
+										member={member}
+										onEdit={openEditModal}
+										onBan={openBanModal}
+										onUnban={handleUnbanMember}
+										onRemove={openRemoveModal}
+										actionLoading={
+											banLoading ||
+											unbanLoading ||
+											removeLoading ||
+											updateLoading
+										}
+									/>
+								))}
+							</tbody>
+						</table>
+					</div>
+
+					{/* Mobile cards */}
+					<div className="md:hidden grid grid-cols-1 gap-3">
+						{paginatedMembers.map((member) => (
+							<MemberCard
+								key={member._id}
+								member={member}
+								onEdit={openEditModal}
+								onBan={openBanModal}
+								onUnban={handleUnbanMember}
+								onRemove={openRemoveModal}
+								actionLoading={
+									banLoading || unbanLoading || removeLoading || updateLoading
+								}
+							/>
+						))}
+					</div>
+
+					{/* Pagination */}
+					<div className="flex items-center justify-between gap-4 mt-4">
+						<div className="text-sm text-gray-400">
+							Showing {(page - 1) * PAGE_SIZE + 1}–
+							{Math.min(page * PAGE_SIZE, totalFiltered)} of {totalFiltered} result
+							{totalFiltered > 1 ? 's' : ''}
+						</div>
+						<div className="flex items-center gap-2">
+							<button
+								className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+								onClick={() => setPage((p) => Math.max(1, p - 1))}
+								disabled={page <= 1}
+								aria-label="Previous page"
+							>
+								<ChevronsLeft className="h-4 w-4 text-white" />
+							</button>
+							<div className="text-sm text-gray-300 px-3">
+								Page {page} / {totalPages}
+							</div>
+							<button
+								className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+								onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+								disabled={page >= totalPages}
+								aria-label="Next page"
+							>
+								<ChevronsRight className="h-4 w-4 text-white" />
+							</button>
+						</div>
+					</div>
+				</>
 			)}
 
 			{/* Modals (unchanged usage) */}
