@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
 	useGetAllContacts,
 	useGetContactById,
@@ -15,18 +15,8 @@ const ShowContacts = () => {
 		error: errorContact,
 		reset: resetContact,
 	} = useGetContactById();
-	const {
-		markAsResolved,
-		loading: resolving,
-		error: errorResolve,
-		reset: resetResolve,
-	} = useMarkContactAsResolved();
-	const {
-		deleteContact,
-		loading: deleting,
-		error: errorDelete,
-		reset: resetDelete,
-	} = useDeleteContact();
+	const { markAsResolved, loading: resolving, error: errorResolve } = useMarkContactAsResolved();
+	const { deleteContact, loading: deleting } = useDeleteContact();
 
 	const [contacts, setContacts] = useState([]);
 	const [page, setPage] = useState(1);
@@ -41,14 +31,34 @@ const ShowContacts = () => {
 	const [exportType, setExportType] = useState('current');
 	const [exportFormat, setExportFormat] = useState('csv');
 	const [copiedEmail, setCopiedEmail] = useState(null);
-
-	// responsive: mobile filters toggle
 	const [showMobileFilters, setShowMobileFilters] = useState(false);
+	const [debouncedSearch, setDebouncedSearch] = useState('');
+
+	// debounce searchTerm
+	useEffect(() => {
+		const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
+		return () => clearTimeout(t);
+	}, [searchTerm]);
+
+	const params = useMemo(
+		() => ({
+			page,
+			limit,
+			search: debouncedSearch !== '' ? debouncedSearch : undefined,
+			status: statusFilter !== 'all' ? statusFilter : undefined,
+		}),
+		[page, limit, debouncedSearch, statusFilter]
+	);
 
 	// Fetch contacts for current page via hook
 	const fetchContacts = async (pageNum = 1) => {
 		try {
-			const resp = await getAllContacts({ page: pageNum, limit });
+			const resp = await getAllContacts({
+				page: pageNum,
+				limit,
+				search: debouncedSearch || undefined,
+				status: statusFilter !== 'all' ? statusFilter : undefined,
+			});
 			const docs = resp?.data?.docs || [];
 			setContacts(docs);
 			setTotalPages(resp?.data?.totalPages || 1);
@@ -60,9 +70,14 @@ const ShowContacts = () => {
 	};
 
 	useEffect(() => {
+		// reset page on filter/search change
+		setPage(1);
+	}, [debouncedSearch, statusFilter]);
+
+	useEffect(() => {
 		fetchContacts(page);
 		// eslint-disable-next-line
-	}, [page]);
+	}, [page, debouncedSearch, statusFilter]);
 
 	const handleRefresh = async () => {
 		await fetchContacts(page);
@@ -99,11 +114,9 @@ const ShowContacts = () => {
 		if (!window.confirm('Are you sure you want to delete this contact?')) return;
 		try {
 			await deleteContact(id);
-			if (contacts.length === 1 && page > 1) {
-				setPage(page - 1);
-			} else {
-				await fetchContacts(page);
-			}
+			// refresh
+			if (contacts.length === 1 && page > 1) setPage((p) => p - 1);
+			else await fetchContacts(page);
 			if (expandedId === id) setExpandedId(null);
 		} catch (e) {
 			alert('Failed to delete contact. Please try again.');
@@ -111,12 +124,15 @@ const ShowContacts = () => {
 	};
 
 	const filteredContacts = contacts
-		.filter(
-			(c) =>
-				c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				(c.subject || '').toLowerCase().includes(searchTerm.toLowerCase())
-		)
+		.filter((c) => {
+			const s = debouncedSearch.toLowerCase();
+			return (
+				!s ||
+				c.name.toLowerCase().includes(s) ||
+				c.email.toLowerCase().includes(s) ||
+				(c.subject || '').toLowerCase().includes(s)
+			);
+		})
 		.filter((c) => statusFilter === 'all' || c.status === statusFilter);
 
 	const getStatusColor = (status) => {
