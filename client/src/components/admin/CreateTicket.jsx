@@ -13,7 +13,7 @@ import {
 	AlertTriangle,
 	Loader2,
 } from 'lucide-react';
-import { useCreateTicket } from '../../hooks/useTickets.js';
+import { registerForEvent } from '../../services/ticketServices.js';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^[0-9+\-\s]{7,15}$/;
@@ -48,7 +48,8 @@ const CreateTicket = ({ token, events = [], onClose, loadingEvents = false }) =>
 		hostel: useRef(),
 	};
 
-	const { createTicket, loading } = useCreateTicket();
+	// local submitting state (we didn't change hooks)
+	const [submitting, setSubmitting] = useState(false);
 
 	useEffect(() => {
 		// focus first input on mount
@@ -134,7 +135,9 @@ const CreateTicket = ({ token, events = [], onClose, loadingEvents = false }) =>
 		};
 
 		try {
-			const ticket = await createTicket(payload, token);
+			setSubmitting(true);
+			// call service directly (registerForEvent creates the ticket)
+			const ticket = await registerForEvent(payload);
 			setSuccess(true);
 			setTicketDetails(ticket);
 			setFieldErrors({});
@@ -168,6 +171,8 @@ const CreateTicket = ({ token, events = [], onClose, loadingEvents = false }) =>
 			} else {
 				setError(backend?.message || err?.message || 'Failed to create ticket');
 			}
+		} finally {
+			setSubmitting(false);
 		}
 	};
 
@@ -478,8 +483,7 @@ const CreateTicket = ({ token, events = [], onClose, loadingEvents = false }) =>
 									(events || []).map((event) => ({
 										value: event._id,
 										label: event.title,
-									})),
-									{ ref: refs.eventId }
+									}))
 								)}
 
 								{/* readonly eventName for clarity */}
@@ -494,20 +498,20 @@ const CreateTicket = ({ token, events = [], onClose, loadingEvents = false }) =>
 								type="button"
 								onClick={onClose}
 								className="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-white"
-								disabled={loading}
+								disabled={submitting}
 							>
 								Cancel
 							</button>
 							<button
 								type="submit"
-								disabled={loading || !events?.length}
+								disabled={submitting || !events?.length}
 								className={`px-6 py-2 rounded-lg text-white ${
-									loading
+									submitting
 										? 'bg-blue-500/50 cursor-not-allowed'
 										: 'bg-blue-600 hover:bg-blue-500'
 								} flex items-center justify-center gap-2`}
 							>
-								{loading ? (
+								{submitting ? (
 									<>
 										<Loader2 className="h-4 w-4 animate-spin" />
 										Creating Ticket...
