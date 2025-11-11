@@ -8,11 +8,13 @@ import { apiClient, publicClient } from './api.js';
 export const getAllMembers = async () => {
 	try {
 		const response = await publicClient.get('/api/v1/members/getall');
-		// Ensure always returns { members: [], totalMembers: number }
-		const data = response.data?.data || {};
+		// server returns { members, totalMembers } in data.data
+		const payload = response.data?.data || {};
 		return {
-			members: Array.isArray(data.members) ? data.members : [],
-			totalMembers: data.totalMembers || data.members?.length || 0,
+			members: Array.isArray(payload.members) ? payload.members : [],
+			totalMembers: Number.isInteger(payload.totalMembers)
+				? payload.totalMembers
+				: (payload.members || []).length,
 		};
 	} catch (error) {
 		throw new Error(error.response?.data?.message || 'Failed to fetch members.');
@@ -23,7 +25,8 @@ export const getAllMembers = async () => {
 export const getLeaders = async () => {
 	try {
 		const response = await publicClient.get('/api/v1/members/getleaders');
-		return response.data.data;
+		// backend: { members: leaders } inside data.data
+		return response.data?.data?.members || [];
 	} catch (error) {
 		throw new Error(error.response?.data?.message || 'Failed to fetch leaders.');
 	}
