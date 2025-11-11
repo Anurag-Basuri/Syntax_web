@@ -18,14 +18,14 @@ import { useCreateTicket } from '../../hooks/useTickets.js';
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phoneRegex = /^[0-9+\-\s]{7,15}$/;
 
-const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
+const CreateTicket = ({ token, events = [], onClose, loadingEvents = false }) => {
 	const [formData, setFormData] = useState({
 		fullName: '',
 		email: '',
 		phone: '',
 		lpuId: '',
 		gender: '',
-		hosteler: false,
+		hosteler: 'false', // keep as string for select control
 		hostel: '',
 		course: '',
 		club: '',
@@ -40,7 +40,7 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 
 	// Refs for focusing on error fields
 	const refs = {
-		fullName: useRef(),
+		fullName: firstFieldRef,
 		email: useRef(),
 		eventId: useRef(),
 		phone: useRef(),
@@ -51,24 +51,27 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 	const { createTicket, loading } = useCreateTicket();
 
 	useEffect(() => {
+		// focus first input on mount
 		if (firstFieldRef.current) {
 			firstFieldRef.current.focus();
 		}
 	}, []);
 
 	useEffect(() => {
-		// Update event when events prop changes
+		// Update default event when events prop changes
 		if (events && events.length > 0) {
 			setFormData((prev) => ({
 				...prev,
-				eventId: events[0]._id,
-				eventName: events[0].title,
+				eventId: prev.eventId || events[0]._id,
+				eventName:
+					events.find((ev) => ev._id === (prev.eventId || events[0]._id))?.title ||
+					events[0].title,
 			}));
 		}
 	}, [events]);
 
 	useEffect(() => {
-		// Focus on the first field with error after submit
+		// Focus on the first field with error after validation
 		const firstError = Object.keys(fieldErrors)[0];
 		if (firstError && refs[firstError]?.current) {
 			refs[firstError].current.focus();
@@ -76,22 +79,20 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 	}, [fieldErrors]);
 
 	const handleChange = (e) => {
-		const { name, value, type } = e.target;
-		let newValue = value;
-		// Always keep hosteler as string
-		if (name === 'hosteler') {
-			newValue = value;
-		}
-		setFormData((prev) => ({
-			...prev,
-			[name]: newValue,
-			...(name === 'eventId' && events
-				? {
-						eventName: events.find((ev) => ev._id === value)?.title || '',
-					}
-				: {}),
-			...(name === 'hosteler' && value === 'false' ? { hostel: '' } : {}),
-		}));
+		const { name, value } = e.target;
+		setFormData((prev) => {
+			const next = {
+				...prev,
+				[name]: value,
+			};
+			if (name === 'eventId') {
+				const ev = events.find((ev) => ev._id === value);
+				next.eventName = ev?.title || '';
+			}
+			// if hosteler changed to false, clear hostel
+			if (name === 'hosteler' && value === 'false') next.hostel = '';
+			return next;
+		});
 		if (fieldErrors[name]) {
 			setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
 		}
@@ -105,7 +106,7 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 		if (!formData.eventId) errors.eventId = 'Event selection is required';
 		if (formData.phone && !phoneRegex.test(formData.phone))
 			errors.phone = 'Enter a valid phone number';
-		if (formData.gender && !['Male', 'Female'].includes(formData.gender))
+		if (formData.gender && !['Male', 'Female', 'Other', ''].includes(formData.gender))
 			errors.gender = 'Select a valid gender';
 		if (formData.hosteler === 'true' && !formData.hostel.trim())
 			errors.hostel = 'Hostel name is required';
@@ -129,7 +130,7 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 		const payload = {
 			...formData,
 			hosteler: formData.hosteler === 'true',
-			gender: formData.gender,
+			gender: formData.gender || undefined,
 		};
 
 		try {
@@ -137,41 +138,57 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 			setSuccess(true);
 			setTicketDetails(ticket);
 			setFieldErrors({});
-			setFormData({
+			// reset form but keep selected event
+			setFormData((prev) => ({
 				fullName: '',
 				email: '',
 				phone: '',
 				lpuId: '',
 				gender: '',
-				hosteler: false,
+				hosteler: 'false',
 				hostel: '',
 				course: '',
 				club: '',
-				eventId: events?.[0]?._id || '',
-				eventName: events?.[0]?.title || '',
-			});
+				eventId: prev.eventId || events?.[0]?._id || '',
+				eventName: prev.eventName || events?.[0]?.title || '',
+			}));
 		} catch (err) {
-			if (err?.response?.data?.errors) {
-				const backendErrors = err.response.data.errors;
+			// normalize backend validation shape
+			const backend = err?.response?.data;
+			if (backend?.errors) {
+				const backendErrors = backend.errors;
 				const newFieldErrors = Array.isArray(backendErrors)
 					? backendErrors.reduce((acc, e) => {
-							if (e.path && e.msg) acc[e.path] = e.msg;
+							if (e.param || e.path) acc[e.param || e.path] = e.msg || e.message;
 							return acc;
-						}, {})
+					  }, {})
 					: backendErrors;
 				setFieldErrors(newFieldErrors);
 				setError('Please correct the highlighted fields.');
 			} else {
-				setError(err?.response?.data?.message || err?.message || 'Failed to create ticket');
+				setError(backend?.message || err?.message || 'Failed to create ticket');
 			}
 		}
 	};
 
 	// Helper function to render input field
-	const renderField = (name, label, icon, type = 'text', options = [], extraProps = {}) => {
-		const Icon = icon;
+	const renderField = (
+		name,
+		label,
+		IconComp = null,
+		type = 'text',
+		options = [],
+		extraProps = {}
+	) => {
+		const Icon = IconComp;
 		const hasError = !!fieldErrors[name];
-		const refProp = extraProps.ref || refs[name];
+		const refProp = refs[name];
+
+		// Normalize options (strings -> {value,label})
+		const normalizedOptions =
+			Array.isArray(options) && options.length > 0 && typeof options[0] === 'string'
+				? options.map((o) => ({ value: o, label: o }))
+				: options;
 
 		return (
 			<div>
@@ -179,7 +196,7 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 					{label}
 				</label>
 				<div className="relative">
-					{icon && (
+					{Icon && (
 						<Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
 					)}
 					{type === 'select' ? (
@@ -189,16 +206,24 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 							ref={refProp}
 							value={formData[name]}
 							onChange={handleChange}
-							className={`w-full ${icon ? 'pl-10' : 'pl-4'} pr-4 py-2 bg-gray-700/50 border ${
+							className={`w-full ${
+								Icon ? 'pl-10' : 'pl-4'
+							} pr-4 py-2 bg-gray-700/50 border ${
 								hasError ? 'border-red-500' : 'border-gray-600'
-							} rounded-lg text-white focus:outline-none focus:ring-2 ${
-								hasError ? 'focus:ring-red-500' : 'focus:ring-blue-500'
+							} rounded-lg text-white focus:outline-none ${
+								hasError
+									? 'focus:ring-2 focus:ring-red-500'
+									: 'focus:ring-2 focus:ring-blue-500'
 							} ${extraProps.disabled ? 'cursor-not-allowed opacity-70' : ''}`}
 							aria-invalid={hasError}
 							{...extraProps}
 						>
-							{options.map((option) => (
-								<option key={option.value} value={option.value}>
+							{/* if no options provided and eventId select expected, fallback to events prop */}
+							{(normalizedOptions.length > 0
+								? normalizedOptions
+								: events.map((ev) => ({ value: ev._id, label: ev.title }))
+							).map((option) => (
+								<option key={option.value} value={String(option.value)}>
 									{option.label}
 								</option>
 							))}
@@ -211,10 +236,14 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 							ref={refProp}
 							value={formData[name]}
 							onChange={handleChange}
-							className={`w-full ${icon ? 'pl-10' : 'pl-4'} pr-4 py-2 bg-gray-700/50 border ${
+							className={`w-full ${
+								Icon ? 'pl-10' : 'pl-4'
+							} pr-4 py-2 bg-gray-700/50 border ${
 								hasError ? 'border-red-500' : 'border-gray-600'
-							} rounded-lg text-white focus:outline-none focus:ring-2 ${
-								hasError ? 'focus:ring-red-500' : 'focus:ring-blue-500'
+							} rounded-lg text-white focus:outline-none ${
+								hasError
+									? 'focus:ring-2 focus:ring-red-500'
+									: 'focus:ring-2 focus:ring-blue-500'
 							} ${extraProps.disabled ? 'cursor-not-allowed opacity-70' : ''}`}
 							placeholder={extraProps.placeholder || ''}
 							autoComplete="off"
@@ -391,8 +420,6 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 
 								{renderField('fullName', 'Full Name *', User, 'text', [], {
 									placeholder: 'John Doe',
-									ref: firstFieldRef,
-									autoFocus: true,
 								})}
 
 								{renderField('email', 'Email *', Mail, 'email', [], {
@@ -412,15 +439,16 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 										{ value: '', label: 'Select Gender' },
 										{ value: 'Male', label: 'Male' },
 										{ value: 'Female', label: 'Female' },
+										{ value: 'Other', label: 'Other' },
 									])}
 
 									{renderField('hosteler', 'Hosteler', null, 'select', [
-										{ value: false, label: 'No' },
-										{ value: true, label: 'Yes' },
+										{ value: 'false', label: 'No' },
+										{ value: 'true', label: 'Yes' },
 									])}
 								</div>
 
-								{formData.hosteler &&
+								{formData.hosteler === 'true' &&
 									renderField('hostel', 'Hostel *', Building2, 'text', [], {
 										placeholder: 'Hostel Name',
 									})}
@@ -441,17 +469,20 @@ const CreateTicket = ({ token, events, onClose, loadingEvents }) => {
 									placeholder: 'DSC, IEEE, etc.',
 								})}
 
+								{/* Event select */}
 								{renderField(
 									'eventId',
-									'Event ID',
+									'Event',
 									null,
-									'text',
-									events?.map((event) => ({
+									'select',
+									(events || []).map((event) => ({
 										value: event._id,
-									})) || [],
-									{ disabled: true }
+										label: event.title,
+									})),
+									{ ref: refs.eventId }
 								)}
 
+								{/* readonly eventName for clarity */}
 								{renderField('eventName', 'Event Name', null, 'text', [], {
 									disabled: true,
 								})}
