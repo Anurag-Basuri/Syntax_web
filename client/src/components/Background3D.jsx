@@ -95,15 +95,17 @@ const Grid = ({ theme, breakpoint }) => {
 	const uniforms = useMemo(
 		() => ({
 			uTime: { value: 0 },
-			// Dramatically increased amplitude for powerful 3D effect
 			uWaveAmplitude: { value: breakpoint === 'mobile' ? 3.5 : 5.0 },
 			uWaveFrequency: { value: 0.055 },
-			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.28 },
-			uDepthFade: { value: 0.88 },
-			// Increased opacity for better visibility
-			uWireOpacity: { value: theme === 'light' ? 0.85 : 1.0 },
+			// wave speed kept elevated but respects reduced motion
+			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.38 },
+			uDepthFade: { value: 0.92 }, // slightly increased so distant grid fades more
+			// lowered opacity because this should be a subtle background
+			uWireOpacity: { value: theme === 'light' ? 0.45 : 0.55 }, // lowered from 1.0 / 1.2
 			uWireColor: { value: new THREE.Color(theme === 'light' ? '#94a3b8' : '#64748b') },
 			uAccent: { value: new THREE.Color(readCssVar('--accent-1')) },
+			// global fade to control overall visibility (easier tweak)
+			uGlobalFade: { value: theme === 'light' ? 0.7 : 0.75 },
 			uMouseX: { value: 0 },
 			uMouseY: { value: 0 },
 		}),
@@ -263,7 +265,8 @@ const Grid = ({ theme, breakpoint }) => {
         uniform float uDepthFade;
         uniform vec3 uAccent;
         uniform float uTime;
-        
+        uniform float uGlobalFade; // added
+       
         varying vec2 vUv;
         varying float vDepth;
         varying float vElevation;
@@ -271,66 +274,66 @@ const Grid = ({ theme, breakpoint }) => {
         varying vec3 vWorldPos;
         
         void main() {
-            // Enhanced exponential depth fade
+            // Enhanced exponential depth fade but more aggressive to push grid back
             float depthFade = smoothstep(0.0, uDepthFade, 1.0 - vDepth);
-            depthFade = pow(depthFade, 2.0);
+            depthFade = pow(depthFade, 2.2);
+
+            // Reduce glow strengths so peaks don't become too prominent
+            float elevationGlow = smoothstep(1.0, 3.5, abs(vElevation)) * 0.9;
+            float peakGlow = smoothstep(3.5, 5.5, abs(vElevation)) * 1.0;
             
-            // Advanced elevation-based glow with multiple thresholds
-            float elevationGlow = smoothstep(1.0, 3.5, abs(vElevation)) * 1.5;
-            float peakGlow = smoothstep(3.5, 5.5, abs(vElevation)) * 2.0;
-            
-            // Multi-layer shimmer effects
-            float shimmer1 = sin(uTime * 2.8 + vUv.x * 12.0 + vUv.y * 9.0) * 0.15 + 0.85;
-            float shimmer2 = cos(uTime * 3.5 + vUv.y * 15.0 + vWorldPos.z * 2.0) * 0.1 + 0.9;
+            // Softer shimmer (lower amplitude)
+            float shimmer1 = sin(uTime * 2.2 + vUv.x * 8.0 + vUv.y * 6.0) * 0.08 + 0.92;
+            float shimmer2 = cos(uTime * 2.6 + vUv.y * 10.0 + vWorldPos.z * 1.2) * 0.06 + 0.94;
             float shimmer = shimmer1 * shimmer2;
             
-            // Advanced fresnel with view-dependent highlight
+            // Fresnel-based edge highlight (kept subtle)
             vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
             float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 3.0);
-            float edgeGlow = fresnel * 1.2;
+            float edgeGlow = fresnel * 0.9;
             
-            // Enhanced rim lighting on wave crests
-            float rimLight = smoothstep(2.0, 4.5, vElevation) * fresnel * 1.0;
+            float rimLight = smoothstep(2.0, 4.5, vElevation) * fresnel * 0.6;
             
-            // Depth-based color variation
-            float depthColor = vDepth * 0.3;
+            float depthColor = vDepth * 0.2;
             
-            // Combine all lighting factors
+            // Combine lighting factors with reduced weights
             float totalGlow = clamp(
-                elevationGlow * 0.7 + 
-                peakGlow * 0.5 +
-                edgeGlow * 0.8 + 
-                rimLight * 0.6, 
+                elevationGlow * 0.5 + 
+                peakGlow * 0.35 +
+                edgeGlow * 0.5 + 
+                rimLight * 0.4, 
                 0.0, 1.0
             );
             totalGlow *= shimmer;
             
-            // Enhanced color mixing with dynamic accent influence
-            vec3 baseColor = mix(uWireColor, uWireColor * 1.2, depthColor);
-            vec3 finalColor = mix(baseColor, uAccent, totalGlow * 0.95);
+            // Subtle color mixing
+            vec3 baseColor = mix(uWireColor, uWireColor * 1.08, depthColor);
+            vec3 finalColor = mix(baseColor, uAccent * 0.6, totalGlow * 0.6);
             
-            // Dramatic peak highlighting
+            // Peak highlight softened
             if (vElevation > 2.5) {
                 float peakFactor = smoothstep(2.5, 4.5, vElevation);
-                finalColor = mix(finalColor, uAccent * 1.4, peakFactor * 0.7);
+                finalColor = mix(finalColor, uAccent * 1.1, peakFactor * 0.35);
             }
             
-            // Increased base opacity for better visibility
-            float alpha = uWireOpacity * depthFade * (0.85 + totalGlow * 0.4);
-            
-            // Extra boost for extreme peaks
+            // Make alpha more muted for background use:
+            // apply global fade and reduce multiplier so grid is less prominent
+            float alpha = uWireOpacity * uGlobalFade * depthFade * (0.60 + totalGlow * 0.25); // reduced base
+
+            // Moderate extra boost for extreme peaks (reduced)
             if (vElevation > 3.5) {
-                alpha += 0.4;
-                finalColor += uAccent * 0.45;
+                alpha += 0.35; // reduced from 0.6
+                finalColor += uAccent * 0.25;
             }
             
-            // Higher minimum visibility for near grid
+            // Lower minimum visibility for near grid to keep it unobtrusive
             if (vDepth < 0.3) {
-                alpha = max(alpha, uWireOpacity * 0.75);
+                alpha = max(alpha, uWireOpacity * 0.6); // reduced minimum
             }
             
+            // Discard very faint fragments
             if (alpha <= 0.01) discard;
-            gl_FragColor = vec4(finalColor, alpha);
+            gl_FragColor = vec4(finalColor, clamp(alpha, 0.0, 0.9));
         }
     `;
 
@@ -354,7 +357,8 @@ const Grid = ({ theme, breakpoint }) => {
 					uniforms={uniforms}
 					transparent={true}
 					depthWrite={false}
-					wireframe={true}
+					// ensure not tone-mapped and blending stays subtle
+					toneMapped={false}
 					side={THREE.DoubleSide}
 					vertexShader={vertexShader}
 					fragmentShader={fragmentShader}
