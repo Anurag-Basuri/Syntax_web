@@ -11,7 +11,7 @@ import {
 	bulkUpdateApplicationStatus as bulkUpdateService,
 } from '../services/applyServices.js';
 import { toast } from 'react-hot-toast';
-import useTheme from '../hooks/useTheme.js'; // added
+import { useTheme } from '../hooks/useTheme.js';
 
 const Toolbar = ({
 	search,

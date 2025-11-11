@@ -6,6 +6,7 @@ import {
 	useDeleteContact,
 } from '../hooks/useContact.js';
 import { toast } from 'react-hot-toast';
+import { useTheme } from '../hooks/useTheme.js';
 
 const Toolbar = ({ search, setSearch, onRefresh, onExport }) => (
 	<div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
@@ -115,6 +116,13 @@ const ShowContacts = () => {
 	const [items, setItems] = useState([]);
 	const [totalPages, setTotalPages] = useState(1);
 
+	const { theme } = useTheme();
+	const isDark = theme === 'dark';
+
+	const contentPanelCls = isDark
+		? 'rounded-2xl p-6 backdrop-blur-md bg-slate-900/40 border border-white/6 text-white'
+		: 'rounded-2xl p-6 backdrop-blur-md bg-white/70 border border-slate-200/20 text-slate-900';
+
 	useEffect(() => {
 		const t = setTimeout(() => setDebounced(search.trim()), 300);
 		return () => clearTimeout(t);
@@ -211,74 +219,79 @@ const ShowContacts = () => {
 
 	return (
 		<section className="max-w-6xl mx-auto p-6">
-			<div className="mb-6 flex items-center justify-between">
-				<div>
-					<h1 className="text-3xl font-bold tracking-tight">Contacts</h1>
-					<div className="text-sm text-slate-400 mt-1">Manage messages and responses</div>
+			{/* glass content wrapper */}
+			<div className={contentPanelCls}>
+				<div className="mb-6 flex items-center justify-between">
+					<div>
+						<h1 className="text-3xl font-bold tracking-tight">Contacts</h1>
+						<div className="text-sm text-slate-400 mt-1">
+							Manage messages and responses
+						</div>
+					</div>
+
+					<select
+						value={status}
+						onChange={(e) => setStatus(e.target.value)}
+						className="bg-white/6 text-white rounded-xl px-3 py-2 border border-white/8"
+					>
+						<option value="all">All</option>
+						<option value="pending">Pending</option>
+						<option value="resolved">Resolved</option>
+					</select>
 				</div>
 
-				<select
-					value={status}
-					onChange={(e) => setStatus(e.target.value)}
-					className="bg-white/6 text-white rounded-xl px-3 py-2 border border-white/8"
-				>
-					<option value="all">All</option>
-					<option value="pending">Pending</option>
-					<option value="resolved">Resolved</option>
-				</select>
+				<Toolbar
+					search={search}
+					setSearch={setSearch}
+					onRefresh={refresh}
+					onExport={exportCsv}
+				/>
+
+				{loading ? (
+					<div className="grid gap-4">
+						{Array.from({ length: 4 }).map((_, i) => (
+							<div key={i} className="h-28 rounded-2xl bg-white/4 animate-pulse" />
+						))}
+					</div>
+				) : error ? (
+					<div className="text-center py-8 text-rose-400">Error loading contacts</div>
+				) : items.length === 0 ? (
+					<div className="text-center py-12 text-slate-400">No contacts found</div>
+				) : (
+					<div className="grid gap-4">
+						{items.map((c) => (
+							<ContactCard
+								key={c._id}
+								c={c}
+								expanded={expandedId === c._id}
+								onToggle={handleToggle}
+								onResolve={handleResolve}
+								onDelete={handleDelete}
+							/>
+						))}
+					</div>
+				)}
+
+				{totalPages > 1 && (
+					<div className="mt-6 flex justify-center gap-3 items-center">
+						<button
+							onClick={() => setPage((p) => Math.max(1, p - 1))}
+							className="px-3 py-1 rounded bg-white/6"
+						>
+							Prev
+						</button>
+						<span className="px-3 py-1 bg-white/5 rounded text-sm">
+							{page} / {totalPages}
+						</span>
+						<button
+							onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+							className="px-3 py-1 rounded bg-white/6"
+						>
+							Next
+						</button>
+					</div>
+				)}
 			</div>
-
-			<Toolbar
-				search={search}
-				setSearch={setSearch}
-				onRefresh={refresh}
-				onExport={exportCsv}
-			/>
-
-			{loading ? (
-				<div className="grid gap-4">
-					{Array.from({ length: 4 }).map((_, i) => (
-						<div key={i} className="h-28 rounded-2xl bg-white/4 animate-pulse" />
-					))}
-				</div>
-			) : error ? (
-				<div className="text-center py-8 text-rose-400">Error loading contacts</div>
-			) : items.length === 0 ? (
-				<div className="text-center py-12 text-slate-400">No contacts found</div>
-			) : (
-				<div className="grid gap-4">
-					{items.map((c) => (
-						<ContactCard
-							key={c._id}
-							c={c}
-							expanded={expandedId === c._id}
-							onToggle={handleToggle}
-							onResolve={handleResolve}
-							onDelete={handleDelete}
-						/>
-					))}
-				</div>
-			)}
-
-			{totalPages > 1 && (
-				<div className="mt-6 flex justify-center gap-3 items-center">
-					<button
-						onClick={() => setPage((p) => Math.max(1, p - 1))}
-						className="px-3 py-1 rounded bg-white/6"
-					>
-						Prev
-					</button>
-					<span className="px-3 py-1 bg-white/5 rounded text-sm">
-						{page} / {totalPages}
-					</span>
-					<button
-						onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-						className="px-3 py-1 rounded bg-white/6"
-					>
-						Next
-					</button>
-				</div>
-			)}
 		</section>
 	);
 };
