@@ -105,7 +105,15 @@ const getTicketsByEvent = asyncHandler(async (req, res) => {
 	const { page = 1, limit = 10, eventId, status } = req.query;
 
 	const filter = {};
-	if (eventId) filter.eventId = eventId;
+	if (eventId) {
+		// ensure correct ObjectId type for aggregate matching
+		try {
+			filter.eventId = new mongoose.Types.ObjectId(eventId);
+		} catch (e) {
+			// invalid id -> force no results
+			filter.eventId = null;
+		}
+	}
 	if (status) filter.status = status;
 
 	const options = {
@@ -115,9 +123,19 @@ const getTicketsByEvent = asyncHandler(async (req, res) => {
 		populate: { path: 'eventId', select: 'title' },
 	};
 
-	const tickets = await Ticket.paginate(filter, options);
+	// Build an aggregate pipeline and use the aggregate-paginate plugin (aggregatePaginate)
+	const aggregate = Ticket.aggregate();
+	if (Object.keys(filter).length) {
+		aggregate.match(filter);
+	}
+	if (options.sort) {
+		aggregate.sort(options.sort);
+	}
 
-	// Return empty array if no tickets found, not an error
+	// Use aggregatePaginate provided by mongoose-aggregate-paginate-v2
+	const tickets = await Ticket.aggregatePaginate(aggregate, options);
+
+	// Return paginated response (structure stays the same as before)
 	return ApiResponse.paginated(res, tickets.docs, tickets, 'Tickets retrieved successfully.');
 });
 
