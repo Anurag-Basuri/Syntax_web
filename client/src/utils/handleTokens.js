@@ -1,57 +1,71 @@
-import { jwtDecode } from 'jwt-decode';
+import {jwtDecode} from 'jwt-decode';
 
-export const setToken = (Tokens) => {
+const STORAGE_KEY = 'sc_auth_token';
+
+export const setToken = (tokenOrObject) => {
+	if (!tokenOrObject) {
+		localStorage.removeItem(STORAGE_KEY);
+		return;
+	}
+	let payload;
+	if (typeof tokenOrObject === 'string') payload = { accessToken: tokenOrObject };
+	else if (typeof tokenOrObject === 'object' && tokenOrObject !== null) payload = tokenOrObject;
+	else payload = { accessToken: String(tokenOrObject) };
+
 	try {
-		localStorage.setItem('accessToken', Tokens.accessToken);
-		localStorage.setItem('refreshToken', Tokens.refreshToken);
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 	} catch (err) {
-		console.error('Error saving token', err);
+		try {
+			localStorage.setItem(STORAGE_KEY, String(payload.accessToken || ''));
+		} catch {}
 	}
 };
 
 export const getToken = () => {
+	const raw = localStorage.getItem(STORAGE_KEY);
+	if (!raw) return null;
 	try {
-		const accessToken = localStorage.getItem('accessToken');
-		const refreshToken = localStorage.getItem('refreshToken');
-		return { accessToken, refreshToken };
+		const parsed = JSON.parse(raw);
+		if (typeof parsed === 'string') return { accessToken: parsed };
+		if (typeof parsed === 'object' && parsed !== null) return parsed;
+		return null;
 	} catch (err) {
-		console.error('Error retrieving token', err);
-		return { accessToken: null, refreshToken: null };
+		return { accessToken: raw };
 	}
 };
 
 export const removeToken = () => {
 	try {
-		localStorage.removeItem('accessToken');
-		localStorage.removeItem('refreshToken');
-	} catch (err) {
-		console.error('Error removing token', err);
-	}
+		localStorage.removeItem(STORAGE_KEY);
+	} catch {}
 };
 
 export const decodeToken = (token) => {
+	if (!token || typeof token !== 'string') return null;
 	try {
-		if (!token || typeof token !== 'string') return null;
 		return jwtDecode(token);
 	} catch (err) {
-		console.error('Error decoding token', err);
 		return null;
 	}
 };
 
 export const isTokenExpired = (token) => {
-	if (!token) return true;
 	const decoded = decodeToken(token);
-	if (!decoded || !decoded.exp) return true;
-	return Date.now() >= decoded.exp * 1000;
+	if (!decoded) return true;
+	const exp = decoded.exp;
+	if (!exp) return true;
+	const now = Math.floor(Date.now() / 1000);
+	return exp < now;
 };
 
 export const isTokenValid = () => {
-	const { accessToken } = getToken();
-	return accessToken && !isTokenExpired(accessToken);
+	const tokens = getToken();
+	const accessToken = tokens?.accessToken || null;
+	if (!accessToken) return false;
+	return !isTokenExpired(accessToken);
 };
 
+// Simple boolean: do we have an access token stored locally
 export const shouldBeAuthenticated = () => {
-	const { accessToken, refreshToken } = getToken();
-	return !!(accessToken || refreshToken);
+	return !!getToken()?.accessToken;
 };
