@@ -4,7 +4,7 @@ import { apiClient, publicClient } from './api.js';
 export const submitApplication = async (applicationData) => {
 	try {
 		const response = await publicClient.post('/api/v1/apply', applicationData);
-		return response.data;
+		return response.data.data ?? response.data;
 	} catch (error) {
 		throw new Error(error.response?.data?.message || 'Failed to submit application.');
 	}
@@ -14,7 +14,10 @@ export const submitApplication = async (applicationData) => {
 export const getApplicationStats = async () => {
 	try {
 		const response = await apiClient.get('/api/v1/apply/stats');
-		return response.data.data;
+		// Normalise: return the inner stats object when present
+		const payload = response.data?.data ?? response.data;
+		// If server returned { stats: { ... } }, return the stats object directly
+		return payload?.stats ?? payload;
 	} catch (error) {
 		throw new Error(error.message || 'Failed to fetch application stats.');
 	}
@@ -24,7 +27,8 @@ export const getApplicationStats = async () => {
 export const getAllApplications = async (params) => {
 	try {
 		const response = await apiClient.get('/api/v1/apply', { params });
-		return response.data;
+		// Normalise to return response.data.data if present (ApiResponse wrapper) otherwise full response
+		return response.data?.data ?? response.data;
 	} catch (error) {
 		throw new Error(error.message || 'Failed to fetch applications.');
 	}
@@ -34,7 +38,7 @@ export const getAllApplications = async (params) => {
 export const getApplicationById = async (id) => {
 	try {
 		const response = await apiClient.get(`/api/v1/apply/${id}`);
-		return response.data.data;
+		return response.data?.data ?? response.data;
 	} catch (error) {
 		throw new Error(error.message || 'Failed to fetch application details.');
 	}
@@ -44,7 +48,7 @@ export const getApplicationById = async (id) => {
 export const updateApplicationStatus = async (id, status) => {
 	try {
 		const response = await apiClient.patch(`/api/v1/apply/${id}/status`, { status });
-		return response.data.data;
+		return response.data?.data ?? response.data;
 	} catch (error) {
 		throw new Error(error.message || 'Failed to update application status.');
 	}
@@ -54,7 +58,7 @@ export const updateApplicationStatus = async (id, status) => {
 export const markApplicationAsSeen = async (id) => {
 	try {
 		const response = await apiClient.patch(`/api/v1/apply/${id}/seen`);
-		return response.data.data;
+		return response.data?.data ?? response.data;
 	} catch (error) {
 		throw new Error(error.message || 'Failed to mark application as seen.');
 	}
@@ -64,7 +68,7 @@ export const markApplicationAsSeen = async (id) => {
 export const bulkUpdateApplicationStatus = async (ids, status) => {
 	try {
 		const response = await apiClient.patch('/api/v1/apply/bulk/status', { ids, status });
-		return response.data;
+		return response.data?.data ?? response.data;
 	} catch (error) {
 		throw new Error(error.message || 'Failed to perform bulk update.');
 	}
@@ -74,7 +78,7 @@ export const bulkUpdateApplicationStatus = async (ids, status) => {
 export const deleteApplication = async (id) => {
 	try {
 		const response = await apiClient.delete(`/api/v1/apply/${id}`);
-		return response.data;
+		return response.data?.data ?? response.data;
 	} catch (error) {
 		throw new Error(error.message || 'Failed to delete application.');
 	}
