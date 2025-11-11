@@ -1,25 +1,12 @@
-import { useEffect, useState } from 'react';
-import {
-	useGetAllApplications,
-	useGetApplicationById,
-	useUpdateApplicationStatus,
-	useDeleteApplication,
-	useMarkApplicationAsSeen,
-} from '../hooks/useApply.js';
+import { useEffect, useState, useMemo } from 'react';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useApplications, useApplication, useManageApplication } from '../hooks/useApplications.js';
+import { markApplicationAsSeen } from '../services/applyServices.js';
 
 const ShowApplies = () => {
-	const { getAllApplications, loading } = useGetAllApplications();
-	const { getApplicationById, reset: resetApplication } = useGetApplicationById();
-	const { updateApplicationStatus, loading: updatingStatus } = useUpdateApplicationStatus();
-	const { deleteApplication, loading: deleting } = useDeleteApplication();
-	const { markAsSeen, loading: markLoading } = useMarkApplicationAsSeen();
-
-	const [applications, setApplications] = useState([]);
+	// local view state
 	const [page, setPage] = useState(1);
 	const [limit] = useState(10);
-	const [totalPages, setTotalPages] = useState(1);
-	const [totalDocs, setTotalDocs] = useState(0);
-
 	const [searchTerm, setSearchTerm] = useState('');
 	const [debouncedSearch, setDebouncedSearch] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
@@ -30,43 +17,61 @@ const ShowApplies = () => {
 	const [showExport, setShowExport] = useState(false);
 	const [exportFormat, setExportFormat] = useState('csv');
 	const [showMobileFilters, setShowMobileFilters] = useState(false);
-
 	const [errorMsg, setErrorMsg] = useState(null);
 
-	// debounce search to allow server-side search across pagination without spamming requests
+	const queryClient = useQueryClient();
+
+	// debounce search
 	useEffect(() => {
 		const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 400);
 		return () => clearTimeout(t);
 	}, [searchTerm]);
 
-	const buildQuery = (p = page) => {
-		const q = { page: p, limit };
+	const buildQuery = useMemo(() => {
+		const q = { page, limit };
 		if (statusFilter && statusFilter !== 'all') q.status = statusFilter;
 		if (seenFilter === 'seen') q.seen = 'true';
 		if (seenFilter === 'notseen') q.seen = 'false';
 		if (debouncedSearch) q.search = debouncedSearch;
 		return q;
-	};
+	}, [page, limit, statusFilter, seenFilter, debouncedSearch]);
 
+	// query for list
+	const applicationsQuery = useApplications(buildQuery);
+
+	// detail query for expanded item
+	const applicationDetailQuery = useApplication(expandedId);
+
+	// mutations for update/delete (from hook)
+	const { updateStatus, isUpdating, removeApplication, isDeleting } = useManageApplication();
+
+	// local mutation for mark-as-seen
+	const { mutateAsync: markAsSeenMut, isLoading: markLoading } = useMutation({
+		mutationFn: (id) => markApplicationAsSeen(id),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['applications'] });
+			queryClient.invalidateQueries({ queryKey: ['application'] });
+		},
+		onError: (err) => {
+			console.error('Failed to mark seen:', err);
+		},
+	});
+
+	// derived UI state from query
+	const loading = applicationsQuery.isLoading || applicationsQuery.isFetching;
+	const payload = applicationsQuery.data ?? {};
+	const paginated = payload?.data ?? payload;
+	const applications = paginated?.docs ?? [];
+	const totalPages = paginated?.totalPages ?? 1;
+	const totalDocs = paginated?.totalDocs ?? 0;
+
+	// helper to refresh list
 	const fetchApplications = async (p = page) => {
 		setErrorMsg(null);
 		try {
-			const res = await getAllApplications(buildQuery(p));
-			// normalize possible shapes:
-			// - hook returns ApiResponse { status, data, message } => res.data === paginate object
-			// - hook may return paginate object directly
-			const payload = res?.data ?? res;
-			const paginated = payload?.data ?? payload;
-			const docs = paginated?.docs ?? [];
-			setApplications(docs);
-			setTotalPages(paginated?.totalPages ?? 1);
-			setTotalDocs(paginated?.totalDocs ?? 0);
+			await applicationsQuery.refetch();
 		} catch (err) {
-			// store readable message and clear current page data
-			setErrorMsg((err && (err.message || String(err))) || 'Failed to load applications');
-			setApplications([]);
-			setTotalPages(1);
-			setTotalDocs(0);
+			setErrorMsg(err?.message ?? 'Failed to load applications');
 		}
 	};
 
@@ -75,30 +80,49 @@ const ShowApplies = () => {
 		setPage(1);
 	}, [statusFilter, seenFilter, debouncedSearch]);
 
-	// fetch when page or effective filters change
+	// refetch when page changes (buildQuery memo depends on page so hook will auto-run,
+	// still expose explicit refetch when user presses Refresh)
 	useEffect(() => {
-		fetchApplications(page);
+		// applicationsQuery will auto-fetch because buildQuery changed
+		// nothing else required here
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [page, statusFilter, seenFilter, debouncedSearch]);
+	}, [page]);
 
-	const handleExpand = async (id) => {
+	const handleExpand = (id) => {
 		if (expandedId === id) {
 			setExpandedId(null);
-			resetApplication && resetApplication();
+			// clear detail query cache entry for tidiness (optional)
+			queryClient.removeQueries({ queryKey: ['application', id], exact: true });
 			return;
 		}
 		setExpandedId(id);
-		try {
-			await getApplicationById(id);
-		} catch {
-			// ignore - detail view isn't critical
-		}
+		// useApplication hook will fetch automatically when expandedId is set
 	};
 
 	const handleStatusUpdate = async (id, status) => {
 		try {
-			await updateApplicationStatus(id, status);
-			setApplications((prev) => prev.map((p) => (p._id === id ? { ...p, status } : p)));
+			// wrap mutate to use promise-style callbacks
+			await new Promise((resolve, reject) => {
+				updateStatus(
+					{ id, status },
+					{
+						onSuccess: () => {
+							// optimistic UI update for current page
+							queryClient.setQueryData(['applications', buildQuery], (old) => {
+								if (!old) return old;
+								const data = old?.data ?? old;
+								const docs = data?.docs?.map((d) =>
+									d._id === id ? { ...d, status } : d
+								);
+								const next = { ...data, docs };
+								return { ...old, data: next };
+							});
+							resolve();
+						},
+						onError: (err) => reject(err),
+					}
+				);
+			});
 		} catch (err) {
 			setErrorMsg(err?.message ?? 'Failed to update status');
 		}
@@ -106,8 +130,15 @@ const ShowApplies = () => {
 
 	const handleMarkAsSeen = async (id) => {
 		try {
-			await markAsSeen(id);
-			setApplications((prev) => prev.map((p) => (p._id === id ? { ...p, seen: true } : p)));
+			await markAsSeenMut(id);
+			// update local list quickly
+			queryClient.setQueryData(['applications', buildQuery], (old) => {
+				if (!old) return old;
+				const data = old?.data ?? old;
+				const docs = data?.docs?.map((d) => (d._id === id ? { ...d, seen: true } : d));
+				const next = { ...data, docs };
+				return { ...old, data: next };
+			});
 		} catch (err) {
 			setErrorMsg(err?.message ?? 'Failed to mark seen');
 		}
@@ -116,7 +147,13 @@ const ShowApplies = () => {
 	const handleDelete = async (id) => {
 		if (!window.confirm('Delete this application?')) return;
 		try {
-			await deleteApplication(id);
+			await new Promise((resolve, reject) => {
+				removeApplication(id, {
+					onSuccess: () => resolve(),
+					onError: (err) => reject(err),
+				});
+			});
+			// after delete, refresh current page
 			if (applications.length === 1 && page > 1) {
 				setPage((s) => s - 1);
 			} else {
@@ -580,8 +617,8 @@ const ShowApplies = () => {
 														{s === 'notseen'
 															? 'Not Seen'
 															: s === 'all'
-																? 'All'
-																: 'Seen'}
+															? 'All'
+															: 'Seen'}
 													</span>
 												</label>
 											))}
@@ -726,7 +763,9 @@ const ShowApplies = () => {
 
 												<div className="flex items-start gap-3">
 													<div
-														className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(app.status)}`}
+														className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+															app.status
+														)}`}
 													>
 														{app.status}
 													</div>
@@ -797,12 +836,10 @@ const ShowApplies = () => {
 																	'approved'
 																)
 															}
-															disabled={updatingStatus}
+															disabled={isUpdating}
 															className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
 														>
-															{updatingStatus
-																? 'Updating...'
-																: 'Approve'}
+															{isUpdating ? 'Updating...' : 'Approve'}
 														</button>
 														<button
 															onClick={() =>
@@ -811,12 +848,10 @@ const ShowApplies = () => {
 																	'rejected'
 																)
 															}
-															disabled={updatingStatus}
+															disabled={isUpdating}
 															className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
 														>
-															{updatingStatus
-																? 'Updating...'
-																: 'Reject'}
+															{isUpdating ? 'Updating...' : 'Reject'}
 														</button>
 														<button
 															onClick={() => copyEmail(app.email)}
@@ -836,15 +871,15 @@ const ShowApplies = () => {
 															{markLoading
 																? 'Marking...'
 																: app.seen
-																	? 'Seen'
-																	: 'Mark Seen'}
+																? 'Seen'
+																: 'Mark Seen'}
 														</button>
 														<button
 															onClick={() => handleDelete(app._id)}
-															disabled={deleting}
+															disabled={isDeleting}
 															className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
 														>
-															{deleting ? 'Deleting...' : 'Delete'}
+															{isDeleting ? 'Deleting...' : 'Delete'}
 														</button>
 													</div>
 
