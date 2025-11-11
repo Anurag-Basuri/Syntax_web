@@ -184,6 +184,11 @@ const ShowApplies = () => {
 		return p;
 	}, [page, limit, debounced, status]);
 
+	// Reset to page 1 when filters/search change to avoid staying on out-of-range pages
+	useEffect(() => {
+		setPage(1);
+	}, [debounced, status]);
+
 	const { data, isLoading, error, refetch } = useApplications(params);
 	const statsQuery = useApplicationStats();
 	const {
@@ -229,9 +234,10 @@ const ShowApplies = () => {
 	// prefetch next page for snappy UX
 	useEffect(() => {
 		if (page < totalPages) {
-			queryClient.prefetchQuery(['applications', { ...params, page: page + 1 }], () =>
-				fetchAllApplicationsService({ ...params, page: page + 1 })
-			);
+			const nextParams = { ...params, page: page + 1 };
+			// use the same serialized key shape as useApplications
+			const key = ['applications', JSON.stringify(nextParams)];
+			queryClient.prefetchQuery(key, () => fetchAllApplicationsService(nextParams));
 		}
 	}, [page, totalPages, params, queryClient]);
 
