@@ -159,7 +159,7 @@ const TicketRow = React.memo(
 				</td>
 				<td className="px-4 py-3 whitespace-nowrap text-sm font-medium flex items-center gap-3">
 					<button
-						onClick={() => onToggleIsUsed(ticket._id, status === 'used')}
+						onClick={() => onToggleIsUsed(ticket, status === 'used')}
 						disabled={updateLoading}
 						className={`flex items-center gap-2 ${
 							updateLoading ? 'opacity-60 cursor-not-allowed' : 'hover:underline'
@@ -177,7 +177,7 @@ const TicketRow = React.memo(
 					</button>
 
 					<button
-						onClick={() => onDeleteTicket(ticket._id)}
+						onClick={() => onDeleteTicket(ticket)}
 						disabled={deleteLoading}
 						className={`flex items-center gap-2 ${
 							deleteLoading
@@ -243,7 +243,7 @@ const TicketCard = React.memo(
 
 				<div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-700">
 					<button
-						onClick={() => onToggleIsUsed(ticket._id, status === 'used')}
+						onClick={() => onToggleIsUsed(ticket, status === 'used')}
 						disabled={updateLoading}
 						className={`flex items-center gap-2 text-sm ${
 							updateLoading
@@ -259,7 +259,7 @@ const TicketCard = React.memo(
 						{status === 'used' ? 'Mark Not Used' : 'Mark Used'}
 					</button>
 					<button
-						onClick={() => onDeleteTicket(ticket._id)}
+						onClick={() => onDeleteTicket(ticket)}
 						disabled={deleteLoading}
 						className={`flex items-center gap-2 text-sm ${
 							deleteLoading
@@ -348,11 +348,16 @@ const TicketsTab = ({ token, events = [], setDashboardError }) => {
 	]);
 
 	const handleDeleteTicket = useCallback(
-		async (ticketId) => {
-			if (!ticketId) return;
+		async (ticketIdOrDoc) => {
+			// support being passed either ticketId string or whole ticket doc
+			const identifier =
+				typeof ticketIdOrDoc === 'string'
+					? ticketIdOrDoc
+					: ticketIdOrDoc?.ticketId || ticketIdOrDoc?._id;
+			if (!identifier) return;
 			if (!window.confirm('Are you sure you want to delete this ticket?')) return;
 			try {
-				await deleteTicket(ticketId, token);
+				await deleteTicket(identifier, token);
 				await getTicketsByEvent(selectedEventId, token);
 			} catch (err) {
 				const msg = err?.message || 'Ticket deletion failed';
@@ -363,12 +368,16 @@ const TicketsTab = ({ token, events = [], setDashboardError }) => {
 	);
 
 	const handleToggleIsUsed = useCallback(
-		async (ticketId, currentlyUsed) => {
-			if (!ticketId) return;
+		async (ticketOrId, currentlyUsed) => {
+			// accept either ticket doc or id
+			let identifier =
+				typeof ticketOrId === 'string'
+					? ticketOrId
+					: ticketOrId?._id || ticketOrId?.ticketId;
+			if (!identifier) return;
 			try {
-				// prefer backend status field; translate from boolean to 'used'/'active'
 				const newStatus = currentlyUsed ? 'active' : 'used';
-				await updateTicket(ticketId, { status: newStatus }, token);
+				await updateTicket(identifier, { status: newStatus }, token);
 				await getTicketsByEvent(selectedEventId, token);
 			} catch (err) {
 				const msg = err?.message || 'Ticket update failed';
