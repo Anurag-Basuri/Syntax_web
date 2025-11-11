@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import { useGetAllEvents } from '../hooks/useEvents.js';
+import { useNavigate } from 'react-router-dom';
 import DashboardTab from '../components/admin/DashboardTab.jsx';
 import MembersTab from '../components/admin/MembersTab.jsx';
 import EventsTab from '../components/admin/EventsTab.jsx';
@@ -51,7 +52,9 @@ const TABS = [
 ];
 
 const AdminDash = () => {
-	const { user, loading: authLoading, logoutAdmin, token } = useAuth();
+	// include isAuthenticated so we can guard the route properly
+	const { user, loading: authLoading, logoutAdmin, token, isAuthenticated } = useAuth();
+	const navigate = useNavigate();
 	const [activeTab, setActiveTab] = useState('dashboard');
 	const [dashboardError, setDashboardError] = useState('');
 	const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
@@ -60,6 +63,7 @@ const AdminDash = () => {
 	// Events
 	const { getAllEvents, events, loading: eventsLoading, error: eventsError } = useGetAllEvents();
 
+	// fetch events on mount (include getAllEvents in deps to satisfy hooks rules)
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
@@ -69,12 +73,29 @@ const AdminDash = () => {
 			}
 		};
 		fetchData();
-	}, []);
+	}, [getAllEvents]);
+
+	// Redirect unauthenticated users to admin auth page and block non-admin roles
+	useEffect(() => {
+		if (!authLoading) {
+			// If not authenticated or user is not admin, redirect to admin login
+			if (!isAuthenticated || (user && user.role && user.role !== 'admin')) {
+				navigate('/admin/auth', { replace: true });
+			}
+		}
+	}, [authLoading, isAuthenticated, user, navigate]);
+
+	// surface event errors into dashboard error UI
+	useEffect(() => {
+		if (eventsError) {
+			setDashboardError(eventsError?.message || 'Failed to load events');
+		}
+	}, [eventsError]);
 
 	const handleLogout = async () => {
 		try {
 			await logoutAdmin();
-			window.location.href = '/admin/auth';
+			navigate('/admin/auth', { replace: true });
 		} catch (error) {
 			setDashboardError('Logout failed');
 		}
@@ -165,7 +186,7 @@ const AdminDash = () => {
 					<div className="flex items-center gap-4">
 						<div className="flex items-center gap-2 bg-gray-700/50 rounded-lg px-4 py-2">
 							<span className="text-white font-medium">
-								{user?.fullname || 'Admin'}
+								{user?.fullname || user?.name || 'Admin'}
 							</span>
 						</div>
 						{activeTab === 'tickets' && (
