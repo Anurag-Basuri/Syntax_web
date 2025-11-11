@@ -15,8 +15,10 @@ const getApiError = (error, fallbackMessage) => {
 export const memberLogin = async (credentials) => {
 	try {
 		const response = await publicClient.post('/api/v1/members/login', credentials);
-		const { accessToken, refreshToken, user } = response.data.data;
-		setToken({ accessToken, refreshToken });
+		// Server sets refresh token as httpOnly cookie and returns accessToken + user
+		const { accessToken, user } = response.data.data;
+		// Persist only the access token client-side — refresh token is cookie-only
+		setToken(accessToken);
 		return user;
 	} catch (error) {
 		throw getApiError(error, 'Login failed. Please check your credentials.');
@@ -53,8 +55,8 @@ export const getCurrentMember = async () => {
 export const adminLogin = async (credentials) => {
 	try {
 		const response = await publicClient.post('/api/v1/admin/login', credentials);
-		const { accessToken, refreshToken, user } = response.data.data;
-		setToken({ accessToken, refreshToken });
+		const { accessToken, user } = response.data.data;
+		setToken(accessToken);
 		return user;
 	} catch (error) {
 		throw getApiError(error, 'Admin login failed. Please check your credentials.');
@@ -87,8 +89,8 @@ export const getCurrentAdmin = async () => {
 export const adminRegister = async (adminDetails) => {
 	try {
 		const response = await publicClient.post('/api/v1/admin/register', adminDetails);
-		const { accessToken, refreshToken, user } = response.data.data;
-		setToken({ accessToken, refreshToken });
+		const { accessToken, user } = response.data.data;
+		setToken(accessToken);
 		return user;
 	} catch (error) {
 		throw getApiError(error, 'Failed to register admin.');
