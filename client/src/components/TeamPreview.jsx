@@ -20,7 +20,6 @@ const TeamPreview = () => {
 	const leaders = React.useMemo(() => {
 		if (!rawLeaders) return [];
 		if (Array.isArray(rawLeaders)) return rawLeaders;
-		// handle shapes: { members: [...] } or { data: { members: [...] } }
 		if (Array.isArray(rawLeaders.members)) return rawLeaders.members;
 		if (rawLeaders.data && Array.isArray(rawLeaders.data.members))
 			return rawLeaders.data.members;
