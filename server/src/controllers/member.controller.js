@@ -6,6 +6,18 @@ import { uploadFile, uploadResume as resumeUpload, deleteFile } from '../utils/c
 import { sendPasswordResetEmail } from '../services/email.service.js';
 import jwt from 'jsonwebtoken';
 
+// central cookie options helper so set / clear use the same shape
+const cookieOptions = () => {
+	const isProd = process.env.NODE_ENV === 'production';
+	return {
+		httpOnly: true,
+		secure: !!isProd, // secure in production
+		sameSite: isProd ? 'none' : 'lax', // allow cross-site in prod; relax in dev
+		path: '/',
+		maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+	};
+};
+
 // Helper function to generate tokens and set cookies
 const generateAndSendTokens = async (member, res, message, statusCode) => {
 	const accessToken = member.generateAuthToken();
@@ -15,22 +27,10 @@ const generateAndSendTokens = async (member, res, message, statusCode) => {
 	member.refreshToken = refreshToken;
 	await member.save({ validateBeforeSave: false });
 
-	// Cookie options: lax for dev, none+secure for production (for cross-site)
-	const isProd = process.env.NODE_ENV === 'production';
-	const options = {
-		httpOnly: true,
-		secure: !!isProd,
-		sameSite: isProd ? 'none' : 'lax', // 'none' in prod when frontend served from different origin
-		path: '/', // ensure cookie is sent on refresh route
-		maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-	};
+	// Set cookie using central options
+	res.cookie('refreshToken', refreshToken, cookieOptions());
 
-	return ApiResponse.success(
-		res.cookie('refreshToken', refreshToken, options),
-		{ user: member.toJSON(), accessToken },
-		message,
-		statusCode
-	);
+	return ApiResponse.success(res, { user: member.toJSON(), accessToken }, message, statusCode);
 };
 
 // Register a new member
@@ -152,13 +152,10 @@ const logoutMember = asyncHandler(async (req, res) => {
 	// Clear refresh token from database
 	await Member.findByIdAndUpdate(member._id, { $unset: { refreshToken: 1 } }, { new: true });
 
-	const options = {
-		httpOnly: true,
-		secure: process.env.NODE_ENV === 'production',
-		sameSite: 'strict',
-	};
+	// Clear cookie using the same options (path/sameSite/secure should match)
+	res.clearCookie('refreshToken', cookieOptions());
 
-	return ApiResponse.success(res.clearCookie('refreshToken', options), null, 'Logout successful');
+	return ApiResponse.success(res, null, 'Logout successful');
 });
 
 // Reset password
@@ -329,7 +326,11 @@ const getLeaders = asyncHandler(async (req, res) => {
 
 // Add this new controller function
 const refreshAccessToken = asyncHandler(async (req, res) => {
-	const incomingRefreshToken = req.body.refreshToken || req.cookies?.refreshToken;
+	// Accept refresh token from body, cookie, or explicit header (fallbacks)
+	const incomingRefreshToken =
+		(req.body && req.body.refreshToken) ||
+		(req.cookies && req.cookies.refreshToken) ||
+		req.headers['x-refresh-token'];
 
 	if (!incomingRefreshToken) {
 		throw ApiError.Unauthorized('Refresh token is required');
