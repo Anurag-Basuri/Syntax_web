@@ -100,15 +100,24 @@ router.delete(
 );
 
 // --- Partner Management ---
+
+// Add a new partner (sponsor or collaborator) to a fest
 router.post(
 	'/:identifier/partners',
-	uploadFile('logo'), // Correctly use the uploadFile middleware factory
+	uploadFile('logo'),
 	validate([
 		param('identifier').notEmpty().withMessage('Fest identifier is required'),
 		body('name').notEmpty().trim().withMessage('Partner name is required'),
-		body('type').isIn(['sponsor', 'collaborator']).withMessage('Invalid partner type'),
+		// allow either `type` or `tier` from the client; validate if supplied
+		body('type')
+			.optional()
+			.isIn(['sponsor', 'collaborator'])
+			.withMessage('Invalid partner type'),
+		body('tier')
+			.optional()
+			.isIn(['sponsor', 'collaborator'])
+			.withMessage('Invalid partner tier'),
 		body('website').optional().isURL().withMessage('Must be a valid URL'),
-		body('tier').optional().trim(),
 	]),
 	addPartner
 );
