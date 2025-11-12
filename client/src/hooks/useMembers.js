@@ -22,10 +22,7 @@ export const useMembers = () => {
 export const useLeaders = () => {
 	return useQuery({
 		queryKey: ['leaders'],
-		queryFn: async () => {
-			const data = await getLeaders();
-			return data?.members || []; // return array
-		},
+		queryFn: getLeaders,
 		staleTime: 60_000,
 	});
 };

@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
 import { useNavigate } from 'react-router-dom';
-import { publicClient } from '../services/api';
 import { useLeaders } from '../hooks/useMembers';
 
 const CARD_THEME = {
@@ -11,18 +9,19 @@ const CARD_THEME = {
 };
 
 const TeamPreview = () => {
-	const { data: leadersData, isLoading, isError } = useLeaders();
+	const { data: leaders = [], isLoading, isError } = useLeaders();
 	const navigate = useNavigate();
 
-	const teamMembers = leadersData?.members || [];
-
 	// If there's an error or no leaders are found after loading, don't render the component.
-	if (!isLoading && (isError || teamMembers.length === 0)) {
+	if (!isLoading && (isError || leaders.length === 0)) {
 		return null;
 	}
 
 	return (
-		<section className="section-container py-normal bg-transparent relative overflow-hidden">
+		<section
+			className="section-container py-normal bg-transparent relative overflow-hidden"
+			aria-labelledby="team-heading"
+		>
 			<div className="relative z-10 px-4 w-full">
 				<div className="max-w-7xl mx-auto">
 					{/* Header Section */}
@@ -33,10 +32,13 @@ const TeamPreview = () => {
 							transition={{ duration: 0.6 }}
 							className="mb-6"
 						>
-							<span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/5 border border-white/15 text-accent text-base font-semibold shadow-lg backdrop-blur-md">
+							<span
+								id="team-heading"
+								className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/5 border border-white/15 text-accent text-base font-semibold shadow-lg backdrop-blur-md"
+							>
 								Meet Our Core Team
 							</span>
-							<p className="text-secondary text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
+							<p className="text-secondary text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mt-4">
 								The driving force behind Syntax. A diverse team of leaders, mentors,
 								and builders.
 							</p>
@@ -49,6 +51,7 @@ const TeamPreview = () => {
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.8, delay: 0.2 }}
 						className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+						role="list"
 					>
 						{isLoading
 							? // Skeleton Loader
@@ -57,6 +60,8 @@ const TeamPreview = () => {
 										key={index}
 										className="glass-card p-6 shadow-2xl border border-white/12 animate-pulse"
 										style={{ boxShadow: `0 0 24px rgba(${CARD_THEME.glow})` }}
+										role="listitem"
+										aria-busy="true"
 									>
 										<div className="text-center">
 											<div className="w-20 h-20 mx-auto mb-4 rounded-full bg-slate-700/50 border border-white/20"></div>
@@ -66,45 +71,57 @@ const TeamPreview = () => {
 									</div>
 							  ))
 							: // Actual Team Members
-							  teamMembers.slice(0, 6).map((member, index) => (
-									<motion.div
-										key={member._id || index}
-										initial={{ opacity: 0, y: 20 }}
-										animate={{ opacity: 1, y: 0 }}
-										transition={{ duration: 0.6, delay: index * 0.1 }}
-									>
-										<div
-											className="glass-card p-6 shadow-2xl hover-lift border border-white/12"
-											style={{
-												boxShadow: `0 0 24px rgba(${CARD_THEME.glow})`,
-											}}
+							  leaders.slice(0, 6).map((member, index) => {
+									const id = member._id || `member-${index}`;
+									const name = member.fullname || 'Team Member';
+									const role = member.designation || 'Role';
+									const img = member.profilePicture?.url;
+
+									return (
+										<motion.div
+											key={id}
+											initial={{ opacity: 0, y: 20 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{ duration: 0.6, delay: index * 0.06 }}
+											role="listitem"
 										>
-											<div className="relative z-10 text-center">
-												{member.profilePicture?.url ? (
-													<img
-														src={member.profilePicture.url}
-														alt={member.fullname}
-														className="w-20 h-20 mx-auto mb-4 rounded-full object-cover border-2 border-white/20"
-													/>
-												) : (
-													<div className="w-20 h-20 mx-auto mb-4 rounded-full border border-white/20 bg-white/10 flex items-center justify-center">
-														<span className="text-2xl font-bold text-primary">
-															{member.fullname
-																?.charAt(0)
-																.toUpperCase() || '?'}
-														</span>
-													</div>
-												)}
-												<h3 className="text-xl font-bold text-primary mb-1">
-													{member.fullname || 'Team Member'}
-												</h3>
-												<p className="text-accent font-medium">
-													{member.designation || 'Role'}
-												</p>
-											</div>
-										</div>
-									</motion.div>
-							  ))}
+											<button
+												type="button"
+												onClick={() => navigate(`/team/${id}`)}
+												className="w-full text-left glass-card p-6 shadow-2xl hover-lift border border-white/12 focus:outline-none focus:ring-2 focus:ring-accent rounded-lg"
+												style={{
+													boxShadow: `0 0 24px rgba(${CARD_THEME.glow})`,
+												}}
+												aria-label={`View profile for ${name}`}
+											>
+												<div className="relative z-10 text-center">
+													{img ? (
+														<img
+															src={img}
+															alt={name}
+															className="w-20 h-20 mx-auto mb-4 rounded-full object-cover border-2 border-white/20"
+															loading="lazy"
+														/>
+													) : (
+														<div className="w-20 h-20 mx-auto mb-4 rounded-full border border-white/20 bg-white/10 flex items-center justify-center">
+															<span className="text-2xl font-bold text-primary">
+																{(
+																	name?.charAt(0) || '?'
+																).toUpperCase()}
+															</span>
+														</div>
+													)}
+													<h3 className="text-xl font-bold text-primary mb-1">
+														{name}
+													</h3>
+													<p className="text-accent font-medium">
+														{role}
+													</p>
+												</div>
+											</button>
+										</motion.div>
+									);
+							  })}
 					</motion.div>
 
 					{/* CTA Button */}
