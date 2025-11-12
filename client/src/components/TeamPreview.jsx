@@ -26,20 +26,33 @@ const TeamPreview = () => {
 		return [];
 	}, [rawLeaders]);
 
-	// Click handler that ensures navigation works even if Link isn't used
-	const handleCardClick = (id) => {
-		if (!id) return;
-		navigate(`/team/${encodeURIComponent(id)}`);
-	};
+	// Clicking any card always goes to the team list page
+	const goToTeamPage = () => navigate('/team');
 
 	// Glass card base style (uses backdrop blur for 'frosted glass' effect)
 	const glassStyle = {
 		background:
-			'linear-gradient(135deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.015) 100%)',
-		backdropFilter: 'blur(8px) saturate(1.05)',
-		WebkitBackdropFilter: 'blur(8px) saturate(1.05)',
+			'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+		backdropFilter: 'blur(10px) saturate(1.05)',
+		WebkitBackdropFilter: 'blur(10px) saturate(1.05)',
 		border: '1px solid rgba(255,255,255,0.06)',
-		boxShadow: `0 8px 30px rgba(${CARD_THEME.glow})`,
+		boxShadow: `0 12px 40px rgba(${CARD_THEME.glow})`,
+	};
+
+	// text clamp styles for long names/roles
+	const nameClampStyle = {
+		display: '-webkit-box',
+		WebkitLineClamp: 2,
+		WebkitBoxOrient: 'vertical',
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		lineHeight: '1.15rem',
+		maxHeight: '2.3rem',
+	};
+	const roleClampStyle = {
+		overflow: 'hidden',
+		textOverflow: 'ellipsis',
+		whiteSpace: 'nowrap',
 	};
 
 	// Error UI (non-blocking): show retry + view full team CTA
@@ -92,7 +105,6 @@ const TeamPreview = () => {
 						Meet Our Core Team
 					</h2>
 					<div className="mx-auto mb-6 w-full max-w-md">
-						{/* simple illustrative SVG */}
 						<div className="rounded-lg bg-white/3 p-6 flex items-center justify-center">
 							<svg
 								width="160"
@@ -138,7 +150,7 @@ const TeamPreview = () => {
 			<div className="relative z-10 px-4 w-full">
 				<div className="max-w-7xl mx-auto">
 					{/* Header */}
-					<div className="text-center mb-12">
+					<div className="text-center mb-10">
 						<motion.div
 							initial={{ opacity: 0, y: 12 }}
 							animate={{ opacity: 1, y: 0 }}
@@ -157,7 +169,7 @@ const TeamPreview = () => {
 						</motion.div>
 					</div>
 
-					{/* Grid: responsive columns (1 / 2 / 3 / 4) and gap tuned for small screens */}
+					{/* Grid: responsive columns and spacing */}
 					<motion.div
 						initial={{ opacity: 0, y: 18 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -166,20 +178,16 @@ const TeamPreview = () => {
 						role="list"
 					>
 						{isLoading
-							? // skeletons
-							  Array.from({ length: 4 }).map((_, i) => (
+							? Array.from({ length: 4 }).map((_, i) => (
 									<div
 										key={i}
-										className="p-4 sm:p-6 rounded-lg animate-pulse"
+										className="p-3 sm:p-4 rounded-lg animate-pulse"
 										role="listitem"
 										aria-busy="true"
 									>
 										<div
 											className="h-full p-4 rounded-lg"
-											style={{
-												...glassStyle,
-												minHeight: 160,
-											}}
+											style={{ ...glassStyle, minHeight: 170 }}
 										>
 											<div className="text-center">
 												<div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 rounded-full bg-slate-700/40 border border-white/10" />
@@ -189,8 +197,7 @@ const TeamPreview = () => {
 										</div>
 									</div>
 							  ))
-							: // members
-							  (leaders || []).slice(0, 8).map((member, idx) => {
+							: (leaders || []).slice(0, 8).map((member, idx) => {
 									const id =
 										member?._id ||
 										member?.id ||
@@ -211,28 +218,25 @@ const TeamPreview = () => {
 											key={id}
 											initial={{ opacity: 0, y: 12 }}
 											animate={{ opacity: 1, y: 0 }}
-											transition={{ duration: 0.5, delay: idx * 0.04 }}
+											transition={{ duration: 0.45, delay: idx * 0.04 }}
 											role="listitem"
 										>
-											{/* Entire card is clickable and keyboard-accessible */}
+											{/* Entire card clickable — always navigates to /team */}
 											<div
-												onClick={() => handleCardClick(id)}
+												onClick={goToTeamPage}
 												onKeyDown={(e) => {
 													if (e.key === 'Enter' || e.key === ' ') {
 														e.preventDefault();
-														handleCardClick(id);
+														goToTeamPage();
 													}
 												}}
 												role="button"
 												tabIndex={0}
-												className="w-full text-left p-4 sm:p-6 rounded-lg block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer transform transition will-change-transform"
+												className="w-full text-left p-3 sm:p-4 rounded-lg block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer transform transition duration-150 hover:-translate-y-0.5"
 											>
 												<div
 													className="h-full rounded-lg flex flex-col items-center justify-center gap-3"
-													style={{
-														...glassStyle,
-														minHeight: 160,
-													}}
+													style={{ ...glassStyle, minHeight: 170 }}
 												>
 													{img ? (
 														<img
@@ -255,41 +259,19 @@ const TeamPreview = () => {
 														</div>
 													)}
 
-													<div className="text-center px-2">
-														<h3 className="text-sm sm:text-base font-semibold text-primary mb-1 truncate">
+													<div className="text-center px-3 w-full">
+														<h3
+															className="text-sm sm:text-base font-semibold text-primary mb-1"
+															style={nameClampStyle}
+														>
 															{name}
 														</h3>
-														<p className="text-xs sm:text-sm text-accent truncate">
+														<p
+															className="text-xs sm:text-sm text-accent"
+															style={roleClampStyle}
+														>
 															{role}
 														</p>
-													</div>
-
-													{/* subtle CTA row for larger screens */}
-													<div className="mt-2 hidden sm:flex items-center gap-2">
-														<button
-															onClick={(e) => {
-																e.stopPropagation();
-																handleCardClick(id);
-															}}
-															className="px-3 py-1 rounded-full text-sm btn-outline"
-															aria-label={`Open ${name} profile`}
-														>
-															View
-														</button>
-														<button
-															onClick={(e) => {
-																e.stopPropagation();
-																navigate(
-																	`/team#${encodeURIComponent(
-																		id
-																	)}`
-																);
-															}}
-															className="px-3 py-1 rounded-full text-sm btn-primary text-white"
-															aria-label={`Explore team page near ${name}`}
-														>
-															Team
-														</button>
 													</div>
 												</div>
 											</div>
