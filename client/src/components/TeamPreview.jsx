@@ -9,7 +9,7 @@ const CARD_THEME = {
 };
 
 const PLACEHOLDER =
-	'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="100%" height="100%" fill="%233b4252"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial,sans-serif" font-size="64" fill="%23ffffff">?</text></svg>';
+	'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="100%" height="100'
 
 // deterministic color pick for initials avatar
 const stringToHsl = (str = '') => {
@@ -27,6 +27,12 @@ const stringToHsl = (str = '') => {
 const TeamPreview = () => {
 	const { data: rawLeaders, isLoading, isError, refetch } = useLeaders();
 	const navigate = useNavigate();
+
+	// prevent header from replaying its entrance animation on re-renders/scroll
+	const firstHeaderRender = React.useRef(true);
+	React.useEffect(() => {
+		firstHeaderRender.current = false;
+	}, []);
 
 	const leaders = React.useMemo(() => {
 		if (!rawLeaders) return [];
@@ -58,19 +64,23 @@ const TeamPreview = () => {
 		textOverflow: 'ellipsis',
 		lineHeight: '1.15rem',
 		maxHeight: '2.3rem',
+		minHeight: '2.3rem', // reserve space so cards remain equal height
+		overflowWrap: 'anywhere', // allow long words to break without growing the card
+		wordBreak: 'break-word',
 	};
 
 	const roleClamp = {
 		overflow: 'hidden',
 		textOverflow: 'ellipsis',
 		whiteSpace: 'nowrap',
+		minHeight: '1.15rem',
 	};
 
 	// Header component: bigger title, subtitle, underline and count pill
 	const Header = () => (
 		<div className="text-center mb-8">
 			<motion.h2
-				initial={{ opacity: 0, y: 8 }}
+				initial={firstHeaderRender.current ? { opacity: 0, y: 8 } : false}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.45 }}
 				className="text-3xl sm:text-4xl font-extrabold text-primary leading-tight"
