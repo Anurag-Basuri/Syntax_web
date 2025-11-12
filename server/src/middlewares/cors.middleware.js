@@ -1,6 +1,10 @@
 import cors from 'cors';
 
-const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173').split(',');
+const allowedOrigins = [
+	process.env.FRONTEND_URL || 'http://localhost:5173',
+	'http://localhost:5173',
+	'http://localhost:5174',
+];
 
 const corsOptions = {
 	origin: function (origin, callback) {
@@ -17,9 +21,4 @@ const corsOptions = {
 	methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
 };
 
-// Export middleware function to be used as app.use(corsMiddleware)
-export function applyCors(app) {
-	app.use(cors(corsOptions));
-	// Also respond to OPTIONS preflight fast
-	app.options('*', cors(corsOptions));
-}
+export const applyCors = cors(corsOptions);
