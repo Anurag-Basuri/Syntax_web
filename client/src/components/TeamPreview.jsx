@@ -11,6 +11,19 @@ const CARD_THEME = {
 const PLACEHOLDER =
 	'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="100%" height="100%" fill="%233b4252"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial,sans-serif" font-size="64" fill="%23ffffff">?</text></svg>';
 
+// deterministic color pick for initials avatar
+const stringToHsl = (str = '') => {
+	let hash = 0;
+	for (let i = 0; i < str.length; i++) {
+		hash = str.charCodeAt(i) + ((hash << 5) - hash);
+		hash = hash & hash;
+	}
+	const h = Math.abs(hash) % 360; // hue
+	const s = 65;
+	const l = 55;
+	return `hsl(${h} ${s}% ${l}%)`;
+};
+
 const TeamPreview = () => {
 	const { data: rawLeaders, isLoading, isError, refetch } = useLeaders();
 	const navigate = useNavigate();
@@ -73,7 +86,10 @@ const TeamPreview = () => {
 			<div className="flex items-center justify-center gap-3 mt-4">
 				<div className="h-0.5 w-28 bg-gradient-to-r from-cyan-400 via-blue-400 to-sky-400 rounded" />
 				{!isLoading && leaders.length > 0 && (
-					<span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-white/6 border border-white/8 text-accent">
+					<span
+						className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-white/6 border border-white/8 text-accent"
+						aria-live="polite"
+					>
 						{leaders.length} {leaders.length === 1 ? 'leader' : 'leaders'}
 					</span>
 				)}
@@ -154,15 +170,27 @@ const TeamPreview = () => {
 							? Array.from({ length: 8 }).map((_, i) => (
 									<div
 										key={i}
-										className="p-2 sm:p-3 rounded-lg animate-pulse"
+										className="p-2 sm:p-3 rounded-lg"
 										role="listitem"
 										aria-busy="true"
 									>
 										<div
-											style={{ ...glassStyle }}
+											style={{
+												...glassStyle,
+												overflow: 'hidden',
+											}}
 											className="h-56 sm:h-60 md:h-64 p-4 rounded-lg flex flex-col items-center justify-between"
 										>
-											<div className="flex flex-col items-center gap-3">
+											{/* shimmer skeleton */}
+											<div
+												className="w-full h-full rounded flex flex-col items-center justify-center gap-4"
+												style={{
+													background:
+														'linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.035) 20%, rgba(255,255,255,0.02) 40%)',
+													backgroundSize: '200% 100%',
+													animation: 'skeleton-anim 1.2s linear infinite',
+												}}
+											>
 												<div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-700/40 border border-white/8" />
 												<div className="h-4 w-28 rounded bg-slate-700/40" />
 												<div className="h-3 w-20 rounded bg-slate-700/40" />
@@ -198,7 +226,7 @@ const TeamPreview = () => {
 											<button
 												type="button"
 												onClick={goToTeamPage}
-												aria-label="Open team page"
+												aria-label={`Open team page — ${name}`}
 												className="w-full rounded-lg block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transform transition duration-150 hover:-translate-y-0.5"
 												style={{
 													padding: 0,
@@ -215,7 +243,7 @@ const TeamPreview = () => {
 														{img ? (
 															<img
 																src={img}
-																alt={name}
+																alt={`${name} avatar`}
 																loading="lazy"
 																onError={(e) => {
 																	e.currentTarget.onerror = null;
@@ -226,8 +254,16 @@ const TeamPreview = () => {
 																style={{ objectFit: 'cover' }}
 															/>
 														) : (
-															<div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border border-white/10 bg-white/4 flex items-center justify-center">
-																<span className="text-lg sm:text-2xl font-semibold text-primary">
+															<div
+																className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border border-white/10 flex items-center justify-center shadow-sm"
+																style={{
+																	background: stringToHsl(name),
+																	color: 'white',
+																	fontWeight: 600,
+																}}
+																aria-hidden="true"
+															>
+																<span className="text-lg sm:text-2xl select-none">
 																	{(
 																		name?.charAt(0) || '?'
 																	).toUpperCase()}
@@ -273,6 +309,14 @@ const TeamPreview = () => {
 					</div>
 				</div>
 			</div>
+
+			{/* local skeleton animation keyframes */}
+			<style>{`
+                @keyframes skeleton-anim {
+                    0% { background-position: 200% 0; }
+                    100% { background-position: -200% 0; }
+                }
+            `}</style>
 		</section>
 	);
 };
