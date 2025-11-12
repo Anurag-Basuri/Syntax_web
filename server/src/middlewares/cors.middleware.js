@@ -1,30 +1,25 @@
 import cors from 'cors';
 
-const allowedOrigins = [
-	process.env.FRONTEND_URL || 'http://localhost:5173',
-	'http://localhost:5173',
-	'http://localhost:5174',
-	'https://vibranta.in',
-	'https://www.vibranta.in',
-	'https://vibranta.org',
-	'https://www.vibranta.org',
-	'http://185.199.52.113', // VPS IP
-];
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173').split(',');
 
-export const corsOptions = {
-	origin: (origin, callback) => {
-		// Allow requests with no origin like mobile apps or curl requests
+const corsOptions = {
+	origin: function (origin, callback) {
+		// allow requests with no origin (like mobile apps, curl, server-to-server)
 		if (!origin) return callback(null, true);
-
-		if (allowedOrigins.includes(origin)) {
+		if (allowedOrigins.indexOf(origin) !== -1) {
 			callback(null, true);
 		} else {
 			callback(new Error('Not allowed by CORS'));
 		}
 	},
-	methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 	credentials: true,
-	optionsSuccessStatus: 200,
+	exposedHeaders: ['Set-Cookie', 'Content-Type'],
+	methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
 };
 
-export const applyCors = cors(corsOptions);
+// Export middleware function to be used as app.use(corsMiddleware)
+export function applyCors(app) {
+	app.use(cors(corsOptions));
+	// Also respond to OPTIONS preflight fast
+	app.options('*', cors(corsOptions));
+}
