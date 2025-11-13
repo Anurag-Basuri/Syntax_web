@@ -17,7 +17,6 @@ import EventsTab from '../components/admin/EventsTab.jsx';
 import TicketsTab from '../components/admin/TicketsTab.jsx';
 import CreateTicket from '../components/admin/CreateTicket.jsx';
 import ErrorMessage from '../components/admin/ErrorMessage.jsx';
-import ArvantisTab from '../components/admin/ArvantisTab.jsx';
 import Modal from '../components/admin/Modal.jsx';
 
 const TABS = [
@@ -40,11 +39,6 @@ const TABS = [
 		key: 'tickets',
 		label: 'Tickets',
 		icon: <Ticket className="h-5 w-5" />,
-	},
-	{
-		key: 'arvantis',
-		label: 'Arvantis',
-		icon: <Sparkles className="h-5 w-5" />,
 	},
 ];
 
