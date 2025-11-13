@@ -77,6 +77,35 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		contactEmail: '',
 	});
 
+	// Save edit handler
+	const saveEdit = async () => {
+		setActionBusy(true);
+		setLocalError('');
+		try {
+			const id = resolveIdentifier(activeFest);
+			const payload = {
+				description: editForm.description,
+				startDate: editForm.startDate,
+				endDate: editForm.endDate,
+				status: editForm.status,
+				location: editForm.location,
+				contactEmail: editForm.contactEmail,
+			};
+			await updateFestDetails(id, payload);
+			await loadFestByIdentifier(id);
+			await fetchYearsAndLatest();
+			setEditOpen(false);
+			showToast('Fest updated', 'success');
+		} catch (err) {
+			const msg = err?.message || 'Failed to save fest edits.';
+			setLocalError(msg);
+			setDashboardError(msg);
+			showToast(msg, 'error');
+		} finally {
+			setActionBusy(false);
+		}
+	};
+
 	// active detail panel (we show one fest at a time)
 	const [activeFest, setActiveFest] = useState(null);
 	const [partners, setPartners] = useState([]);
@@ -120,7 +149,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				setActiveFest(null);
 				setPartners([]);
 				if (setSelected) setSelectedYear('');
-				return;
+				return null;
 			}
 			setLoading(true);
 			setLocalError('');
@@ -130,12 +159,14 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				setActiveFest(details);
 				setPartners(Array.isArray(details.partners) ? details.partners : []);
 				if (setSelected && details.year) setSelectedYear(String(details.year));
+				return details; // <-- now returns details for callers
 			} catch (err) {
 				const msg = err?.message || `Failed to load fest '${identifier}'.`;
 				setLocalError(msg);
 				setDashboardError(msg);
 				setActiveFest(null);
 				setPartners([]);
+				return null;
 			} finally {
 				setLoading(false);
 			}
@@ -232,18 +263,43 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 
 	/* Actions */
 
-	const exportCSV = async () => {
-		setDownloadingCSV(true);
+	// Toast helper
+	const showToast = (message, type = 'success') => {
+		setToast({ message, type });
+		// auto-dismiss after 3.5s
+		setTimeout(() => setToast(null), 3500);
+	};
+
+	const handleCreateSubmit = async (e) => {
+		e.preventDefault();
+		setCreateLoading(true);
 		setLocalError('');
 		try {
-			const blob = await exportFestsCSV();
-			downloadBlob(blob, `arvantis-fests-${safe(new Date().toISOString())}.csv`);
+			// validate minimal required fields
+			const { year, description, startDate, endDate } = createForm;
+			if (!year || !startDate || !endDate || !description) {
+				throw new Error('Year, description and dates are required');
+			}
+			const payload = {
+				year: Number(year),
+				description,
+				startDate,
+				endDate,
+			};
+			const created = await createFest(payload);
+			setCreateOpen(false);
+			showToast('Fest created', 'success');
+			// refresh lists and open new fest (prefer slug if returned)
+			await fetchYearsAndLatest();
+			const id = created?.slug || created?.year || created?._id;
+			if (id) await loadFestByIdentifier(id);
 		} catch (err) {
-			const msg = err?.message || 'Failed to export CSV.';
+			const msg = err?.message || 'Failed to create fest.';
 			setLocalError(msg);
 			setDashboardError(msg);
+			showToast(msg, 'error');
 		} finally {
-			setDownloadingCSV(false);
+			setCreateLoading(false);
 		}
 	};
 
@@ -251,9 +307,11 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		setLocalError('');
 		setActionBusy(true);
 		try {
-			await loadFestByIdentifier(resolveIdentifier(fest), { setSelected: false });
-			const target = activeFest || fest;
-			const s = target || {};
+			// use returned details to seed the edit form (avoid stale state)
+			const details = await loadFestByIdentifier(resolveIdentifier(fest), {
+				setSelected: false,
+			});
+			const s = details || fest || activeFest || {};
 			setEditForm({
 				name: s.name || 'Arvantis',
 				description: s.description || '',
@@ -273,25 +331,83 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
-	const saveEdit = async () => {
-		if (!activeFest) return;
+	// quick status setter
+	const quickSetStatus = async (newStatus) => {
+		if (!activeFest || !newStatus) return;
 		setActionBusy(true);
 		setLocalError('');
 		try {
 			const id = resolveIdentifier(activeFest);
-			const payload = { ...editForm };
-			delete payload.name;
-			delete payload.location;
-			await updateFestDetails(id, payload);
-			setEditOpen(false);
+			await updateFestDetails(id, { status: newStatus });
 			await loadFestByIdentifier(id);
 			await fetchYearsAndLatest();
+			showToast('Status updated', 'success');
 		} catch (err) {
-			const msg = err?.message || 'Failed to update fest.';
+			const msg = err?.message || 'Failed to update status.';
+			setLocalError(msg);
+			setDashboardError(msg);
+			showToast(msg, 'error');
+		} finally {
+			setActionBusy(false);
+		}
+	};
+
+	// Duplicate fest for next year (basic heuristic: shift dates by +1 year)
+	const duplicateFest = async (fest) => {
+		const source = fest || activeFest;
+		if (!source) return;
+		const confirmMsg = `Duplicate fest "${source.name || 'Arvantis'} — ${
+			source.year
+		}" for next year?`;
+		if (!window.confirm(confirmMsg)) return;
+		setActionBusy(true);
+		setLocalError('');
+		try {
+			const srcStart = source.startDate ? new Date(source.startDate) : null;
+			const srcEnd = source.endDate ? new Date(source.endDate) : null;
+			const nextYear = Number(source.year) + 1;
+			// shift dates by +1 year if present, otherwise keep empty (server requires dates)
+			if (!srcStart || !srcEnd)
+				throw new Error('Source fest does not have valid dates to duplicate.');
+			const newStart = new Date(srcStart);
+			newStart.setFullYear(newStart.getFullYear() + 1);
+			const newEnd = new Date(srcEnd);
+			newEnd.setFullYear(newEnd.getFullYear() + 1);
+
+			const payload = {
+				year: nextYear,
+				description: source.description || '',
+				startDate: newStart.toISOString(),
+				endDate: newEnd.toISOString(),
+				status: 'upcoming',
+			};
+			const created = await createFest(payload);
+			await fetchYearsAndLatest();
+			const id = created?.slug || created?.year || created?._id;
+			if (id) await loadFestByIdentifier(id);
+			showToast('Fest duplicated', 'success');
+		} catch (err) {
+			const msg = err?.message || 'Failed to duplicate fest.';
+			setLocalError(msg);
+			setDashboardError(msg);
+			showToast(msg, 'error');
+		} finally {
+			setActionBusy(false);
+		}
+	};
+
+	const exportCSV = async () => {
+		setDownloadingCSV(true);
+		setLocalError('');
+		try {
+			const blob = await exportFestsCSV();
+			downloadBlob(blob, `arvantis-fests-${safe(new Date().toISOString())}.csv`);
+		} catch (err) {
+			const msg = err?.message || 'Failed to export CSV.';
 			setLocalError(msg);
 			setDashboardError(msg);
 		} finally {
-			setActionBusy(false);
+			setDownloadingCSV(false);
 		}
 	};
 
