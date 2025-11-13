@@ -481,7 +481,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				description: editForm.description,
 				startDate: editForm.startDate,
 				endDate: editForm.endDate,
-				status: editForm.status,
 				location: editForm.location,
 				contactEmail: editForm.contactEmail,
 			};
@@ -522,71 +521,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			const msg = err?.message || 'Failed to open edit';
 			setLocalError(msg);
 			setDashboardError(msg);
-		} finally {
-			setActionBusy(false);
-		}
-	};
-
-	const quickSetStatus = async (newStatus) => {
-		if (!activeFest || !newStatus) return;
-		setActionBusy(true);
-		setLocalError('');
-		try {
-			const id = resolveIdentifier(activeFest);
-			await updateFestDetails(id, { status: newStatus });
-			await loadFestByIdentifier(id);
-			await fetchYearsAndLatest();
-			showToast('Status updated', 'success');
-		} catch (err) {
-			const msg = err?.message || 'Failed to update status.';
-			setLocalError(msg);
-			setDashboardError(msg);
-			showToast(msg, 'error');
-		} finally {
-			setActionBusy(false);
-		}
-	};
-
-	const duplicateFest = async (fest) => {
-		const source = fest || activeFest;
-		if (!source) return;
-		if (
-			!window.confirm(
-				`Duplicate fest "${source.name || 'Arvantis'} — ${source.year}" for next year?`
-			)
-		)
-			return;
-		setActionBusy(true);
-		setLocalError('');
-		try {
-			const srcStart = source.startDate ? new Date(source.startDate) : null;
-			const srcEnd = source.endDate ? new Date(source.endDate) : null;
-			const nextYear = Number(source.year) + 1;
-			if (!srcStart || !srcEnd)
-				throw new Error('Source fest does not have valid dates to duplicate.');
-
-			const newStart = new Date(srcStart);
-			newStart.setFullYear(newStart.getFullYear() + 1);
-			const newEnd = new Date(srcEnd);
-			newEnd.setFullYear(newEnd.getFullYear() + 1);
-
-			const payload = {
-				year: nextYear,
-				description: source.description || '',
-				startDate: newStart.toISOString(),
-				endDate: newEnd.toISOString(),
-				status: 'upcoming',
-			};
-			const created = await createFest(payload);
-			await fetchYearsAndLatest();
-			const id = created?.slug || created?.year || created?._id;
-			if (id) await loadFestByIdentifier(id);
-			showToast('Fest duplicated', 'success');
-		} catch (err) {
-			const msg = err?.message || 'Failed to duplicate fest.';
-			setLocalError(msg);
-			setDashboardError(msg);
-			showToast(msg, 'error');
 		} finally {
 			setActionBusy(false);
 		}
@@ -1110,50 +1044,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 											disabled={actionBusy}
 										>
 											Delete
-										</button>
-									</div>
-
-									{/* Explicit status action buttons — updates status immediately */}
-									<div className="ml-auto flex flex-wrap gap-2">
-										<button
-											type="button"
-											className="px-2 py-1 bg-blue-600 text-white rounded text-sm"
-											onClick={() => quickSetStatus('upcoming')}
-											disabled={actionBusy}
-										>
-											Set Upcoming
-										</button>
-										<button
-											type="button"
-											className="px-2 py-1 bg-green-600 text-white rounded text-sm"
-											onClick={() => quickSetStatus('ongoing')}
-											disabled={actionBusy}
-										>
-											Set Ongoing
-										</button>
-										<button
-											type="button"
-											className="px-2 py-1 bg-gray-700 text-white rounded text-sm"
-											onClick={() => quickSetStatus('completed')}
-											disabled={actionBusy}
-										>
-											Set Completed
-										</button>
-										<button
-											type="button"
-											className="px-2 py-1 bg-amber-600 text-white rounded text-sm"
-											onClick={() => quickSetStatus('postponed')}
-											disabled={actionBusy}
-										>
-											Postpone
-										</button>
-										<button
-											type="button"
-											className="px-2 py-1 bg-red-700 text-white rounded text-sm"
-											onClick={() => quickSetStatus('cancelled')}
-											disabled={actionBusy}
-										>
-											Cancel
 										</button>
 									</div>
 								</div>
