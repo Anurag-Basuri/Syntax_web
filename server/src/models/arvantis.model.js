@@ -87,9 +87,10 @@ const arvantisSchema = new mongoose.Schema(
 	{
 		name: {
 			type: String,
-			required: [true, 'Fest name is required.'],
-			trim: true,
+			// Name is fixed to "Arvantis" for this application — keep default, not required from clients.
+			required: false,
 			default: 'Arvantis',
+			trim: true,
 			maxlength: 140,
 		},
 		year: {
@@ -148,8 +149,11 @@ const arvantisSchema = new mongoose.Schema(
 		},
 		// lightweight metadata to keep creation minimal but useful
 		location: {
+			// Location is constant for this fest (Lovely Professional University).
 			type: String,
 			trim: true,
+			default: 'Lovely Professional University',
+			immutable: true,
 			maxlength: 200,
 		},
 		contactEmail: {
