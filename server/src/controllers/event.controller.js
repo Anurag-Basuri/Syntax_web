@@ -8,11 +8,11 @@ import mongoose from 'mongoose';
 // Helper to find an event by its ID
 const findEventById = async (id) => {
 	if (!mongoose.Types.ObjectId.isValid(id)) {
-		throw new ApiError(400, 'Invalid event ID format.');
+		throw ApiError.BadRequest('Invalid event ID format.');
 	}
 	const event = await Event.findById(id);
 	if (!event) {
-		throw new ApiError(404, 'Event not found.');
+		throw ApiError.NotFound('Event not found.');
 	}
 	return event;
 };
@@ -31,15 +31,54 @@ const createEvent = asyncHandler(async (req, res) => {
 		ticketPrice = 0,
 		registrationOpenDate,
 		registrationCloseDate,
+		// registration fields may come either as registration.* or top level for convenience
 	} = req.body;
 
 	if (!req.files?.length) {
-		throw new ApiError(400, 'At least one event poster is required.');
+		throw ApiError.BadRequest('At least one event poster is required.');
 	}
 
-	const uploadedPosters = await Promise.all(
+	// Upload posters
+	const uploaded = await Promise.all(
 		req.files.map((file) => uploadFile(file, { folder: 'events/posters' }))
 	);
+	// Normalize uploaded poster shape (some utils return different keys)
+	const uploadedPosters = uploaded.map((u) => ({
+		url: u.url || u.secure_url || '',
+		publicId: u.publicId || u.public_id || u.public_id,
+		resource_type: u.resource_type || 'image',
+	}));
+
+	// Build registration object from incoming payload (support both nested and flat inputs)
+	const regMode =
+		(req.body.registration && req.body.registration.mode) ||
+		req.body.registrationMode ||
+		req.body.mode ||
+		'internal';
+
+	const registration = {
+		mode: regMode,
+		externalUrl:
+			(req.body.registration && req.body.registration.externalUrl) ||
+			req.body.registrationExternalUrl ||
+			req.body.externalUrl ||
+			null,
+		allowGuests:
+			typeof (req.body.registration && req.body.registration.allowGuests) !== 'undefined'
+				? req.body.registration.allowGuests
+				: typeof req.body.allowGuests !== 'undefined'
+					? req.body.allowGuests
+					: true,
+		capacityOverride:
+			(req.body.registration && req.body.registration.capacityOverride) ||
+			req.body.capacityOverride ||
+			undefined,
+	};
+
+	// server-side validation for external mode
+	if (registration.mode === 'external' && !registration.externalUrl) {
+		throw ApiError.BadRequest('externalUrl is required when registration.mode is "external".');
+	}
 
 	const newEvent = await Event.create({
 		title: title?.trim(),
@@ -60,6 +99,7 @@ const createEvent = asyncHandler(async (req, res) => {
 		registrationOpenDate: registrationOpenDate ? new Date(registrationOpenDate) : null,
 		registrationCloseDate: registrationCloseDate ? new Date(registrationCloseDate) : null,
 		registeredUsers: [], // Explicit default
+		registration,
 	});
 
 	return ApiResponse.success(res, newEvent, 'Event created successfully', 201);
@@ -88,11 +128,10 @@ const getAllEvents = asyncHandler(async (req, res) => {
 
 	if (Object.keys(match).length) pipeline.push({ $match: match });
 
+	// Add useful computed fields (the model already has virtuals, but computed fields in aggregate are faster)
 	pipeline.push({
 		$addFields: {
-			registeredUsersCount: {
-				$size: { $ifNull: ['$registeredUsers', []] },
-			},
+			registeredUsersCount: { $size: { $ifNull: ['$registeredUsers', []] } },
 		},
 	});
 
@@ -106,14 +145,18 @@ const getAllEvents = asyncHandler(async (req, res) => {
 			ticketPrice: 1,
 			posters: { $slice: ['$posters', 1] },
 			registeredUsersCount: 1,
-			isFree: 1,
-			spotsLeft: 1,
-			isFull: 1,
-			registrationStatus: 1,
+			// expose a few registration fields so frontend can decide redirect vs ticket flow
+			'registration.mode': 1,
+			'registration.externalUrl': 1,
+			'registration.allowGuests': 1,
+			'registration.capacityOverride': 1,
+			totalSpots: 1,
 		},
 	});
 
-	pipeline.push({ $sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1, _id: 1 } });
+	pipeline.push({
+		$sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1, _id: 1 },
+	});
 
 	const aggregate = Event.aggregate(pipeline);
 	const options = {
@@ -129,14 +172,75 @@ const getAllEvents = asyncHandler(async (req, res) => {
 // Get a single event by ID
 const getEventById = asyncHandler(async (req, res) => {
 	const event = await findEventById(req.params.id);
+	// populate legacy registeredUsers for admin views
 	await event.populate('registeredUsers', 'fullname email LpuId');
+	// include registration-related virtuals (isFull, spotsLeft, effectiveCapacity, registrationStatus)
 	return ApiResponse.success(res, event, 'Event retrieved successfully');
 });
 
 // Update an existing event's details
+const updateFestRegistrationValidation = (event) => {
+	// If switching to external mode, ensure externalUrl is present
+	if (event.registration?.mode === 'external' && !event.registration?.externalUrl) {
+		throw ApiError.BadRequest('externalUrl is required when registration.mode is "external".');
+	}
+	// registration dates consistency checked in model pre-save
+};
+
 const updateEventDetails = asyncHandler(async (req, res) => {
 	const event = await findEventById(req.params.id);
-	Object.assign(event, req.body);
+
+	// Allow updating registration object safely: merge only known registration keys
+	if (req.body.registration) {
+		event.registration = {
+			...event.registration?.toObject?.(),
+			...event.registration,
+			...req.body.registration,
+		};
+	}
+	// Allow some flat registration fields for convenience
+	if (typeof req.body.registrationMode !== 'undefined') {
+		event.registration = event.registration || {};
+		event.registration.mode = req.body.registrationMode;
+	}
+	if (typeof req.body.externalUrl !== 'undefined') {
+		event.registration = event.registration || {};
+		event.registration.externalUrl = req.body.externalUrl;
+	}
+	if (typeof req.body.allowGuests !== 'undefined') {
+		event.registration = event.registration || {};
+		event.registration.allowGuests = req.body.allowGuests;
+	}
+	if (typeof req.body.capacityOverride !== 'undefined') {
+		event.registration = event.registration || {};
+		event.registration.capacityOverride = req.body.capacityOverride;
+	}
+
+	// Apply other updatable top-level fields
+	const updatable = [
+		'title',
+		'description',
+		'eventDate',
+		'venue',
+		'organizer',
+		'category',
+		'totalSpots',
+		'ticketPrice',
+		'registrationOpenDate',
+		'registrationCloseDate',
+		'status',
+		'tags',
+	];
+	updatable.forEach((key) => {
+		if (typeof req.body[key] !== 'undefined') {
+			// sanitize simple string fields
+			event[key] = typeof req.body[key] === 'string' ? req.body[key].trim() : req.body[key];
+		}
+	});
+
+	// Validate registration constraints before saving
+	updateFestRegistrationValidation(event);
+
 	const updatedEvent = await event.save();
 	return ApiResponse.success(res, updatedEvent, 'Event details updated successfully');
 });
@@ -146,13 +250,19 @@ const deleteEvent = asyncHandler(async (req, res) => {
 	const event = await findEventById(req.params.id);
 
 	if (event.posters && event.posters.length > 0) {
-		// FIX: Cloudinary delete only needs public_ids for images
-		const publicIdsToDelete = event.posters.map((p) => p.publicId);
-		await deleteFiles(publicIdsToDelete);
+		// Delete posters from cloudinary, providing shape expected by deleteFiles util
+		const mediaToDelete = event.posters
+			.map((p) => p.publicId || p.public_id)
+			.filter(Boolean)
+			.map((publicId) => ({ public_id: publicId, resource_type: 'image' }));
+		if (mediaToDelete.length > 0) {
+			await deleteFiles(mediaToDelete);
+		}
 	}
 
 	await Event.findByIdAndDelete(req.params.id);
-	return ApiResponse.success(res, null, 'Event deleted successfully', 204);
+	// 204 No Content
+	return res.status(204).send();
 });
 
 // --- Poster Management ---
@@ -160,10 +270,15 @@ const deleteEvent = asyncHandler(async (req, res) => {
 // Add a new poster to an event
 const addEventPoster = asyncHandler(async (req, res) => {
 	const event = await findEventById(req.params.id);
-	if (!req.file) throw new ApiError(400, 'Poster file is required.');
+	if (!req.file) throw ApiError.BadRequest('Poster file is required.');
 
 	const poster = await uploadFile(req.file, { folder: 'events/posters' });
-	event.posters.push(poster);
+	const normalized = {
+		url: poster.url || poster.secure_url || '',
+		publicId: poster.publicId || poster.public_id,
+		resource_type: poster.resource_type || 'image',
+	};
+	event.posters.push(normalized);
 	await event.save();
 
 	return ApiResponse.success(res, event.posters, 'Poster added successfully', 201);
@@ -174,12 +289,17 @@ const removeEventPoster = asyncHandler(async (req, res) => {
 	const { id, publicId } = req.params;
 	const event = await findEventById(id);
 
-	const posterIndex = event.posters.findIndex((p) => p.publicId === publicId);
-	if (posterIndex === -1) throw new ApiError(404, 'Poster not found on this event.');
+	const posterIndex = event.posters.findIndex((p) => (p.publicId || p.public_id) === publicId);
+	if (posterIndex === -1) throw ApiError.NotFound('Poster not found on this event.');
 
 	const [removedPoster] = event.posters.splice(posterIndex, 1);
-	// FIX: Cloudinary delete only needs the public_id for images
-	await deleteFile(removedPoster.publicId);
+	// Delete using normalized object expected by cloudinary util
+	if (removedPoster?.publicId || removedPoster?.public_id) {
+		await deleteFile({
+			public_id: removedPoster.publicId || removedPoster.public_id,
+			resource_type: removedPoster.resource_type || 'image',
+		});
+	}
 	await event.save();
 
 	return ApiResponse.success(res, null, 'Poster removed successfully');
@@ -199,7 +319,7 @@ const getEventStats = asyncHandler(async (req, res) => {
 							_id: null,
 							total: {
 								$sum: {
-									$size: { $ifNull: ['$registeredUsers', []] }, // FIX
+									$size: { $ifNull: ['$registeredUsers', []] },
 								},
 							},
 						},
