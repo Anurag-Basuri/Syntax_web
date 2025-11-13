@@ -22,11 +22,10 @@ import { Loader2, Plus, X, Trash2, DownloadCloud, BarChart2, Search } from 'luci
 
 /*
   Fixed & improved Arvantis admin tab
+  - show latest fest by default
+  - remove sorting/status filters per request
+  - allow selecting a year to load that year's fest
   - defensive network/error handling
-  - controlled inputs to avoid React warnings
-  - small UX improvements (inline error messages, disabled states)
-  - avoids sending immutable fields (name/location)
-  - accessible attributes and safe date formatting
 */
 const ArvantisTab = ({ setDashboardError = () => {} }) => {
 	// Data
@@ -35,10 +34,14 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 	const [events, setEvents] = useState([]);
 	// UI state
 	const [query, setQuery] = useState('');
-	const [statusFilter, setStatusFilter] = useState('');
-	const [sortBy, setSortBy] = useState('year');
+	// removed statusFilter and sortBy per request
+	// year selection
+	const [years, setYears] = useState([]);
+	const [selectedYear, setSelectedYear] = useState(null);
+
 	const [page] = useState(1);
-	const [limit] = useState(12);
+	const [limit] = useState(100);
+
 	// create/edit
 	const [createOpen, setCreateOpen] = useState(false);
 	const [createLoading, setCreateLoading] = useState(false);
@@ -58,7 +61,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		location: 'Lovely Professional University',
 		contactEmail: '',
 	});
-	// active detail panel
+	// active detail panel (we show one fest at a time)
 	const [activeFest, setActiveFest] = useState(null);
 	const [partners, setPartners] = useState([]);
 	const [loadingPartners, setLoadingPartners] = useState(false);
@@ -78,34 +81,52 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		URL.revokeObjectURL(url);
 	};
 
-	// Fetch list of fests
-	const fetchFests = useCallback(
-		async (opts = {}) => {
-			setLoading(true);
-			setLocalError('');
-			try {
-				const params = {
-					page: opts.page ?? page,
-					limit,
-					sortBy,
-					sortOrder: 'desc',
-				};
-				if (statusFilter) params.status = statusFilter;
-				if (query) params.search = query;
-				const res = await getAllFests(params, { admin: true });
-				setFests(Array.isArray(res.docs) ? res.docs : []);
-			} catch (err) {
-				const msg = err?.message || 'Failed to fetch fests.';
-				setLocalError(msg);
-				setDashboardError(msg);
-			} finally {
-				setLoading(false);
+	/* --- NEW: load years and latest fest --- */
+	const fetchYearsAndLatest = useCallback(async () => {
+		setLoading(true);
+		setLocalError('');
+		try {
+			// fetch a reasonably large list of fests to extract available years
+			const res = await getAllFests(
+				{ page: 1, limit, sortBy: 'year', sortOrder: 'desc' },
+				{ admin: true }
+			);
+			const docs = Array.isArray(res.docs) ? res.docs : [];
+			setFests(docs);
+			// extract unique years sorted desc
+			const yrs = Array.from(new Set(docs.map((d) => d.year))).sort((a, b) => b - a);
+			setYears(yrs);
+			// pick latest year if available
+			const latest = yrs[0] ?? null;
+			setSelectedYear(latest);
+			if (latest !== null) {
+				try {
+					const details = await getFestDetails(latest, { admin: true });
+					setActiveFest(details);
+					setPartners(Array.isArray(details.partners) ? details.partners : []);
+				} catch (err) {
+					// fallback: if fetching by year fails, clear activeFest
+					setActiveFest(null);
+					setPartners([]);
+					const msg = err?.message || 'Failed to load latest fest details.';
+					setLocalError(msg);
+					setDashboardError(msg);
+				}
+			} else {
+				// no fests yet
+				setActiveFest(null);
+				setPartners([]);
 			}
-		},
-		[page, limit, sortBy, statusFilter, query, setDashboardError]
-	);
+		} catch (err) {
+			const msg = err?.message || 'Failed to fetch fests.';
+			setLocalError(msg);
+			setDashboardError(msg);
+		} finally {
+			setLoading(false);
+		}
+	}, [limit, setDashboardError]);
 
-	// Fetch events for linking
+	// Fetch events (used for linking) once
 	const fetchEvents = useCallback(async () => {
 		try {
 			const res = await getAllEvents({ page: 1, limit: 500 });
@@ -117,19 +138,37 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	}, [setDashboardError]);
 
-	// initial load
 	useEffect(() => {
-		fetchFests();
+		fetchYearsAndLatest();
 		fetchEvents();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [fetchYearsAndLatest, fetchEvents]);
 
-	// Debounced searching/filtering
-	useEffect(() => {
-		const t = setTimeout(() => fetchFests({ page: 1 }), 350);
-		return () => clearTimeout(t);
-	}, [query, statusFilter, sortBy]); // eslint-disable-line
+	// when user selects a year, load that fest
+	const handleSelectYear = async (year) => {
+		setSelectedYear(year);
+		setLocalError('');
+		if (!year) {
+			setActiveFest(null);
+			setPartners([]);
+			return;
+		}
+		setLoading(true);
+		try {
+			const details = await getFestDetails(year, { admin: true });
+			setActiveFest(details);
+			setPartners(Array.isArray(details.partners) ? details.partners : []);
+		} catch (err) {
+			const msg = err?.message || `Failed to load fest for year ${year}.`;
+			setLocalError(msg);
+			setDashboardError(msg);
+			setActiveFest(null);
+			setPartners([]);
+		} finally {
+			setLoading(false);
+		}
+	};
 
+	/* --- Remaining handlers mostly unchanged, operate on activeFest --- */
 	/* Create Fest */
 	const handleCreate = async (e) => {
 		e?.preventDefault();
@@ -152,7 +191,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				startDate: '',
 				endDate: '',
 			});
-			await fetchFests({ page: 1 });
+			// refresh years and latest
+			await fetchYearsAndLatest();
 		} catch (err) {
 			const msg = err?.message || 'Failed to create fest.';
 			setLocalError(msg);
@@ -162,14 +202,17 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
-	/* Open details */
+	/* Open details (kept for card actions) */
 	const openFest = async (fest) => {
 		setLocalError('');
+		if (!fest) return;
 		try {
 			const id = fest.slug || fest.year || fest._id;
 			const details = await getFestDetails(id, { admin: true });
 			setActiveFest(details);
 			setPartners(Array.isArray(details.partners) ? details.partners : []);
+			// set selected year to the fest year
+			if (details.year) setSelectedYear(details.year);
 		} catch (err) {
 			const msg = err?.message || 'Failed to load fest details.';
 			setLocalError(msg);
@@ -198,12 +241,12 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		try {
 			const id = activeFest.slug || activeFest.year || activeFest._id;
 			const payload = { ...editForm };
-			// do not send immutable fields
 			delete payload.name;
 			delete payload.location;
 			await updateFestDetails(id, payload);
 			setEditOpen(false);
-			await fetchFests();
+			// refresh current fest
+			await handleSelectYear(activeFest.year);
 		} catch (err) {
 			const msg = err?.message || 'Failed to update fest.';
 			setLocalError(msg);
@@ -218,12 +261,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		try {
 			const id = fest.slug || fest.year || fest._id;
 			await deleteFest(id);
-			// close detail panel when deleting active fest
-			if (activeFest && String(activeFest._id) === String(fest._id)) {
-				setActiveFest(null);
-				setPartners([]);
-			}
-			await fetchFests();
+			// refresh years/latest
+			await fetchYearsAndLatest();
 		} catch (err) {
 			const msg = err?.message || 'Failed to delete fest.';
 			setLocalError(msg);
@@ -231,7 +270,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
-	/* Poster & Gallery */
+	/* Poster & Gallery (unchanged) */
 	const uploadPoster = async (file) => {
 		if (!activeFest || !file) return;
 		setLocalError('');
@@ -242,7 +281,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			await updateFestPoster(id, fd);
 			const refreshed = await getFestDetails(id, { admin: true });
 			setActiveFest(refreshed);
-			await fetchFests();
+			await fetchYearsAndLatest();
 		} catch (err) {
 			const msg = err?.message || 'Failed to upload poster.';
 			setLocalError(msg);
@@ -260,7 +299,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			await addGalleryMedia(id, fd);
 			const refreshed = await getFestDetails(id, { admin: true });
 			setActiveFest(refreshed);
-			await fetchFests();
+			await fetchYearsAndLatest();
 		} catch (err) {
 			const msg = err?.message || 'Failed to add gallery media.';
 			setLocalError(msg);
@@ -276,7 +315,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			await removeGalleryMedia(id, publicId);
 			const refreshed = await getFestDetails(id, { admin: true });
 			setActiveFest(refreshed);
-			await fetchFests();
+			await fetchYearsAndLatest();
 		} catch (err) {
 			const msg = err?.message || 'Failed to remove gallery media.';
 			setLocalError(msg);
@@ -284,7 +323,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
-	/* Events linking */
+	/* Events linking (unchanged) */
 	const handleLinkEvent = async (festOrEventId, maybeEventId) => {
 		let fest = activeFest;
 		let eventId = festOrEventId;
@@ -301,7 +340,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			if (activeFest && String(activeFest._id) === String(fest._id)) {
 				setActiveFest(refreshed);
 			}
-			await fetchFests();
 		} catch (err) {
 			const msg = err?.message || 'Failed to link event.';
 			setLocalError(msg);
@@ -318,7 +356,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			await unlinkEventFromFest(id, eventId);
 			const refreshed = await getFestDetails(id, { admin: true });
 			setActiveFest(refreshed);
-			await fetchFests();
 		} catch (err) {
 			const msg = err?.message || 'Failed to unlink event.';
 			setLocalError(msg);
@@ -326,7 +363,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
-	/* Partners quick manage */
+	/* Partners quick manage (unchanged) */
 	const addNewPartner = async (fd) => {
 		if (!activeFest) return;
 		setLocalError('');
@@ -335,7 +372,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			await addPartner(id, fd);
 			const refreshed = await getFestDetails(id, { admin: true });
 			setPartners(refreshed.partners || []);
-			await fetchFests();
 		} catch (err) {
 			const msg = err?.message || 'Failed to add partner.';
 			setLocalError(msg);
@@ -352,7 +388,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			await removePartner(id, partnerName);
 			const refreshed = await getFestDetails(id, { admin: true });
 			setPartners(refreshed.partners || []);
-			await fetchFests();
 		} catch (err) {
 			const msg = err?.message || 'Failed to remove partner.';
 			setLocalError(msg);
@@ -421,11 +456,12 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				<div>
 					<h1 className="text-2xl font-extrabold text-white">Arvantis — Admin</h1>
 					<p className="text-sm text-gray-400">
-						Manage fests, partners, media and analytics
+						Showing latest fest by default. Select a year to view that year's fest.
 					</p>
 				</div>
 
 				<div className="flex items-center gap-3">
+					{/* keep search if desired */}
 					<div className="relative">
 						<input
 							aria-label="Search fests"
@@ -437,30 +473,30 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 						<Search className="absolute left-3 top-2.5 text-gray-400" />
 					</div>
 
+					{/* Year selector: latest by default */}
 					<select
-						aria-label="Filter by status"
-						value={statusFilter}
-						onChange={(e) => setStatusFilter(e.target.value)}
+						aria-label="Select fest year"
+						value={selectedYear ?? ''}
+						onChange={(e) =>
+							handleSelectYear(e.target.value ? Number(e.target.value) : null)
+						}
 						className="p-2 rounded-lg bg-gray-800 text-gray-100"
 					>
-						<option value="">All statuses</option>
-						<option value="upcoming">Upcoming</option>
-						<option value="ongoing">Ongoing</option>
-						<option value="completed">Completed</option>
-						<option value="cancelled">Cancelled</option>
-						<option value="postponed">Postponed</option>
+						<option value="">-- Select year (latest shown) --</option>
+						{years.map((y) => (
+							<option key={y} value={y}>
+								{y}
+							</option>
+						))}
 					</select>
 
-					<select
-						aria-label="Sort fests"
-						value={sortBy}
-						onChange={(e) => setSortBy(e.target.value)}
-						className="p-2 rounded-lg bg-gray-800 text-gray-100"
+					<button
+						type="button"
+						className="px-3 py-2 bg-gradient-to-r from-indigo-600 to-sky-500 text-white rounded-lg shadow"
+						onClick={() => fetchYearsAndLatest()}
 					>
-						<option value="year">Sort: Year</option>
-						<option value="name">Sort: Name</option>
-						<option value="startDate">Sort: Start Date</option>
-					</select>
+						Latest
+					</button>
 
 					<button
 						type="button"
@@ -493,254 +529,167 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 
 			{localError && <div className="mb-4 text-sm text-red-400">{localError}</div>}
 
-			{/* Grid */}
+			{/* Show single fest (latest or selected) */}
 			{loading ? (
 				<div className="py-20 flex justify-center">
 					<Loader2 className="w-10 h-10 animate-spin text-white" />
 				</div>
-			) : (
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-					{fests.map((fest) => (
-						<div
-							key={fest._id || fest.slug || fest.year}
-							className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 p-4 rounded-2xl shadow-lg border border-gray-700"
-						>
-							<div className="flex items-start justify-between">
-								<div>
-									<h3 className="text-lg font-semibold text-white">
-										{fest.name}
-									</h3>
-									<div className="text-sm text-gray-400">
-										{fest.year} •{' '}
-										{fest.location || 'Lovely Professional University'}
-									</div>
-								</div>
-								<span
-									className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge(
-										fest.status
-									)}`}
-								>
-									{fest.status}
-								</span>
-							</div>
-
-							<p className="mt-3 text-sm text-gray-300 line-clamp-3">
-								{fest.description || 'No description'}
-							</p>
-
-							<div className="mt-4 flex items-center justify-between">
-								<div className="flex items-center gap-2 text-sm text-gray-300">
-									<button
-										type="button"
-										className="px-2 py-1 bg-indigo-600 text-white rounded-md"
-										onClick={() => openFest(fest)}
-									>
-										Open
-									</button>
-									<button
-										type="button"
-										className="px-2 py-1 bg-gray-700 text-white rounded-md"
-										onClick={() => openEdit(fest)}
-									>
-										Edit
-									</button>
-									<button
-										type="button"
-										className="px-2 py-1 bg-yellow-500 text-white rounded-md"
-										onClick={() => generateReport(fest)}
-									>
-										Report
-									</button>
-								</div>
-
-								<div className="flex items-center gap-2">
-									<select
-										aria-label={`Link event to ${fest.name}`}
-										className="bg-gray-800 text-gray-200 p-1 rounded"
-										onChange={(e) => {
-											const val = e.target.value;
-											if (val) handleLinkEvent(fest, val);
-											e.target.value = '';
-										}}
-										defaultValue=""
-									>
-										<option value="">Link event</option>
-										{(events || []).slice(0, 10).map((ev) => (
-											<option key={ev._id} value={ev._id}>
-												{ev.title}
-											</option>
-										))}
-									</select>
-									<button
-										type="button"
-										className="p-2 rounded bg-red-600 text-white"
-										onClick={() => removeFest(fest)}
-										title="Delete"
-									>
-										<Trash2 />
-									</button>
-								</div>
-							</div>
-						</div>
-					))}
-					{(fests || []).length === 0 && !loading && (
-						<div className="col-span-full text-center text-gray-400">
-							No fests found.
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* Active fest side panel / modal */}
-			{activeFest && (
-				<div className="fixed right-6 top-20 bottom-6 w-96 bg-gradient-to-b from-gray-900 to-gray-800 rounded-2xl p-4 shadow-xl overflow-auto z-50">
-					<div className="flex items-start justify-between mb-3">
+			) : activeFest ? (
+				<div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 p-6 rounded-2xl shadow-lg border border-gray-700">
+					<div className="flex items-start justify-between">
 						<div>
-							<h3 className="text-lg font-bold text-white">
-								{activeFest.name || 'Analytics'}
-							</h3>
-							<p className="text-xs text-gray-400">
-								{activeFest.year ? `${activeFest.year}` : ''}
+							<h2 className="text-2xl font-bold text-white">{activeFest.name}</h2>
+							<div className="text-sm text-gray-400">
+								{activeFest.year} •{' '}
+								{activeFest.location || 'Lovely Professional University'}
+							</div>
+							<p className="mt-3 text-sm text-gray-300">
+								{activeFest.description || 'No description'}
 							</p>
 						</div>
+						<span
+							className={`px-3 py-1 rounded-full text-xs font-medium ${statusBadge(
+								activeFest.status
+							)}`}
+						>
+							{activeFest.status}
+						</span>
+					</div>
+
+					{/* actions */}
+					<div className="mt-4 flex gap-2">
 						<button
 							type="button"
-							className="text-gray-300"
-							onClick={() => {
-								setActiveFest(null);
-								setPartners([]);
-							}}
-							aria-label="Close panel"
+							className="px-3 py-2 bg-indigo-600 text-white rounded"
+							onClick={() => openEdit(activeFest)}
 						>
-							<X />
+							Edit
+						</button>
+						<button
+							type="button"
+							className="px-3 py-2 bg-yellow-500 text-white rounded"
+							onClick={() => generateReport(activeFest)}
+						>
+							Report
+						</button>
+						<button
+							type="button"
+							className="px-3 py-2 bg-red-600 text-white rounded"
+							onClick={() => removeFest(activeFest)}
+						>
+							Delete
 						</button>
 					</div>
 
-					{activeFest.__analytics ? (
-						<div>
-							<h4 className="text-sm font-semibold text-gray-200">Overview</h4>
-							<pre className="mt-2 text-xs text-gray-300 bg-gray-800 p-3 rounded">
-								{JSON.stringify(
-									{
-										analytics: activeFest.analytics,
-										statistics: activeFest.statistics,
-									},
-									null,
-									2
+					{/* detail panel (partners, events, media) */}
+					<div className="mt-6">
+						{/* partners */}
+						<div className="mb-4">
+							<h4 className="text-sm text-gray-300">Partners</h4>
+							<ul className="mt-2 space-y-2">
+								{(partners || []).map((p) => (
+									<li
+										key={p.name}
+										className="flex items-center justify-between bg-gray-800 p-2 rounded"
+									>
+										<div className="flex items-center gap-3">
+											{p.logo?.url ? (
+												<img
+													src={p.logo.url}
+													alt={p.name}
+													className="w-10 h-10 rounded"
+												/>
+											) : (
+												<div className="w-10 h-10 bg-gray-700 rounded" />
+											)}
+											<div>
+												<div className="text-sm text-white">{p.name}</div>
+												<div className="text-xs text-gray-400">
+													{p.tier || '-'}
+												</div>
+											</div>
+										</div>
+										<button
+											type="button"
+											className="text-red-500"
+											onClick={() => removeExistingPartner(p.name)}
+										>
+											Remove
+										</button>
+									</li>
+								))}
+								{(partners || []).length === 0 && (
+									<div className="text-xs text-gray-500 mt-2">
+										No partners yet
+									</div>
 								)}
-							</pre>
+							</ul>
+							{/* quick add partner form (kept simple) */}
+							<PartnerQuickAdd onAdd={(fd) => addNewPartner(fd)} />
 						</div>
-					) : (
-						<>
+
+						{/* linked events */}
+						<div className="mb-4">
+							<h4 className="text-sm text-gray-300">Linked Events</h4>
+							{(activeFest.events || []).length === 0 ? (
+								<div className="text-xs text-gray-500 mt-2">No linked events</div>
+							) : (
+								<ul className="mt-2 space-y-2">
+									{(activeFest.events || []).map((ev) => (
+										<li
+											key={ev._id || ev}
+											className="flex items-center justify-between bg-gray-800 p-2 rounded"
+										>
+											<div className="text-sm text-white">
+												{ev.title || ev}
+											</div>
+											<button
+												type="button"
+												className="text-sm text-red-500"
+												onClick={() => handleUnlinkEvent(ev._id || ev)}
+											>
+												Unlink
+											</button>
+										</li>
+									))}
+								</ul>
+							)}
+							{/* link event select */}
+							<div className="mt-2">
+								<select
+									className="bg-gray-800 text-gray-200 p-2 rounded"
+									onChange={(e) => {
+										const v = e.target.value;
+										if (v) handleLinkEvent(activeFest, v);
+										e.target.value = '';
+									}}
+								>
+									<option value="">Link an event</option>
+									{(events || []).map((ev) => (
+										<option key={ev._id} value={ev._id}>
+											{ev.title}
+										</option>
+									))}
+								</select>
+							</div>
+						</div>
+
+						{/* media */}
+						<div className="mb-4">
+							<h4 className="text-sm text-gray-300">Media</h4>
 							{activeFest.poster?.url && (
 								<img
 									src={activeFest.poster.url}
 									alt="poster"
-									className="w-full h-40 object-cover rounded-lg mb-3"
+									className="w-full h-48 object-cover rounded-lg mb-3"
 								/>
 							)}
-							<div className="text-sm text-gray-300 mb-3">
-								{activeFest.description || '—'}
-							</div>
-
-							<div className="mb-3">
-								<h5 className="text-xs text-gray-400 uppercase tracking-wide">
-									Partners
-								</h5>
-								{loadingPartners ? (
-									<div className="py-2 text-sm text-gray-400">Loading...</div>
-								) : (
-									<ul className="space-y-2 mt-2">
-										{(partners || []).map((p) => (
-											<li
-												key={p.name}
-												className="flex items-center justify-between bg-gray-800 p-2 rounded"
-											>
-												<div className="flex items-center gap-2">
-													{p.logo?.url ? (
-														<img
-															src={p.logo.url}
-															alt={p.name}
-															className="w-10 h-10 rounded"
-														/>
-													) : (
-														<div className="w-10 h-10 bg-gray-700 rounded" />
-													)}
-													<div>
-														<div className="text-sm text-white">
-															{p.name}
-														</div>
-														<div className="text-xs text-gray-400">
-															{p.tier || '-'}
-														</div>
-													</div>
-												</div>
-												<button
-													type="button"
-													className="text-red-500 text-sm"
-													onClick={() => removeExistingPartner(p.name)}
-												>
-													Remove
-												</button>
-											</li>
-										))}
-										{(partners || []).length === 0 && (
-											<div className="text-xs text-gray-500 mt-2">
-												No partners yet
-											</div>
-										)}
-									</ul>
-								)}
-							</div>
-
-							<div className="mb-3">
-								<h5 className="text-xs text-gray-400 uppercase tracking-wide">
-									Linked Events
-								</h5>
-								{(activeFest.events || []).length === 0 ? (
-									<div className="text-xs text-gray-500 mt-2">
-										No linked events
-									</div>
-								) : (
-									<ul className="mt-2 space-y-2">
-										{(activeFest.events || []).map((ev) => (
-											<li
-												key={ev._id}
-												className="flex items-center justify-between bg-gray-800 p-2 rounded"
-											>
-												<div>
-													<div className="text-sm text-white">
-														{ev.title}
-													</div>
-													<div className="text-xs text-gray-400">
-														{ev.eventDate
-															? new Date(
-																	ev.eventDate
-															  ).toLocaleString()
-															: ''}
-													</div>
-												</div>
-												<button
-													type="button"
-													className="text-sm text-red-500"
-													onClick={() => handleUnlinkEvent(ev._id)}
-												>
-													Unlink
-												</button>
-											</li>
-										))}
-									</ul>
-								)}
-							</div>
-
-							<div className="mt-4 space-y-2">
-								<label className="text-xs text-gray-400">Upload poster</label>
+							<div className="flex gap-2 items-center">
 								<input
 									type="file"
 									accept="image/*"
 									onChange={(e) => uploadPoster(e.target.files?.[0])}
 								/>
-								<label className="text-xs text-gray-400">Add gallery images</label>
 								<input
 									type="file"
 									accept="image/*"
@@ -748,29 +697,17 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 									onChange={(e) => addGallery([...e.target.files])}
 								/>
 							</div>
-
-							<div className="mt-4 flex gap-2">
-								<button
-									type="button"
-									className="flex-1 py-2 bg-indigo-600 text-white rounded"
-									onClick={() => openEdit(activeFest)}
-								>
-									Edit
-								</button>
-								<button
-									type="button"
-									className="flex-1 py-2 bg-gray-700 text-white rounded"
-									onClick={() => generateReport(activeFest)}
-								>
-									Report
-								</button>
-							</div>
-						</>
-					)}
+						</div>
+					</div>
+				</div>
+			) : (
+				<div className="text-center text-gray-400">
+					No fest selected. Click "Latest" or choose a year to view that fest. You can
+					also create a new fest.
 				</div>
 			)}
 
-			{/* Create modal */}
+			{/* Create modal (unchanged) */}
 			{createOpen && (
 				<div
 					className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
@@ -863,7 +800,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				</div>
 			)}
 
-			{/* Edit modal */}
+			{/* Edit modal (unchanged) */}
 			{editOpen && (
 				<div
 					className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
@@ -935,6 +872,84 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 					</div>
 				</div>
 			)}
+		</div>
+	);
+};
+
+/* Small helper component included inline to avoid missing import errors */
+const PartnerQuickAdd = ({ onAdd = () => {} }) => {
+	const [name, setName] = useState('');
+	const [tier, setTier] = useState('sponsor');
+	const [website, setWebsite] = useState('');
+	const [logoFile, setLogoFile] = useState(null);
+	const [adding, setAdding] = useState(false);
+	const [err, setErr] = useState('');
+
+	const submit = async () => {
+		setErr('');
+		if (!name || !logoFile) {
+			setErr('Name and logo required');
+			return;
+		}
+		setAdding(true);
+		try {
+			const fd = new FormData();
+			fd.append('name', name);
+			fd.append('tier', tier);
+			if (website) fd.append('website', website);
+			fd.append('logo', logoFile);
+			await onAdd(fd);
+			setName('');
+			setTier('sponsor');
+			setWebsite('');
+			setLogoFile(null);
+		} catch (e) {
+			setErr(e?.message || 'Add partner failed');
+		} finally {
+			setAdding(false);
+		}
+	};
+
+	return (
+		<div className="mt-3 p-3 bg-gray-800 rounded">
+			<input
+				value={name}
+				onChange={(e) => setName(e.target.value)}
+				placeholder="Partner name"
+				className="w-full p-2 rounded bg-gray-700 text-white mb-2"
+			/>
+			<div className="flex gap-2 mb-2">
+				<select
+					value={tier}
+					onChange={(e) => setTier(e.target.value)}
+					className="p-2 bg-gray-700 rounded text-white"
+				>
+					<option value="sponsor">Sponsor</option>
+					<option value="collaborator">Collaborator</option>
+					<option value="other">Other</option>
+				</select>
+				<input
+					value={website}
+					onChange={(e) => setWebsite(e.target.value)}
+					placeholder="Website (optional)"
+					className="p-2 rounded bg-gray-700 text-white flex-1"
+				/>
+			</div>
+			<input
+				type="file"
+				accept="image/*"
+				onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+				className="mb-2"
+			/>
+			{err && <div className="text-xs text-red-400 mb-2">{err}</div>}
+			<button
+				type="button"
+				className="w-full py-2 bg-green-600 rounded text-white"
+				onClick={submit}
+				disabled={adding}
+			>
+				{adding ? 'Adding...' : 'Add Partner'}
+			</button>
 		</div>
 	);
 };
