@@ -75,21 +75,56 @@ const EventSchema = new mongoose.Schema(
 		totalSpots: {
 			type: Number,
 			min: [0, 'Total spots cannot be negative'],
-			default: 0, // Default to unlimited spots
+			default: 0, // 0 = unlimited
 		},
 		ticketPrice: {
 			type: Number,
 			min: [0, 'Ticket price cannot be negative'],
 			default: 0, // Default to a free event
 		},
-		// This array stores references to User documents, not Tickets.
-		// This is better for quickly checking who has registered.
+
+		// registration object: supports two registration types
+		registration: {
+			mode: {
+				type: String,
+				enum: ['internal', 'external', 'none'],
+				default: 'internal',
+				required: true,
+			},
+			// when mode === 'external' client should provide this URL
+			externalUrl: {
+				type: String,
+				trim: true,
+				validate: {
+					validator: function (v) {
+						if (!v) return true; // allow empty unless mode === external (checked in pre-save)
+						return /^(https?:\/\/)?((([a-zA-Z0-9\-_]+\.)+[a-zA-Z]{2,})|localhost)(:\d{2,5})?(\/[^\s]*)?$/.test(
+							v
+						);
+					},
+					message: 'Invalid external registration URL',
+				},
+			},
+			// if true, allow anonymous/guest ticketing (no member account required)
+			allowGuests: {
+				type: Boolean,
+				default: true,
+			},
+			// optional per-event capacity that overrides totalSpots when set (0/unset = use totalSpots)
+			capacityOverride: {
+				type: Number,
+				min: [0, 'Capacity cannot be negative'],
+			},
+		},
+
+		// This array stores references to Member documents (legacy quick-check).
 		registeredUsers: [
 			{
 				type: mongoose.Schema.Types.ObjectId,
-				ref: 'Member', // FIX: Corrected model name (no generic 'User' model)
+				ref: 'Member',
 			},
 		],
+
 		status: {
 			type: String,
 			enum: {
@@ -119,48 +154,58 @@ EventSchema.virtual('isFree').get(function () {
 	return this.ticketPrice === 0;
 });
 
-// Virtual property to calculate remaining spots
+// derived capacity used for registration calculations
+EventSchema.virtual('effectiveCapacity').get(function () {
+	// If registration.capacityOverride is a positive number use it, otherwise use totalSpots.
+	const cap = this.registration?.capacityOverride;
+	if (typeof cap === 'number' && cap > 0) return cap;
+	return this.totalSpots;
+});
+
+// Virtual property to calculate remaining spots (for internal registration)
 EventSchema.virtual('spotsLeft').get(function () {
-	if (this.totalSpots === 0) {
-		return Infinity; // Unlimited spots
-	}
-	return Math.max(0, this.totalSpots - this.registeredUsers.length);
+	const cap = this.effectiveCapacity || 0;
+	// treat 0 as unlimited
+	if (!cap) return Infinity;
+	const registeredCount = Array.isArray(this.registeredUsers) ? this.registeredUsers.length : 0;
+	return Math.max(0, cap - registeredCount);
 });
 
 // Virtual property to check if the event is full
 EventSchema.virtual('isFull').get(function () {
-	if (this.totalSpots === 0) {
-		return false; // Never full if spots are unlimited
-	}
-	return this.registeredUsers.length >= this.totalSpots;
+	const cap = this.effectiveCapacity || 0;
+	if (!cap) return false; // unlimited
+	const registeredCount = Array.isArray(this.registeredUsers) ? this.registeredUsers.length : 0;
+	return registeredCount >= cap;
 });
 
-// Virtual property for registration status
+// Virtual property for registration status (accounts for external mode)
 EventSchema.virtual('registrationStatus').get(function () {
 	const now = new Date();
 
-	// Handle definitive statuses first
+	// If registration explicitly disabled
+	if (this.registration?.mode === 'none') return 'CLOSED';
+
+	// External registration: report as EXTERNAL if URL present, otherwise CLOSED
+	if (this.registration?.mode === 'external') {
+		return this.registration?.externalUrl ? 'EXTERNAL' : 'CLOSED';
+	}
+
+	// Internal registration flow
 	if (this.status === 'cancelled') return 'CANCELLED';
 	if (this.status === 'completed' || this.status === 'ongoing') return 'CLOSED';
 	if (this.isFull) return 'FULL';
 
-	// If dates are not set, registration is considered closed unless the event is upcoming
+	// If dates are not set, consider closed unless upcoming
 	if (!this.registrationOpenDate || !this.registrationCloseDate) {
 		return this.status === 'upcoming' ? 'CLOSED' : 'PAST';
 	}
 
-	// Logic based on dates
-	if (now < this.registrationOpenDate) {
-		return 'COMING_SOON';
-	}
-	if (now >= this.registrationOpenDate && now <= this.registrationCloseDate) {
-		return 'OPEN';
-	}
-	if (now > this.registrationCloseDate) {
-		return 'CLOSED';
-	}
+	if (now < this.registrationOpenDate) return 'COMING_SOON';
+	if (now >= this.registrationOpenDate && now <= this.registrationCloseDate) return 'OPEN';
+	if (now > this.registrationCloseDate) return 'CLOSED';
 
-	return 'UNAVAILABLE'; // Fallback
+	return 'UNAVAILABLE';
 });
 
 // Text index for efficient searching on title, description, and tags
@@ -168,11 +213,12 @@ EventSchema.index({ title: 'text', description: 'text', tags: 'text', category: 
 // Index for common filtering and sorting
 EventSchema.index({ eventDate: 1, status: 1 });
 
-// Pre-save hook to sanitize tags and validate dates
+// Pre-save hook to sanitize tags and validate dates + registration constraints
 EventSchema.pre('save', function (next) {
 	if (this.isModified('tags') && this.tags) {
 		this.tags = this.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
 	}
+
 	if (
 		this.registrationOpenDate &&
 		this.registrationCloseDate &&
@@ -180,6 +226,23 @@ EventSchema.pre('save', function (next) {
 	) {
 		return next(new Error('Registration open date cannot be after the close date.'));
 	}
+
+	// If external mode ensure externalUrl exists
+	if (this.registration?.mode === 'external') {
+		if (!this.registration.externalUrl) {
+			return next(
+				new Error(
+					'External registration URL is required when registration.mode is "external".'
+				)
+			);
+		}
+	}
+
+	// Ensure capacity override is not negative and not greater than a sensible max (optional)
+	if (this.registration?.capacityOverride && this.registration.capacityOverride < 0) {
+		return next(new Error('registration.capacityOverride cannot be negative.'));
+	}
+
 	next();
 });
 
