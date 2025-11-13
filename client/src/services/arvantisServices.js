@@ -76,7 +76,7 @@ export const getAllFests = async (params = {}, options = { admin: false }) => {
 	try {
 		const client = options.admin ? apiClient : publicClient;
 		const response = await client.get('/api/v1/arvantis', { params });
-		return normalizePagination(response.data);
+		return normalizePagination(response);
 	} catch (error) {
 		throw new Error(extractError(error, 'Failed to fetch fests.'));
 	}
