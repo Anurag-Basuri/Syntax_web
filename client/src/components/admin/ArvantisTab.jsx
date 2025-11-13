@@ -21,41 +21,68 @@ import { getAllEvents } from '../../services/eventServices.js';
 import { Loader2, Plus, X, Trash2, DownloadCloud, BarChart2, Search } from 'lucide-react';
 
 /*
-  Premium ArvantisTab:
-  - single unified admin UI
-  - search & filter, card grid, concise modals, inline partner quick-actions
-  - uses existing services
+  Fixed & improved Arvantis admin tab
+  - defensive network/error handling
+  - controlled inputs to avoid React warnings
+  - small UX improvements (inline error messages, disabled states)
+  - avoids sending immutable fields (name/location)
+  - accessible attributes and safe date formatting
 */
-const ArvantisTab = ({ token, setDashboardError }) => {
+const ArvantisTab = ({ setDashboardError = () => {} }) => {
+	// Data
 	const [fests, setFests] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [events, setEvents] = useState([]);
+	// UI state
 	const [query, setQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState('');
 	const [sortBy, setSortBy] = useState('year');
-	const [page, setPage] = useState(1);
+	const [page] = useState(1);
 	const [limit] = useState(12);
-
+	// create/edit
 	const [createOpen, setCreateOpen] = useState(false);
 	const [createLoading, setCreateLoading] = useState(false);
 	const [createForm, setCreateForm] = useState({
-		// 'name' removed — server will set name to "Arvantis"
 		year: new Date().getFullYear(),
 		description: '',
 		startDate: '',
 		endDate: '',
 	});
-
-	const [activeFest, setActiveFest] = useState(null); // details when opened
 	const [editOpen, setEditOpen] = useState(false);
-	const [editForm, setEditForm] = useState({});
+	const [editForm, setEditForm] = useState({
+		name: 'Arvantis',
+		description: '',
+		startDate: '',
+		endDate: '',
+		status: 'upcoming',
+		location: 'Lovely Professional University',
+		contactEmail: '',
+	});
+	// active detail panel
+	const [activeFest, setActiveFest] = useState(null);
 	const [partners, setPartners] = useState([]);
 	const [loadingPartners, setLoadingPartners] = useState(false);
 	const [downloadingCSV, setDownloadingCSV] = useState(false);
+	// local error
+	const [localError, setLocalError] = useState('');
 
+	// helper: safe download blob
+	const downloadBlob = (blob, filename) => {
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		URL.revokeObjectURL(url);
+	};
+
+	// Fetch list of fests
 	const fetchFests = useCallback(
 		async (opts = {}) => {
 			setLoading(true);
+			setLocalError('');
 			try {
 				const params = {
 					page: opts.page ?? page,
@@ -66,9 +93,11 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 				if (statusFilter) params.status = statusFilter;
 				if (query) params.search = query;
 				const res = await getAllFests(params, { admin: true });
-				setFests(res.docs || []);
+				setFests(Array.isArray(res.docs) ? res.docs : []);
 			} catch (err) {
-				setDashboardError(err?.message || 'Failed to fetch fests.');
+				const msg = err?.message || 'Failed to fetch fests.';
+				setLocalError(msg);
+				setDashboardError(msg);
 			} finally {
 				setLoading(false);
 			}
@@ -76,21 +105,26 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 		[page, limit, sortBy, statusFilter, query, setDashboardError]
 	);
 
+	// Fetch events for linking
 	const fetchEvents = useCallback(async () => {
 		try {
 			const res = await getAllEvents({ page: 1, limit: 500 });
-			setEvents(res.docs || []);
+			setEvents(Array.isArray(res.docs) ? res.docs : []);
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to fetch events.');
+			const msg = err?.message || 'Failed to fetch events.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	}, [setDashboardError]);
 
+	// initial load
 	useEffect(() => {
 		fetchFests();
 		fetchEvents();
-	}, [fetchFests, fetchEvents]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	// Debounced search UX (simple approach)
+	// Debounced searching/filtering
 	useEffect(() => {
 		const t = setTimeout(() => fetchFests({ page: 1 }), 350);
 		return () => clearTimeout(t);
@@ -100,12 +134,11 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 	const handleCreate = async (e) => {
 		e?.preventDefault();
 		setCreateLoading(true);
+		setLocalError('');
 		try {
-			// name is not required; server will set name="Arvantis" and location fixed to LPU
 			if (!createForm.startDate || !createForm.endDate) {
 				throw new Error('Please provide start and end dates.');
 			}
-			// send only allowed fields — server will add fixed name/location
 			await createFest({
 				year: createForm.year,
 				description: createForm.description,
@@ -121,7 +154,9 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 			});
 			await fetchFests({ page: 1 });
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to create fest.');
+			const msg = err?.message || 'Failed to create fest.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		} finally {
 			setCreateLoading(false);
 		}
@@ -129,26 +164,28 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 
 	/* Open details */
 	const openFest = async (fest) => {
+		setLocalError('');
 		try {
-			const details = await getFestDetails(fest.slug || fest.year || fest._id, {
-				admin: true,
-			});
+			const id = fest.slug || fest.year || fest._id;
+			const details = await getFestDetails(id, { admin: true });
 			setActiveFest(details);
-			setPartners(details.partners || []);
+			setPartners(Array.isArray(details.partners) ? details.partners : []);
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to load fest details.');
+			const msg = err?.message || 'Failed to load fest details.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	/* Edit */
 	const openEdit = (fest) => {
 		setEditForm({
-			name: fest.name || '',
+			name: fest.name || 'Arvantis',
 			description: fest.description || '',
 			startDate: fest.startDate ? new Date(fest.startDate).toISOString().slice(0, 10) : '',
 			endDate: fest.endDate ? new Date(fest.endDate).toISOString().slice(0, 10) : '',
 			status: fest.status || 'upcoming',
-			location: fest.location || '',
+			location: fest.location || 'Lovely Professional University',
 			contactEmail: fest.contactEmail || '',
 		});
 		setActiveFest(fest);
@@ -156,36 +193,48 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 	};
 
 	const saveEdit = async () => {
+		setLocalError('');
 		if (!activeFest) return;
 		try {
 			const id = activeFest.slug || activeFest.year || activeFest._id;
-			// Prevent sending immutable fields (name/location) — server enforces immutability.
 			const payload = { ...editForm };
+			// do not send immutable fields
 			delete payload.name;
 			delete payload.location;
 			await updateFestDetails(id, payload);
 			setEditOpen(false);
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to update fest.');
+			const msg = err?.message || 'Failed to update fest.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	/* Delete */
 	const removeFest = async (fest) => {
+		if (!fest) return;
 		if (!window.confirm(`Delete "${fest.name}"? This cannot be undone.`)) return;
 		try {
 			const id = fest.slug || fest.year || fest._id;
 			await deleteFest(id);
+			// close detail panel when deleting active fest
+			if (activeFest && String(activeFest._id) === String(fest._id)) {
+				setActiveFest(null);
+				setPartners([]);
+			}
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to delete fest.');
+			const msg = err?.message || 'Failed to delete fest.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	/* Poster & Gallery */
 	const uploadPoster = async (file) => {
 		if (!activeFest || !file) return;
+		setLocalError('');
 		try {
 			const id = activeFest.slug || activeFest.year || activeFest._id;
 			const fd = new FormData();
@@ -195,12 +244,15 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 			setActiveFest(refreshed);
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to upload poster.');
+			const msg = err?.message || 'Failed to upload poster.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	const addGallery = async (files) => {
 		if (!activeFest || !files?.length) return;
+		setLocalError('');
 		try {
 			const id = activeFest.slug || activeFest.year || activeFest._id;
 			const fd = new FormData();
@@ -210,12 +262,15 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 			setActiveFest(refreshed);
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to add gallery media.');
+			const msg = err?.message || 'Failed to add gallery media.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	const removeGalleryItem = async (publicId) => {
 		if (!activeFest) return;
+		setLocalError('');
 		try {
 			const id = activeFest.slug || activeFest.year || activeFest._id;
 			await removeGalleryMedia(id, publicId);
@@ -223,15 +278,13 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 			setActiveFest(refreshed);
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to remove gallery media.');
+			const msg = err?.message || 'Failed to remove gallery media.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
-	/* Events linking
-       handleLinkEvent supports two signatures:
-         - handleLinkEvent(fest, eventId)  -> link event to given fest
-         - handleLinkEvent(eventId)        -> link event to activeFest
-    */
+	/* Events linking */
 	const handleLinkEvent = async (festOrEventId, maybeEventId) => {
 		let fest = activeFest;
 		let eventId = festOrEventId;
@@ -240,23 +293,26 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 			eventId = maybeEventId;
 		}
 		if (!fest || !eventId) return;
+		setLocalError('');
 		try {
 			const id = fest.slug || fest.year || fest._id;
 			await linkEventToFest(id, eventId);
 			const refreshed = await getFestDetails(id, { admin: true });
-			// If we linked to activeFest, update it; otherwise refresh list
 			if (activeFest && String(activeFest._id) === String(fest._id)) {
 				setActiveFest(refreshed);
 			}
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to link event.');
+			const msg = err?.message || 'Failed to link event.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	const handleUnlinkEvent = async (eventId) => {
 		if (!activeFest || !eventId) return;
 		if (!window.confirm('Unlink this event?')) return;
+		setLocalError('');
 		try {
 			const id = activeFest.slug || activeFest.year || activeFest._id;
 			await unlinkEventFromFest(id, eventId);
@@ -264,13 +320,16 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 			setActiveFest(refreshed);
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to unlink event.');
+			const msg = err?.message || 'Failed to unlink event.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	/* Partners quick manage */
 	const addNewPartner = async (fd) => {
 		if (!activeFest) return;
+		setLocalError('');
 		try {
 			const id = activeFest.slug || activeFest.year || activeFest._id;
 			await addPartner(id, fd);
@@ -278,13 +337,16 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 			setPartners(refreshed.partners || []);
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to add partner.');
+			const msg = err?.message || 'Failed to add partner.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	const removeExistingPartner = async (partnerName) => {
 		if (!activeFest) return;
 		if (!window.confirm(`Remove partner "${partnerName}"?`)) return;
+		setLocalError('');
 		try {
 			const id = activeFest.slug || activeFest.year || activeFest._id;
 			await removePartner(id, partnerName);
@@ -292,61 +354,56 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 			setPartners(refreshed.partners || []);
 			await fetchFests();
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to remove partner.');
+			const msg = err?.message || 'Failed to remove partner.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	/* Analytics & CSV */
 	const exportCSV = async () => {
 		setDownloadingCSV(true);
+		setLocalError('');
 		try {
 			const blob = await exportFestsCSV();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `arvantis-fests-${new Date().toISOString()}.csv`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(url);
+			downloadBlob(blob, `arvantis-fests-${new Date().toISOString()}.csv`);
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to export CSV.');
+			const msg = err?.message || 'Failed to export CSV.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		} finally {
 			setDownloadingCSV(false);
 		}
 	};
 
 	const loadAnalytics = async () => {
+		setLocalError('');
 		try {
 			const a = await getFestAnalytics();
 			const s = await getFestStatistics();
-			// quick show as modal-like card
 			setPartners([]); // hide partners when analytics open
 			setActiveFest({ __analytics: true, analytics: a, statistics: s });
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to load analytics.');
+			const msg = err?.message || 'Failed to load analytics.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
 	const generateReport = async (fest) => {
+		setLocalError('');
 		try {
 			const id = fest.slug || fest.year || fest._id;
 			const report = await generateFestReport(id);
 			const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = `arvantis-report-${id}.json`;
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(url);
+			downloadBlob(blob, `arvantis-report-${id}.json`);
 		} catch (err) {
-			setDashboardError(err?.message || 'Failed to generate report.');
+			const msg = err?.message || 'Failed to generate report.';
+			setLocalError(msg);
+			setDashboardError(msg);
 		}
 	};
 
-	/* UI helpers */
 	const statusBadge = (s) => {
 		const map = {
 			upcoming: 'bg-indigo-100 text-indigo-800',
@@ -371,6 +428,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 				<div className="flex items-center gap-3">
 					<div className="relative">
 						<input
+							aria-label="Search fests"
 							placeholder="Search fests..."
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
@@ -380,6 +438,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 					</div>
 
 					<select
+						aria-label="Filter by status"
 						value={statusFilter}
 						onChange={(e) => setStatusFilter(e.target.value)}
 						className="p-2 rounded-lg bg-gray-800 text-gray-100"
@@ -393,6 +452,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 					</select>
 
 					<select
+						aria-label="Sort fests"
 						value={sortBy}
 						onChange={(e) => setSortBy(e.target.value)}
 						className="p-2 rounded-lg bg-gray-800 text-gray-100"
@@ -403,6 +463,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 					</select>
 
 					<button
+						type="button"
 						className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-indigo-600 to-sky-500 text-white rounded-lg shadow"
 						onClick={() => setCreateOpen(true)}
 					>
@@ -410,6 +471,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 					</button>
 
 					<button
+						type="button"
 						title="Analytics"
 						className="p-2 rounded-lg bg-gray-800 text-gray-200"
 						onClick={loadAnalytics}
@@ -418,6 +480,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 					</button>
 
 					<button
+						type="button"
 						title="Export CSV"
 						className="p-2 rounded-lg bg-gray-800 text-gray-200"
 						onClick={exportCSV}
@@ -427,6 +490,8 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 					</button>
 				</div>
 			</header>
+
+			{localError && <div className="mb-4 text-sm text-red-400">{localError}</div>}
 
 			{/* Grid */}
 			{loading ? (
@@ -466,18 +531,21 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 							<div className="mt-4 flex items-center justify-between">
 								<div className="flex items-center gap-2 text-sm text-gray-300">
 									<button
+										type="button"
 										className="px-2 py-1 bg-indigo-600 text-white rounded-md"
 										onClick={() => openFest(fest)}
 									>
 										Open
 									</button>
 									<button
+										type="button"
 										className="px-2 py-1 bg-gray-700 text-white rounded-md"
 										onClick={() => openEdit(fest)}
 									>
 										Edit
 									</button>
 									<button
+										type="button"
 										className="px-2 py-1 bg-yellow-500 text-white rounded-md"
 										onClick={() => generateReport(fest)}
 									>
@@ -487,18 +555,24 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 
 								<div className="flex items-center gap-2">
 									<select
+										aria-label={`Link event to ${fest.name}`}
 										className="bg-gray-800 text-gray-200 p-1 rounded"
-										onChange={(e) => handleLinkEvent(fest, e.target.value)}
+										onChange={(e) => {
+											const val = e.target.value;
+											if (val) handleLinkEvent(fest, val);
+											e.target.value = '';
+										}}
 										defaultValue=""
 									>
 										<option value="">Link event</option>
-										{events.slice(0, 10).map((ev) => (
+										{(events || []).slice(0, 10).map((ev) => (
 											<option key={ev._id} value={ev._id}>
 												{ev.title}
 											</option>
 										))}
 									</select>
 									<button
+										type="button"
 										className="p-2 rounded bg-red-600 text-white"
 										onClick={() => removeFest(fest)}
 										title="Delete"
@@ -509,6 +583,11 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 							</div>
 						</div>
 					))}
+					{(fests || []).length === 0 && !loading && (
+						<div className="col-span-full text-center text-gray-400">
+							No fests found.
+						</div>
+					)}
 				</div>
 			)}
 
@@ -525,17 +604,18 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 							</p>
 						</div>
 						<button
+							type="button"
 							className="text-gray-300"
 							onClick={() => {
 								setActiveFest(null);
 								setPartners([]);
 							}}
+							aria-label="Close panel"
 						>
 							<X />
 						</button>
 					</div>
 
-					{/* analytics panel */}
 					{activeFest.__analytics ? (
 						<div>
 							<h4 className="text-sm font-semibold text-gray-200">Overview</h4>
@@ -580,6 +660,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 													{p.logo?.url ? (
 														<img
 															src={p.logo.url}
+															alt={p.name}
 															className="w-10 h-10 rounded"
 														/>
 													) : (
@@ -595,6 +676,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 													</div>
 												</div>
 												<button
+													type="button"
 													className="text-red-500 text-sm"
 													onClick={() => removeExistingPartner(p.name)}
 												>
@@ -631,10 +713,15 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 														{ev.title}
 													</div>
 													<div className="text-xs text-gray-400">
-														{new Date(ev.eventDate).toLocaleString()}
+														{ev.eventDate
+															? new Date(
+																	ev.eventDate
+															  ).toLocaleString()
+															: ''}
 													</div>
 												</div>
 												<button
+													type="button"
 													className="text-sm text-red-500"
 													onClick={() => handleUnlinkEvent(ev._id)}
 												>
@@ -664,12 +751,14 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 
 							<div className="mt-4 flex gap-2">
 								<button
+									type="button"
 									className="flex-1 py-2 bg-indigo-600 text-white rounded"
 									onClick={() => openEdit(activeFest)}
 								>
 									Edit
 								</button>
 								<button
+									type="button"
 									className="flex-1 py-2 bg-gray-700 text-white rounded"
 									onClick={() => generateReport(activeFest)}
 								>
@@ -683,30 +772,39 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 
 			{/* Create modal */}
 			{createOpen && (
-				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+				<div
+					className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
+					role="dialog"
+					aria-modal="true"
+				>
 					<div className="bg-gray-900 p-6 rounded-2xl w-full max-w-md">
 						<div className="flex items-center justify-between mb-4">
 							<h3 className="text-lg font-bold text-white">Create Fest</h3>
-							<button className="text-gray-300" onClick={() => setCreateOpen(false)}>
+							<button
+								type="button"
+								className="text-gray-300"
+								onClick={() => setCreateOpen(false)}
+								aria-label="Close create dialog"
+							>
 								<X />
 							</button>
 						</div>
 						<form onSubmit={handleCreate} className="space-y-3">
-							{/* Name is fixed to "Arvantis" and not editable in the admin UI */}
 							<div className="grid grid-cols-2 gap-2">
 								<input
+									aria-label="Year"
 									placeholder="Year"
 									type="number"
 									value={createForm.year}
 									onChange={(e) =>
 										setCreateForm({
 											...createForm,
-											year: Number(e.target.value),
+											year:
+												Number(e.target.value) || new Date().getFullYear(),
 										})
 									}
 									className="p-2 rounded bg-gray-800 text-white"
 								/>
-								{/* Location is fixed to Lovely Professional University */}
 								<input
 									placeholder="Location"
 									value="Lovely Professional University"
@@ -715,6 +813,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 								/>
 							</div>
 							<textarea
+								aria-label="Description"
 								placeholder="Description"
 								value={createForm.description}
 								onChange={(e) =>
@@ -724,6 +823,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 							/>
 							<div className="grid grid-cols-2 gap-2">
 								<input
+									aria-label="Start date"
 									type="date"
 									value={createForm.startDate}
 									onChange={(e) =>
@@ -732,6 +832,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 									className="p-2 rounded bg-gray-800 text-white"
 								/>
 								<input
+									aria-label="End date"
 									type="date"
 									value={createForm.endDate}
 									onChange={(e) =>
@@ -740,6 +841,7 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 									className="p-2 rounded bg-gray-800 text-white"
 								/>
 							</div>
+							{localError && <div className="text-sm text-red-400">{localError}</div>}
 							<div className="flex gap-2">
 								<button
 									type="submit"
@@ -763,19 +865,28 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 
 			{/* Edit modal */}
 			{editOpen && (
-				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+				<div
+					className="fixed inset-0 z-40 flex items-center justify-center bg-black/50"
+					role="dialog"
+					aria-modal="true"
+				>
 					<div className="bg-gray-900 p-6 rounded-2xl w-full max-w-lg">
 						<div className="flex items-center justify-between mb-4">
 							<h3 className="text-lg font-bold text-white">Edit Fest</h3>
-							<button className="text-gray-300" onClick={() => setEditOpen(false)}>
+							<button
+								type="button"
+								className="text-gray-300"
+								onClick={() => setEditOpen(false)}
+								aria-label="Close edit dialog"
+							>
 								<X />
 							</button>
 						</div>
 						<div className="space-y-3">
-							{/* Name & location shown but read-only (Arvantis & LPU) */}
 							<input
 								value={editForm.name}
 								disabled
+								aria-label="Fest name (fixed)"
 								className="w-full p-2 rounded bg-gray-700 text-gray-300 cursor-not-allowed"
 							/>
 							<textarea
@@ -803,14 +914,17 @@ const ArvantisTab = ({ token, setDashboardError }) => {
 									className="p-2 rounded bg-gray-800 text-white"
 								/>
 							</div>
+							{localError && <div className="text-sm text-red-400">{localError}</div>}
 							<div className="flex gap-2">
 								<button
+									type="button"
 									className="flex-1 py-2 bg-indigo-600 text-white rounded"
 									onClick={saveEdit}
 								>
 									Save
 								</button>
 								<button
+									type="button"
 									className="flex-1 py-2 bg-gray-700 text-white rounded"
 									onClick={() => setEditOpen(false)}
 								>
