@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Search, Plus, Loader2, X, BarChart2, DownloadCloud } from 'lucide-react';
 import {
 	getAllFests,
 	getFestDetails,
@@ -17,18 +18,7 @@ import {
 	getFestStatistics,
 	generateFestReport,
 } from '../../services/arvantisServices.js';
-import { getAllEvents } from '../../services/eventServices.js';
-import { Loader2, Plus, X, Trash2, DownloadCloud, BarChart2, Search } from 'lucide-react';
-
-/*
-  Refactor & UX improvements:
-  - Two-column layout: left = years & fest list; right = details/actions
-  - Clear loading / action disabled states
-  - Search + year filter for list
-  - Explicit confirmations for destructive actions
-  - Consistent identifier resolution (slug/year/_id)
-  - Reusable small components (Badge, EmptyState)
-*/
+import { apiClient } from '../../services/api.js';
 
 const Badge = ({ children, className = '' }) => (
 	<span
@@ -54,7 +44,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 	const [query, setQuery] = useState('');
 	const [years, setYears] = useState([]);
 	const [selectedYear, setSelectedYear] = useState('');
-	const [page] = useState(1);
 	const [limit] = useState(100);
 
 	// create/edit
@@ -77,44 +66,13 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		contactEmail: '',
 	});
 
-	// Save edit handler
-	const saveEdit = async () => {
-		setActionBusy(true);
-		setLocalError('');
-		try {
-			const id = resolveIdentifier(activeFest);
-			const payload = {
-				description: editForm.description,
-				startDate: editForm.startDate,
-				endDate: editForm.endDate,
-				status: editForm.status,
-				location: editForm.location,
-				contactEmail: editForm.contactEmail,
-			};
-			await updateFestDetails(id, payload);
-			await loadFestByIdentifier(id);
-			await fetchYearsAndLatest();
-			setEditOpen(false);
-			showToast('Fest updated', 'success');
-		} catch (err) {
-			const msg = err?.message || 'Failed to save fest edits.';
-			setLocalError(msg);
-			setDashboardError(msg);
-			showToast(msg, 'error');
-		} finally {
-			setActionBusy(false);
-		}
-	};
-
-	// active detail panel (we show one fest at a time)
+	// active detail panel
 	const [activeFest, setActiveFest] = useState(null);
 	const [partners, setPartners] = useState([]);
-	const [loadingPartners, setLoadingPartners] = useState(false);
 	const [downloadingCSV, setDownloadingCSV] = useState(false);
 	const [actionBusy, setActionBusy] = useState(false);
-	// local error
 	const [localError, setLocalError] = useState('');
-	const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
+	const [toast, setToast] = useState(null); // { type, message }
 	const toastTimeoutRef = useRef(null);
 
 	// helper: normalize identifier for API usage (slug | year | _id)
@@ -140,8 +98,23 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		URL.revokeObjectURL(url);
 	};
 
-	// safe filename
-	const safe = (s = '') => String(s).replace(/[:]/g, '-');
+	const safeFilename = (s = '') => String(s).replace(/[:]/g, '-');
+
+	// Toast helper (single implementation)
+	const showToast = (message, type = 'success') => {
+		setToast({ message, type });
+		if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+		toastTimeoutRef.current = setTimeout(() => {
+			setToast(null);
+			toastTimeoutRef.current = null;
+		}, 3500);
+	};
+
+	useEffect(() => {
+		return () => {
+			if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+		};
+	}, []);
 
 	// Load a fest details by identifier (slug/year/_id) and set UI state
 	const loadFestByIdentifier = useCallback(
@@ -159,8 +132,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				const details = await getFestDetails(id, { admin: true });
 				setActiveFest(details);
 				setPartners(Array.isArray(details.partners) ? details.partners : []);
-				if (setSelected && details.year) setSelectedYear(String(details.year));
-				return details; // <-- now returns details for callers
+				if (setSelected && details?.year) setSelectedYear(String(details.year));
+				return details;
 			} catch (err) {
 				const msg = err?.message || `Failed to load fest '${identifier}'.`;
 				setLocalError(msg);
@@ -176,44 +149,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 	);
 
 	/* --- load years and latest fest --- */
-	const fetchYearsAndLatest = useCallback(async () => {
-		setLoading(true);
-		setLocalError('');
-		try {
-			const res = await getAllFests(
-				{ page: 1, limit, sortBy: 'year', sortOrder: 'desc' },
-				{ admin: true }
-			);
-			const docs = Array.isArray(res.docs) ? res.docs : [];
-			setFests(docs);
-			const yrs = Array.from(new Set(docs.map((d) => d.year)))
-				.sort((a, b) => b - a)
-				.map((y) => String(y));
-			setYears(yrs);
-			const latest = yrs[0] ?? '';
-			setSelectedYear(latest);
-			if (latest) {
-				// automatically select the latest fest (first doc with that year)
-				const latestFest = docs.find((d) => String(d.year) === latest);
-				await loadFestByIdentifier(
-					latestFest?.slug || latestFest?.year || latestFest?._id || latest,
-					{
-						setSelected: false,
-					}
-				);
-			} else {
-				setActiveFest(null);
-				setPartners([]);
-			}
-		} catch (err) {
-			const msg = err?.message || 'Failed to fetch fests.';
-			setLocalError(msg);
-			setDashboardError(msg);
-		} finally {
-			setLoading(false);
-		}
-	}, [limit, loadFestByIdentifier, setDashboardError]);
-	/* changed code */
 	const fetchYearsAndLatest = useCallback(async () => {
 		setLoading(true);
 		setLocalError('');
@@ -282,6 +217,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			} else {
 				setActiveFest(null);
 				setPartners([]);
+				setSelectedYear('');
 			}
 		} catch (err) {
 			const msg = err?.message || 'Failed to fetch fests.';
@@ -291,17 +227,27 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			setLoading(false);
 		}
 	}, [limit, loadFestByIdentifier, setDashboardError]);
+
 	// Fetch events (used for linking) once
 	const fetchEvents = useCallback(async () => {
 		try {
-			const res = await getAllEvents({ page: 1, limit: 500 });
-			setEvents(Array.isArray(res.docs) ? res.docs : []);
+			const resp = await apiClient.get('/api/v1/events', { params: { page: 1, limit: 500 } });
+			const payload = resp?.data?.data ?? resp?.data;
+			// try common shapes
+			const docs = Array.isArray(payload?.docs)
+				? payload.docs
+				: Array.isArray(payload)
+				? payload
+				: Array.isArray(payload?.data)
+				? payload.data
+				: [];
+			setEvents(docs);
 		} catch (err) {
 			const msg = err?.message || 'Failed to fetch events.';
 			setLocalError(msg);
 			setDashboardError(msg);
 		}
-	}, [setDashboardError]);
+	}, [limit, setDashboardError]);
 
 	// single effect to initialize
 	useEffect(() => {
@@ -318,27 +264,13 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			setPartners([]);
 			return;
 		}
-		// pick first fest for that year from the cached list; if not found, just attempt by year
 		const festForYear = fests.find((f) => String(f.year) === String(yearStr));
 		await loadFestByIdentifier(
 			festForYear?.slug || festForYear?.year || festForYear?._id || yearStr
 		);
 	};
 
-	/* Filtered list for UI (was missing) */
-	const visibleFests = (fests || [])
-		.filter((f) => (!selectedYear ? true : String(f.year) === String(selectedYear)))
-		.filter((f) => {
-			if (!query) return true;
-			const q = String(query).toLowerCase();
-			return (
-				String(f.year).includes(q) ||
-				((f.name || '') + ' ' + (f.description || '') + ' ' + (f.slug || ''))
-					.toLowerCase()
-					.includes(q)
-			);
-		});
-	/* changed code */
+	/* Filtered list for UI */
 	const visibleFests = useMemo(
 		() =>
 			(fests || [])
@@ -358,37 +290,11 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 
 	/* Actions */
 
-	// Toast helper
-	const showToast = (message, type = 'success') => {
-		setToast({ message, type });
-		// auto-dismiss after 3.5s
-		setTimeout(() => setToast(null), 3500);
-	};
-	// Toast helper (safe: reuses ref and clears previous timeout)
-	const showToast = (message, type = 'success') => {
-		setToast({ message, type });
-		if (toastTimeoutRef.current) {
-			clearTimeout(toastTimeoutRef.current);
-		}
-		toastTimeoutRef.current = setTimeout(() => {
-			setToast(null);
-			toastTimeoutRef.current = null;
-		}, 3500);
-	};
-
-	// clear toast timer on unmount
-	useEffect(() => {
-		return () => {
-			if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-		};
-	}, []);
-
 	const handleCreateSubmit = async (e) => {
 		e.preventDefault();
 		setCreateLoading(true);
 		setLocalError('');
 		try {
-			// validate minimal required fields
 			const { year, description, startDate, endDate } = createForm;
 			if (!year || !startDate || !endDate || !description) {
 				throw new Error('Year, description and dates are required');
@@ -402,7 +308,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			const created = await createFest(payload);
 			setCreateOpen(false);
 			showToast('Fest created', 'success');
-			// refresh lists and open new fest (prefer slug if returned)
 			await fetchYearsAndLatest();
 			const id = created?.slug || created?.year || created?._id;
 			if (id) await loadFestByIdentifier(id);
@@ -416,11 +321,38 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
+	const saveEdit = async () => {
+		setActionBusy(true);
+		setLocalError('');
+		try {
+			const id = resolveIdentifier(activeFest);
+			const payload = {
+				description: editForm.description,
+				startDate: editForm.startDate,
+				endDate: editForm.endDate,
+				status: editForm.status,
+				location: editForm.location,
+				contactEmail: editForm.contactEmail,
+			};
+			await updateFestDetails(id, payload);
+			await loadFestByIdentifier(id);
+			await fetchYearsAndLatest();
+			setEditOpen(false);
+			showToast('Fest updated', 'success');
+		} catch (err) {
+			const msg = err?.message || 'Failed to save fest edits.';
+			setLocalError(msg);
+			setDashboardError(msg);
+			showToast(msg, 'error');
+		} finally {
+			setActionBusy(false);
+		}
+	};
+
 	const openEdit = async (fest) => {
 		setLocalError('');
 		setActionBusy(true);
 		try {
-			// use returned details to seed the edit form (avoid stale state)
 			const details = await loadFestByIdentifier(resolveIdentifier(fest), {
 				setSelected: false,
 			});
@@ -465,23 +397,25 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
-	// Duplicate fest for next year (basic heuristic: shift dates by +1 year)
+	// Duplicate fest for next year
 	const duplicateFest = async (fest) => {
 		const source = fest || activeFest;
 		if (!source) return;
-		const confirmMsg = `Duplicate fest "${source.name || 'Arvantis'} — ${
-			source.year
-		}" for next year?`;
-		if (!window.confirm(confirmMsg)) return;
+		if (
+			!window.confirm(
+				`Duplicate fest "${source.name || 'Arvantis'} — ${source.year}" for next year?`
+			)
+		)
+			return;
 		setActionBusy(true);
 		setLocalError('');
 		try {
 			const srcStart = source.startDate ? new Date(source.startDate) : null;
 			const srcEnd = source.endDate ? new Date(source.endDate) : null;
 			const nextYear = Number(source.year) + 1;
-			// shift dates by +1 year if present, otherwise keep empty (server requires dates)
 			if (!srcStart || !srcEnd)
 				throw new Error('Source fest does not have valid dates to duplicate.');
+
 			const newStart = new Date(srcStart);
 			newStart.setFullYear(newStart.getFullYear() + 1);
 			const newEnd = new Date(srcEnd);
@@ -514,11 +448,13 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		setLocalError('');
 		try {
 			const blob = await exportFestsCSV();
-			downloadBlob(blob, `arvantis-fests-${safe(new Date().toISOString())}.csv`);
+			downloadBlob(blob, `arvantis-fests-${safeFilename(new Date().toISOString())}.csv`);
+			showToast('CSV downloaded', 'success');
 		} catch (err) {
 			const msg = err?.message || 'Failed to export CSV.';
 			setLocalError(msg);
 			setDashboardError(msg);
+			showToast(msg, 'error');
 		} finally {
 			setDownloadingCSV(false);
 		}
@@ -654,13 +590,13 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
-	const addNewPartner = async (fd) => {
+	const addNewPartner = async (formData) => {
 		if (!activeFest) return;
 		setActionBusy(true);
 		setLocalError('');
 		try {
 			const id = resolveIdentifier(activeFest);
-			await addPartner(id, fd);
+			await addPartner(id, formData);
 			await loadFestByIdentifier(id);
 			showToast('Partner added', 'success');
 		} catch (err) {
@@ -697,14 +633,15 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		setLocalError('');
 		setActionBusy(true);
 		try {
-			const a = await getFestAnalytics();
-			const s = await getFestStatistics();
-			setPartners([]); // hide partners when analytics open
-			setActiveFest({ __analytics: true, analytics: a, statistics: s });
+			const analytics = await getFestAnalytics();
+			const stats = await getFestStatistics();
+			setActiveFest({ __analytics: true, analytics, statistics: stats });
+			setPartners([]);
 		} catch (err) {
 			const msg = err?.message || 'Failed to load analytics.';
 			setLocalError(msg);
 			setDashboardError(msg);
+			showToast(msg, 'error');
 		} finally {
 			setActionBusy(false);
 		}
@@ -718,8 +655,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			const id = resolveIdentifier(fest);
 			const report = await generateFestReport(id);
 			const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-			downloadBlob(blob, `arvantis-report-${safe(id)}.json`);
-			showToast('Report generated', 'success');
+			downloadBlob(blob, `arvantis-report-${safeFilename(String(fest.year || id))}.json`);
+			showToast('Report downloaded', 'success');
 		} catch (err) {
 			const msg = err?.message || 'Failed to generate report.';
 			setLocalError(msg);
@@ -1001,7 +938,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 									>
 										Duplicate
 									</button>
-									{/* quick status */}
 									<select
 										className="ml-2 p-1 rounded bg-gray-800 text-white"
 										value={activeFest.status || ''}
@@ -1374,6 +1310,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		</div>
 	);
 };
+
+export default ArvantisTab;
 
 /* Small helper component included inline to avoid missing import errors */
 const PartnerQuickAdd = React.memo(({ onAdd = () => {}, disabled = false }) => {
