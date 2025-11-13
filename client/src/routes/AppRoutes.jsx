@@ -20,11 +20,12 @@ const JoinPage = lazy(() => import('../pages/auth/Join.jsx'));
 const AdminAuthPage = lazy(() => import('../pages/auth/adminAuth.jsx'));
 const AdminDashboard = lazy(() => import('../pages/adminDash.jsx'));
 const MemberDashboard = lazy(() => import('../pages/member.jsx'));
-const ArvantisPage = lazy(() => import('../pages/arvantis.jsx'));
+const ArvantisPage = lazy(() => import('../pages/arvantis/arvantis.jsx'));
 const EventPage = lazy(() => import('../pages/event.jsx'));
 const TeamPage = lazy(() => import('../pages/team.jsx'));
 const ContactPage = lazy(() => import('../pages/contact.jsx'));
 const ShowPage = lazy(() => import('../pages/show.jsx'));
+const EditArvantisPage = lazy(() => import('../pages/arvantis/editArvantis.jsx'));
 const SocialsPage = lazy(() => import('../pages/socials.jsx'));
 const CookiePolicy = lazy(() => import('../pages/policies/cookie.jsx'));
 const PrivacyPolicy = lazy(() => import('../pages/policies/privacy.jsx'));
@@ -58,12 +59,13 @@ const AppRoutes = () => {
 				{/* Protected Member Routes */}
 				<Route element={<ProtectedRoute />}>
 					<Route path="/member/dashboard" element={<MemberDashboard />} />
-					<Route path="/show" element={<ShowPage />} />
 				</Route>
 
 				{/* Protected Admin Routes */}
 				<Route element={<AdminRoute />}>
 					<Route path="/admin/dashboard" element={<AdminDashboard />} />
+					<Route path="/appliesandcontacts/show" element={<ShowPage />} />
+					<Route path="/edit/arvantis" element={<EditArvantisPage/>}/>
 				</Route>
 
 				{/* 404 fallback */}
