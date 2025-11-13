@@ -50,7 +50,7 @@ const ArvantisTab = ({ setDashboardError }) => {
 	const [createOpen, setCreateOpen] = useState(false);
 	const [createLoading, setCreateLoading] = useState(false);
 	const [createForm, setCreateForm] = useState({
-		name: '',
+		// 'name' removed — server will set name to "Arvantis"
 		year: new Date().getFullYear(),
 		description: '',
 		startDate: '',
@@ -112,13 +112,19 @@ const ArvantisTab = ({ setDashboardError }) => {
 		e?.preventDefault();
 		setCreateLoading(true);
 		try {
-			if (!createForm.name || !createForm.startDate || !createForm.endDate) {
-				throw new Error('Please provide name, start and end dates.');
+			// name is not required; server will set name="Arvantis" and location fixed to LPU
+			if (!createForm.startDate || !createForm.endDate) {
+				throw new Error('Please provide start and end dates.');
 			}
-			await createFest(createForm);
+			// send only allowed fields — server will add fixed name/location
+			await createFest({
+				year: createForm.year,
+				description: createForm.description,
+				startDate: createForm.startDate,
+				endDate: createForm.endDate,
+			});
 			setCreateOpen(false);
 			setCreateForm({
-				name: '',
 				year: new Date().getFullYear(),
 				description: '',
 				startDate: '',
@@ -679,6 +685,7 @@ const ArvantisTab = ({ setDashboardError }) => {
 							</button>
 						</div>
 						<form onSubmit={handleCreate} className="space-y-3">
+							{' '}
 							<input
 								placeholder="Name"
 								value={createForm.name}
@@ -687,6 +694,7 @@ const ArvantisTab = ({ setDashboardError }) => {
 								}
 								className="w-full p-2 rounded bg-gray-800 text-white"
 							/>
+							{/* Name is fixed to "Arvantis" and not editable in the admin UI */}
 							<div className="grid grid-cols-2 gap-2">
 								<input
 									placeholder="Year"
@@ -707,6 +715,13 @@ const ArvantisTab = ({ setDashboardError }) => {
 										setCreateForm({ ...createForm, location: e.target.value })
 									}
 									className="p-2 rounded bg-gray-800 text-white"
+								/>
+								{/* Location is fixed to Lovely Professional University */}
+								<input
+									placeholder="Location"
+									value="Lovely Professional University"
+									disabled
+									className="p-2 rounded bg-gray-700 text-gray-300 cursor-not-allowed"
 								/>
 							</div>
 							<textarea
