@@ -41,9 +41,15 @@ const TABS = [
 		label: 'Tickets',
 		icon: <Ticket className="h-5 w-5" />,
 	},
+	// split Arvantis into two top-level admin tabs
 	{
-		key: 'arvantis',
-		label: 'Arvantis',
+		key: 'arvantis-fests',
+		label: 'Arvantis — Fests',
+		icon: <Sparkles className="h-5 w-5" />,
+	},
+	{
+		key: 'arvantis-partners',
+		label: 'Arvantis — Partners',
 		icon: <Sparkles className="h-5 w-5" />,
 	},
 ];
@@ -212,8 +218,19 @@ const AdminDash = () => {
 							setDashboardError={setDashboardError}
 						/>
 					)}
-					{activeTab === 'arvantis' && (
-						<ArvantisTab token={token} setDashboardError={setDashboardError} />
+					{activeTab === 'arvantis-fests' && (
+						<ArvantisTab
+							initialActive="fests"
+							token={token}
+							setDashboardError={setDashboardError}
+						/>
+					)}
+					{activeTab === 'arvantis-partners' && (
+						<ArvantisTab
+							initialActive="partners"
+							token={token}
+							setDashboardError={setDashboardError}
+						/>
 					)}
 				</div>
 			</main>
