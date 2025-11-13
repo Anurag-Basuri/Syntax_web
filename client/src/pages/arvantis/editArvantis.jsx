@@ -1086,51 +1086,76 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 								</div>
 
 								<div className="mt-4 flex gap-2">
-									<button
-										type="button"
-										className="px-3 py-2 bg-indigo-600 text-white rounded"
-										onClick={() => openEdit(activeFest)}
-										disabled={actionBusy}
-									>
-										Edit
-									</button>
-									<button
-										type="button"
-										className="px-3 py-2 bg-yellow-500 text-white rounded"
-										onClick={() => generateReport(activeFest)}
-										disabled={actionBusy}
-									>
-										Report
-									</button>
-									<button
-										type="button"
-										className="px-3 py-2 bg-red-600 text-white rounded"
-										onClick={() => removeFest(activeFest)}
-										disabled={actionBusy}
-									>
-										Delete
-									</button>
-									<button
-										type="button"
-										className="px-3 py-2 bg-gray-700 text-white rounded"
-										onClick={() => duplicateFest(activeFest)}
-										disabled={actionBusy}
-									>
-										Duplicate
-									</button>
-									<select
-										className="ml-2 p-1 rounded bg-gray-800 text-white"
-										value={activeFest.status || ''}
-										onChange={(e) => quickSetStatus(e.target.value)}
-										disabled={actionBusy}
-									>
-										<option value="">Status</option>
-										<option value="upcoming">upcoming</option>
-										<option value="ongoing">ongoing</option>
-										<option value="completed">completed</option>
-										<option value="cancelled">cancelled</option>
-										<option value="postponed">postponed</option>
-									</select>
+									<div className="flex flex-wrap items-center gap-2">
+										<button
+											type="button"
+											className="px-3 py-2 bg-indigo-600 text-white rounded"
+											onClick={() => openEdit(activeFest)}
+											disabled={actionBusy}
+										>
+											Edit
+										</button>
+										<button
+											type="button"
+											className="px-3 py-2 bg-yellow-500 text-white rounded"
+											onClick={() => generateReport(activeFest)}
+											disabled={actionBusy}
+										>
+											Report
+										</button>
+										<button
+											type="button"
+											className="px-3 py-2 bg-red-600 text-white rounded"
+											onClick={() => removeFest(activeFest)}
+											disabled={actionBusy}
+										>
+											Delete
+										</button>
+									</div>
+
+									{/* Explicit status action buttons — updates status immediately */}
+									<div className="ml-auto flex flex-wrap gap-2">
+										<button
+											type="button"
+											className="px-2 py-1 bg-blue-600 text-white rounded text-sm"
+											onClick={() => quickSetStatus('upcoming')}
+											disabled={actionBusy}
+										>
+											Set Upcoming
+										</button>
+										<button
+											type="button"
+											className="px-2 py-1 bg-green-600 text-white rounded text-sm"
+											onClick={() => quickSetStatus('ongoing')}
+											disabled={actionBusy}
+										>
+											Set Ongoing
+										</button>
+										<button
+											type="button"
+											className="px-2 py-1 bg-gray-700 text-white rounded text-sm"
+											onClick={() => quickSetStatus('completed')}
+											disabled={actionBusy}
+										>
+											Set Completed
+										</button>
+										<button
+											type="button"
+											className="px-2 py-1 bg-amber-600 text-white rounded text-sm"
+											onClick={() => quickSetStatus('postponed')}
+											disabled={actionBusy}
+										>
+											Postpone
+										</button>
+										<button
+											type="button"
+											className="px-2 py-1 bg-red-700 text-white rounded text-sm"
+											onClick={() => quickSetStatus('cancelled')}
+											disabled={actionBusy}
+										>
+											Cancel
+										</button>
+									</div>
 								</div>
 
 								<div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
