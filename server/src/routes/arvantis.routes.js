@@ -37,13 +37,6 @@ router.get('/landing', getLandingPageData);
 // Get a paginated list of all fests (summary view)
 router.get('/', getAllFests);
 
-// Get full details for a single fest by its unique slug or year
-router.get(
-	'/:identifier',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	getFestDetails
-);
-
 //================================================================================
 // --- Admin-Only Routes ---
 // All subsequent routes are protected and require admin privileges.
@@ -169,6 +162,15 @@ router.delete(
 		param('publicId').notEmpty().withMessage('Media public ID is required'),
 	]),
 	removeGalleryMedia
+);
+
+// ---------------------------------------------------------------------------------
+// Register the public detail route last so it won't shadow more specific routes.
+// ---------------------------------------------------------------------------------
+router.get(
+	'/:identifier',
+	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
+	getFestDetails
 );
 
 export default router;
