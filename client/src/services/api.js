@@ -7,7 +7,6 @@ const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 const publicClient = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 10000,
-	headers: { 'Content-Type': 'application/json' },
 	withCredentials: true,
 });
 
@@ -15,16 +14,26 @@ const publicClient = axios.create({
 const apiClient = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 10000,
-	headers: { 'Content-Type': 'application/json' },
 	withCredentials: true,
 });
 
-// Attach access token when available
+// Attach access token when available and preserve FormData
 apiClient.interceptors.request.use(
 	(config) => {
+		// If body is FormData, let the browser/axios set Content-Type (with boundary).
+		if (config && config.data instanceof FormData) {
+			if (config.headers) {
+				delete config.headers['Content-Type'];
+				delete config.headers['content-type'];
+			}
+		}
+
 		const tokens = getToken();
 		const accessToken = tokens?.accessToken;
-		if (accessToken) config.headers['Authorization'] = `Bearer ${accessToken}`;
+		if (accessToken) {
+			if (!config.headers) config.headers = {};
+			config.headers['Authorization'] = `Bearer ${accessToken}`;
+		}
 		return config;
 	},
 	(error) => Promise.reject(error)
