@@ -96,15 +96,18 @@ const JoinPage = () => {
 	const validate = () => {
 		const newErrors = {};
 		if (!formData.fullName) newErrors.fullName = 'Full name is required.';
-		// Align client-side LPU validation with backend: allow 7-10 digits
-		if (!/^\d{7,10}$/.test(formData.LpuId))
-			newErrors.LpuId = 'A valid LPU ID (7-10 digits) is required.';
+		// LPU must be exactly 8 digits to match backend model
+		if (!/^\d{8}$/.test(formData.LpuId))
+			newErrors.LpuId = 'A valid LPU ID (8 digits) is required.';
 		if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'A valid email is required.';
 		if (!formData.phone) newErrors.phone = 'Phone number is required.';
 		if (!formData.course) newErrors.course = 'Your course is required.';
 		if (!formData.gender) newErrors.gender = 'Please select a gender.';
 		if (!Array.isArray(formData.domains) || formData.domains.length === 0)
 			newErrors.domains = 'Select at least one domain.';
+		// enforce max 2 domains client-side
+		if (Array.isArray(formData.domains) && formData.domains.length > 2)
+			newErrors.domains = 'You can select up to 2 domains';
 		if (!formData.accommodation) newErrors.accommodation = 'Select accommodation preference.';
 		if (!formData.bio) newErrors.bio = 'A short bio is required.';
 		setErrors(newErrors);
@@ -121,15 +124,29 @@ const JoinPage = () => {
 			return;
 		}
 
-		// handle domain checkboxes
+		// handle domain checkboxes (limit to 2)
 		if (type === 'checkbox' && name === 'domains') {
 			setFormData((prev) => {
 				const next = new Set(prev.domains || []);
-				if (checked) next.add(value);
-				else next.delete(value);
+				if (checked) {
+					// prevent selecting more than 2
+					if (next.size >= 2) {
+						setErrors((prevErr) => ({
+							...prevErr,
+							domains: 'You can select up to 2 domains only',
+						}));
+						return prev; // no change
+					}
+					next.add(value);
+				} else {
+					next.delete(value);
+				}
+				// clear domain error when within limit
+				if (next.size <= 2 && errors.domains) {
+					setErrors((prevErr) => ({ ...prevErr, domains: '' }));
+				}
 				return { ...prev, domains: Array.from(next) };
 			});
-			if (errors.domains) setErrors((prev) => ({ ...prev, domains: '' }));
 			return;
 		}
 
@@ -191,7 +208,7 @@ const JoinPage = () => {
 	};
 
 	return (
-		<div className="auth-container">
+		<div className="max-w-3xl mx-auto p-6">
 			<div className="auth-card">
 				<div className="text-center">
 					<h1 className="text-3xl font-bold text-primary">Become a Syntax Builder</h1>
