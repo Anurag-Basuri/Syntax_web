@@ -1298,3 +1298,120 @@ select.auth-input {
 		gap: 0.875rem;
 	}
 }
+
+/* -------------------------------------------------------------------------- */
+/* Team card & controls refinements (premium, responsive, and accessible)     */
+/* Append this near the team section in design.css                            */
+/* -------------------------------------------------------------------------- */
+
+.team-main-content {
+  width: 100%;
+  max-width: 90rem;
+  margin: 0 auto;
+}
+
+/* Controls */
+.team-controls {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(148,163,184,0.06);
+}
+
+/* Search */
+.search-bar-wrapper .search-input {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--input-text);
+  padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+  border-radius: 12px;
+  width: 100%;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+.search-bar-wrapper .search-input:focus {
+  box-shadow: var(--focus-ring);
+  border-color: var(--input-border-focus);
+  outline: none;
+}
+
+/* Team grid layout */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+@media (min-width: 1024px) {
+  .team-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+}
+@media (min-width: 1400px) {
+  .team-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.75rem;
+  }
+}
+
+/* Team card visuals */
+.team-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+  overflow: hidden;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+.team-card:focus-visible {
+  box-shadow: var(--focus-ring);
+  transform: translateY(-2px);
+  outline: none;
+}
+.team-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(99,102,241,0.12);
+}
+
+/* Card image overlay (subtle) */
+.team-card-image-overlay {
+  background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.22) 100%);
+  opacity: 1;
+}
+
+/* Card content */
+.team-card-content {
+  padding: 0.9rem 1rem 1.25rem;
+}
+
+/* Social link styling */
+.team-card-socials .social-link {
+  transition: transform 160ms ease, background 160ms ease;
+}
+.team-card-socials .social-link:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  color: #fff;
+}
+
+/* Empty state */
+.team-grid-empty h3 {
+  color: var(--text-primary);
+}
+.team-grid-empty p {
+  color: var(--text-secondary);
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 639px) {
+  .filter-button, .mobile-sort-container button {
+    padding: 0.9rem 1rem;
+    border-radius: 0.75rem;
+  }
+}
