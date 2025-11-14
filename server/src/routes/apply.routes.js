@@ -37,6 +37,11 @@ router.post(
 			.custom((arr) => Array.isArray(arr) && arr.length <= 2)
 			.withMessage('You can select up to 2 domains'),
 		body('accommodation').notEmpty().withMessage('Accommodation preference is required'),
+		body('hostelName')
+			.if(body('accommodation').equals('hostler'))
+			.notEmpty()
+			.trim()
+			.withMessage('Hostel name is required when accommodation is hostler'),
 	]),
 	applyController
 );

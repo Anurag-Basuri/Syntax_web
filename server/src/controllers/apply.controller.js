@@ -42,6 +42,11 @@ const applyController = asyncHandler(async (req, res) => {
 		throw ApiError.BadRequest('You can select up to 2 domains only');
 	}
 
+	// If accommodation is hostler, ensure hostelName is provided (defensive)
+	if (accommodation === 'hostler' && (!hostelName || !hostelName.trim())) {
+		throw ApiError.BadRequest('Hostel name is required for hostlers');
+	}
+
 	// Check for duplicate LPU ID
 	const existingLpuId = await Apply.findOne({ LpuId });
 	if (existingLpuId) {
