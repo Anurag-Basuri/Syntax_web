@@ -5,8 +5,12 @@ import StatsCard from './StatsCard.jsx';
 import UpcomingEvents from './UpcomingEvents.jsx';
 import RecentActivity from './RecentActivity.jsx';
 import { apiClient } from '../../services/api.js';
+import { useTheme } from '../../hooks/useTheme.js';
 
 const DashboardTab = ({ events, eventsLoading, setActiveTab }) => {
+	const { theme } = useTheme();
+	const isDark = theme === 'dark';
+
 	const [stats, setStats] = useState({
 		members: null,
 		tickets: null,
@@ -40,6 +44,10 @@ const DashboardTab = ({ events, eventsLoading, setActiveTab }) => {
 		fetchStats();
 	}, []);
 
+	const panelClass = isDark
+		? 'bg-gray-800/50 rounded-xl p-6 border border-gray-700'
+		: 'bg-white shadow-sm rounded-xl p-6 border border-gray-200';
+
 	return (
 		<div className="space-y-8">
 			{/* Stats Cards */}
@@ -61,7 +69,7 @@ const DashboardTab = ({ events, eventsLoading, setActiveTab }) => {
 				<StatsCard
 					icon={<CalendarDays size={24} />}
 					title="Upcoming Events"
-					value={eventsLoading ? '...' : (events?.length ?? '')}
+					value={eventsLoading ? '...' : events?.length ?? ''}
 					change=""
 					color="purple"
 				/>
@@ -72,8 +80,8 @@ const DashboardTab = ({ events, eventsLoading, setActiveTab }) => {
 						statsLoading
 							? '...'
 							: stats.engagement !== null
-								? `${stats.engagement}%`
-								: ''
+							? `${stats.engagement}%`
+							: ''
 					}
 					change=""
 					color="orange"
@@ -84,17 +92,35 @@ const DashboardTab = ({ events, eventsLoading, setActiveTab }) => {
 
 			{/* Charts and Activity */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				<div className="lg:col-span-2 bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+				<div className={`${panelClass}`}>
 					<div className="flex justify-between items-center mb-6">
-						<h3 className="text-lg font-semibold text-white">Activity Overview</h3>
+						<h3
+							className={`${
+								isDark ? 'text-white' : 'text-gray-900'
+							} text-lg font-semibold`}
+						>
+							Activity Overview
+						</h3>
 						<div className="flex gap-2">
-							<button className="px-3 py-1 text-sm bg-gray-700 rounded-lg">
+							<button
+								className={`px-3 py-1 text-sm ${
+									isDark ? 'bg-gray-700' : 'bg-gray-100'
+								} rounded-lg`}
+							>
 								Week
 							</button>
-							<button className="px-3 py-1 text-sm bg-blue-600 rounded-lg">
+							<button
+								className={`px-3 py-1 text-sm ${
+									isDark ? 'bg-blue-700' : 'bg-blue-100'
+								} rounded-lg`}
+							>
 								Month
 							</button>
-							<button className="px-3 py-1 text-sm bg-gray-700 rounded-lg">
+							<button
+								className={`px-3 py-1 text-sm ${
+									isDark ? 'bg-gray-700' : 'bg-gray-100'
+								} rounded-lg`}
+							>
 								Year
 							</button>
 						</div>
@@ -105,7 +131,8 @@ const DashboardTab = ({ events, eventsLoading, setActiveTab }) => {
 						{[40, 60, 75, 50, 80, 65, 90].map((height, index) => (
 							<motion.div
 								key={index}
-								className="flex-1 bg-gradient-to-t from-blue-500 to-cyan-400 rounded-t-lg"
+								className="flex-1 rounded-t-lg"
+								style={{ background: isDark ? undefined : undefined }}
 								initial={{ height: 0 }}
 								animate={{ height: `${height}%` }}
 								transition={{ duration: 0.8, delay: index * 0.1 }}
@@ -114,14 +141,14 @@ const DashboardTab = ({ events, eventsLoading, setActiveTab }) => {
 					</div>
 				</div>
 
-				<RecentActivity />
+				<RecentActivity theme={theme} />
 			</div>
 
-			{/* Upcoming Events */}
 			<UpcomingEvents
 				events={events}
 				eventsLoading={eventsLoading}
 				setActiveTab={setActiveTab}
+				theme={theme}
 			/>
 		</div>
 	);
