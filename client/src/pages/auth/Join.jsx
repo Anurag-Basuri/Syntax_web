@@ -305,8 +305,8 @@ const JoinPage = () => {
 	const disableMoreDomains = domainsSelectedCount >= 2;
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-[#0a0e17] via-[#0f172a] to-[#1e1b4b] flex items-center justify-center p-4">
-			<div className="w-full max-w-4xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8">
+		<div className="min-h-screen bg-gradient-to-br from-[#0a0e17] via-[#0f172a] to-[#1e1b4b] flex justify-center p-4">
+			<div className="w-full max-w-4xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8 mt-8">
 				<header className="text-center mb-8">
 					<h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
 						Become a Syntax Builder
