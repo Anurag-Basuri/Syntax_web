@@ -198,12 +198,23 @@ const deleteFest = asyncHandler(async (req, res) => {
 
 // Add a new partner (sponsor or collaborator) to a fest
 const addPartner = asyncHandler(async (req, res) => {
+	console.log('[CONTROLLER] addPartner invoked', { identifier: req.params.identifier });
 	const { name, website, tier, type } = req.body;
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 
+	// Log files passed from multer middleware
+	console.log('[CONTROLLER] multer-provided req.file', req.file);
+	console.log('[CONTROLLER] multer-provided req.files (array)', req.files?.length || 0);
+
 	if (!req.file) throw ApiError.BadRequest('Partner logo is required.');
 
+	console.log('[CONTROLLER] uploading partner logo to Cloudinary...');
 	const logoFile = await uploadFile(req.file, { folder: `arvantis/${fest.year}/partners` });
+	console.log('[CONTROLLER] Cloudinary upload result', {
+		url: logoFile.url,
+		publicId: logoFile.publicId,
+	});
+
 	const newPartner = {
 		name,
 		website,
@@ -281,6 +292,9 @@ const unlinkEventFromFest = asyncHandler(async (req, res) => {
 
 // Update fest poster
 const updateFestPoster = asyncHandler(async (req, res) => {
+	console.log('[CONTROLLER] updateFestPoster invoked', { identifier: req.params.identifier });
+	console.log('[CONTROLLER] multer-provided req.file', req.file);
+
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 	if (!req.file) throw ApiError.BadRequest('Poster file is required.');
 
@@ -296,7 +310,13 @@ const updateFestPoster = asyncHandler(async (req, res) => {
 		}
 	}
 
+	console.log('[CONTROLLER] uploading poster to Cloudinary...');
 	const posterFile = await uploadFile(req.file, { folder: `arvantis/${fest.year}` });
+	console.log('[CONTROLLER] Cloudinary poster upload', {
+		url: posterFile.url,
+		publicId: posterFile.publicId,
+	});
+
 	fest.poster = {
 		url: posterFile.url,
 		publicId: posterFile.publicId,
@@ -309,13 +329,18 @@ const updateFestPoster = asyncHandler(async (req, res) => {
 
 // Add media items to the gallery
 const addGalleryMedia = asyncHandler(async (req, res) => {
+	console.log('[CONTROLLER] addGalleryMedia invoked', { identifier: req.params.identifier });
+	console.log('[CONTROLLER] multer-provided req.files count', req.files?.length || 0);
+
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 	if (!req.files?.length) throw ApiError.BadRequest('At least one media file is required.');
 
+	console.log(`[CONTROLLER] uploading ${req.files.length} gallery file(s) to Cloudinary...`);
 	const uploadPromises = req.files.map((file) =>
 		uploadFile(file, { folder: `arvantis/${fest.year}/gallery` })
 	);
 	const uploadedFiles = await Promise.all(uploadPromises);
+	console.log('[CONTROLLER] Cloudinary gallery upload results count', uploadedFiles.length);
 
 	const newMediaItems = uploadedFiles.map((file) => ({
 		url: file.url,
