@@ -1,27 +1,27 @@
 import React from 'react';
 import GlassCard from './GlassCard';
 
-const StatCard = ({ title, value, icon: Icon, trend, className = '' }) => (
-	<GlassCard hover className={`p-6 ${className}`}>
-		<div className="flex items-center justify-between">
-			<div>
-				<p className="text-gray-400 text-sm font-medium mb-2">{title}</p>
-				<p className="text-2xl font-bold text-white">{value}</p>
-				{trend && (
-					<p
-						className={`text-xs font-medium mt-1 ${
-							trend.startsWith('+') ? 'text-emerald-400' : 'text-red-400'
-						}`}
-					>
-						{trend}
-					</p>
-				)}
+import { motion } from 'framer-motion';
+
+const StatCard = ({ icon: Icon, label, value, index }) => (
+	<motion.div
+		initial={{ opacity: 0, y: 20 }}
+		animate={{ opacity: 1, y: 0 }}
+		transition={{ delay: 0.1 * (index || 0), duration: 0.5 }}
+		className="p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm"
+	>
+		<div className="flex items-center gap-4">
+			<div className="p-3 rounded-lg bg-cyan-500/10 text-cyan-400">
+				<Icon size={20} />
 			</div>
-			<div className="p-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl">
-				<Icon className="w-6 h-6 text-purple-300" />
+			<div>
+				<div className="text-sm text-gray-400">{label}</div>
+				<div className="text-2xl font-bold text-white">{value}</div>
 			</div>
 		</div>
-	</GlassCard>
+	</motion.div>
 );
+
+export default StatCard;
 
 export default StatCard;
