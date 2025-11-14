@@ -283,10 +283,10 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			const docs = Array.isArray(payload?.docs)
 				? payload.docs
 				: Array.isArray(payload)
-					? payload
-					: Array.isArray(payload?.data)
-						? payload.data
-						: [];
+				? payload
+				: Array.isArray(payload?.data)
+				? payload.data
+				: [];
 			setEvents(docs);
 		} catch (err) {
 			const msg = err?.message || 'Failed to fetch events.';
@@ -493,6 +493,22 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			const id = resolveIdentifier(activeFest);
 			const fd = new FormData();
 			fd.append('poster', file);
+
+			// Debug logs to verify FormData before sending
+			console.log('[UI] uploadPoster -> sending', {
+				festId: id,
+				fileName: file.name,
+				fileType: file.type,
+				fileSize: file.size,
+			});
+			for (const entry of fd.entries()) {
+				console.log(
+					'[UI] FormData entry:',
+					entry[0],
+					entry[1] && entry[1].name ? entry[1].name : entry[1]
+				);
+			}
+
 			await updateFestPoster(id, fd);
 			await loadFestByIdentifier(id);
 			await fetchYearsAndLatest();
@@ -501,6 +517,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			const msg = err?.message || 'Failed to upload poster.';
 			setLocalError(msg);
 			setDashboardError(msg);
+			console.error('[UI] uploadPoster error', err);
 			showToast(msg, 'error');
 		} finally {
 			setActionBusy(false);
@@ -534,6 +551,26 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			const id = resolveIdentifier(activeFest);
 			const fd = new FormData();
 			for (const f of files) fd.append('media', f);
+
+			// Debug: list FormData entries
+			console.log('[UI] addGallery -> sending', {
+				festId: id,
+				filesCount: files.length,
+				firstFile: files[0] && {
+					name: files[0].name,
+					type: files[0].type,
+					size: files[0].size,
+				},
+			});
+			for (const entry of fd.entries()) {
+				// entry[1] for files is a File object
+				console.log(
+					'[UI] FormData entry:',
+					entry[0],
+					entry[1] && entry[1].name ? entry[1].name : entry[1]
+				);
+			}
+
 			await addGalleryMedia(id, fd);
 			await loadFestByIdentifier(id);
 			await fetchYearsAndLatest();
@@ -542,6 +579,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			const msg = err?.message || 'Failed to add gallery media.';
 			setLocalError(msg);
 			setDashboardError(msg);
+			console.error('[UI] addGallery error', err);
 			showToast(msg, 'error');
 		} finally {
 			setActionBusy(false);
@@ -897,7 +935,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 														{f.startDate
 															? new Date(
 																	f.startDate
-																).toLocaleDateString()
+															  ).toLocaleDateString()
 															: 'TBD'}
 													</div>
 													<div className="flex items-center gap-2">
@@ -1339,7 +1377,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 																		{ev.date
 																			? new Date(
 																					ev.date
-																				).toLocaleDateString()
+																			  ).toLocaleDateString()
 																			: 'Date TBD'}
 																	</div>
 																</div>

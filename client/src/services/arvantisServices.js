@@ -137,7 +137,10 @@ export const deleteFest = async (identifier) => {
 
 export const addPartner = async (identifier, formData) => {
 	try {
-		// pass FormData directly so axios can set multipart boundary
+		console.log('[SERVICE] addPartner', {
+			identifier,
+			isFormData: formData instanceof FormData,
+		});
 		const response = await apiClient.post(`/api/v1/arvantis/${identifier}/partners`, formData);
 		return response.data.data;
 	} catch (error) {
@@ -176,8 +179,18 @@ export const unlinkEventFromFest = async (identifier, eventId) => {
 
 export const updateFestPoster = async (identifier, formData) => {
 	try {
-		// do not set Content-Type manually for FormData
-		const response = await apiClient.patch(`/api/v1/arvantis/${identifier}/poster`, formData);
+		// Debug to ensure FormData arrives
+		console.log('[SERVICE] updateFestPoster', {
+			identifier,
+			isFormData: formData instanceof FormData,
+		});
+
+		// Let axios set Content-Type for FormData (do NOT force application/json)
+		const response = await apiClient.patch(
+			`/api/v1/arvantis/${identifier}/poster`,
+			formData
+			// no headers override here
+		);
 		return response.data.data;
 	} catch (error) {
 		throw new Error(extractError(error, 'Failed to update poster.'));
@@ -186,7 +199,10 @@ export const updateFestPoster = async (identifier, formData) => {
 
 export const addGalleryMedia = async (identifier, formData) => {
 	try {
-		// pass FormData directly
+		console.log('[SERVICE] addGalleryMedia', {
+			identifier,
+			isFormData: formData instanceof FormData,
+		});
 		const response = await apiClient.post(`/api/v1/arvantis/${identifier}/gallery`, formData);
 		return response.data.data;
 	} catch (error) {
