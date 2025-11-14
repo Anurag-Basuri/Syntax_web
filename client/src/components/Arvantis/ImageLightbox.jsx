@@ -1,7 +1,17 @@
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
+import { useEffect } from 'react';
 
 const ImageLightbox = ({ image, onClose }) => {
+	useEffect(() => {
+		if (!image) return;
+		const onKey = (e) => {
+			if (e.key === 'Escape') onClose();
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+	}, [image, onClose]);
+
 	if (!image) return null;
 
 	return (
@@ -11,6 +21,8 @@ const ImageLightbox = ({ image, onClose }) => {
 			exit={{ opacity: 0 }}
 			className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
 			onClick={onClose}
+			role="dialog"
+			aria-modal="true"
 		>
 			<motion.div
 				initial={{ scale: 0.8, y: 20 }}
@@ -28,6 +40,7 @@ const ImageLightbox = ({ image, onClose }) => {
 					onClick={onClose}
 					className="absolute -top-3 -right-3 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white transition"
 					aria-label="Close image view"
+					type="button"
 				>
 					<X size={20} />
 				</button>
