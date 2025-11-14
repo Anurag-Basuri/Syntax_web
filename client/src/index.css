@@ -181,11 +181,17 @@ html {
 }
 
 body {
-	font-family: 'Inter', system-ui, -apple-system, sans-serif;
+	font-family:
+		'Inter',
+		system-ui,
+		-apple-system,
+		sans-serif;
 	color: var(--text-secondary);
 	background-color: var(--bg-base);
 	line-height: 1.65;
-	transition: background-color 0.25s var(--transition-fast), color 0.25s var(--transition-fast);
+	transition:
+		background-color 0.25s var(--transition-fast),
+		color 0.25s var(--transition-fast);
 }
 
 h1,
@@ -194,7 +200,11 @@ h3,
 h4,
 h5,
 h6 {
-	font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+	font-family:
+		'Space Grotesk',
+		system-ui,
+		-apple-system,
+		sans-serif;
 	color: var(--text-primary);
 	font-weight: 700;
 	letter-spacing: -0.025em;
@@ -226,7 +236,9 @@ select {
 	color: var(--input-text);
 	background: var(--input-bg);
 	border: 1px solid var(--input-border);
-	transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+	transition:
+		border-color var(--transition-fast),
+		box-shadow var(--transition-fast),
 		background-color var(--transition-fast);
 }
 
@@ -277,7 +289,9 @@ textarea::placeholder {
 	border: 1px solid var(--glass-border);
 	background-color: color-mix(in srgb, var(--glass-bg) 70%, transparent);
 	color: var(--input-text);
-	transition: border-color var(--t-fast), box-shadow var(--t-fast);
+	transition:
+		border-color var(--t-fast),
+		box-shadow var(--t-fast);
 }
 
 .auth-input:focus {
@@ -302,7 +316,9 @@ textarea::placeholder {
 	font-weight: 600;
 	font-size: 1rem;
 	box-shadow: var(--shadow-sm);
-	transition: transform 0.25s var(--transition-fast), box-shadow 0.25s var(--transition-fast);
+	transition:
+		transform 0.25s var(--transition-fast),
+		box-shadow 0.25s var(--transition-fast);
 }
 
 .auth-button:hover:not(:disabled) {
