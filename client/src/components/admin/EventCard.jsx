@@ -2,7 +2,13 @@ import { CalendarDays, MapPin, Users, Edit, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const EventCard = ({ event, compact = false, onEdit, onDelete, deleteLoading }) => {
-	const formatDate = (dateString) => {
+	const formatDate = (dateStringOrObj) => {
+		const dt = dateStringOrObj
+			? new Date(dateStringOrObj)
+			: event?.eventDate
+			? new Date(event.eventDate)
+			: null;
+		if (!dt || Number.isNaN(dt.getTime())) return 'TBA';
 		const options = {
 			year: 'numeric',
 			month: 'short',
@@ -10,7 +16,7 @@ const EventCard = ({ event, compact = false, onEdit, onDelete, deleteLoading }) 
 			hour: '2-digit',
 			minute: '2-digit',
 		};
-		return new Date(dateString).toLocaleDateString(undefined, options);
+		return dt.toLocaleDateString(undefined, options);
 	};
 
 	return (
@@ -22,7 +28,9 @@ const EventCard = ({ event, compact = false, onEdit, onDelete, deleteLoading }) 
 			transition={{ duration: 0.2 }}
 		>
 			<div
-				className={`bg-gradient-to-r from-purple-900/30 to-blue-900/30 p-5 ${compact ? 'pb-3' : ''}`}
+				className={`bg-gradient-to-r from-purple-900/30 to-blue-900/30 p-5 ${
+					compact ? 'pb-3' : ''
+				}`}
 			>
 				<div className="flex justify-between items-start">
 					<div>
@@ -57,11 +65,15 @@ const EventCard = ({ event, compact = false, onEdit, onDelete, deleteLoading }) 
 				<div className="grid grid-cols-2 gap-4">
 					<div className="flex items-center gap-2">
 						<CalendarDays className="h-4 w-4 text-gray-400" />
-						<span className="text-sm text-gray-300">{formatDate(event.date)}</span>
+						<span className="text-sm text-gray-300">
+							{formatDate(event.eventDate || event.date)}
+						</span>
 					</div>
 					<div className="flex items-center gap-2">
 						<MapPin className="h-4 w-4 text-gray-400" />
-						<span className="text-sm text-gray-300">{event.location}</span>
+						<span className="text-sm text-gray-300">
+							{event.venue || event.location}
+						</span>
 					</div>
 				</div>
 
@@ -73,7 +85,9 @@ const EventCard = ({ event, compact = false, onEdit, onDelete, deleteLoading }) 
 						</div>
 						<div className="flex gap-2">
 							<span className="px-2.5 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded-full">
-								Upcoming
+								{event.status
+									? event.status.charAt(0).toUpperCase() + event.status.slice(1)
+									: 'Upcoming'}
 							</span>
 						</div>
 					</div>
