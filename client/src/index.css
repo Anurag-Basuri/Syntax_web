@@ -3,132 +3,65 @@
 /* ==========================================================================
    1. THEME & GLOBAL VARIABLES (ENHANCED FOR PERFECT VISIBILITY)
    ========================================================================== */
-:root {
-	/* Dark Theme - Default */
-	/* Accents: Vibrant and visible */
-	--accent-1: #6366f1; /* Indigo-500 */
-	--accent-2: #8b5cf6; /* Violet-500 */
-	--accent-glow: #4f46e5; /* Indigo-600 for glows */
+   :root {
+     --accent-1: #ff6b6b; /* coral */
+     --accent-2: #ffb86b; /* warm amber */
+     --accent-glow: rgba(255,107,107,0.18);
+   
+     --bg-base: #fffaf8;
+     --bg-soft: #ffffff;
+     --bg-muted: #fff4ef;
+   
+     --nav-bg: rgba(255,255,255,0.94);
+     --nav-border: rgba(20,12,10,0.06);
+   
+     --text-primary: #0b1320;
+     --text-secondary: #3c3f45;
+     --text-muted: #6b6b6b;
+   
+     --card-bg: rgba(255,255,255,0.96);
+     --card-border: rgba(11,18,32,0.04);
+   
+     --button-primary-bg: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+     --button-primary-hover: linear-gradient(135deg, #ff5252, #ff9f43);
+   
+     --input-bg: rgba(255,255,255,0.96);
+     --input-border: rgba(11,18,32,0.08);
+   
+     --focus-ring: 0 0 0 4px rgba(255,107,107,0.12);
+   }
 
-	/* Backgrounds: Rich, deep slate blues */
-	--bg-base: #0f172a; /* Slate-900 */
-	--bg-soft: #1e293b; /* Slate-800 */
-	--bg-softer: #334155; /* Slate-700 */
-
-	/* Glass Surfaces: Higher contrast */
-	--glass-bg: rgba(30, 41, 59, 0.75); /* Slate-800 @ 75% */
-	--glass-border: rgba(148, 163, 184, 0.2); /* Slate-400 @ 20% */
-	--glass-hover: rgba(51, 65, 85, 0.9); /* Slate-700 @ 90% */
-
-	/* Text: Bright and clear */
-	--text-primary: #f8fafc; /* Slate-50 */
-	--text-secondary: #cbd5e1; /* Slate-300 */
-	--text-muted: #94a3b8; /* Slate-400 */
-
-	/* Navigation: Cohesive with dark theme */
-	--nav-bg: rgba(15, 23, 42, 0.85);
-	--nav-border: rgba(148, 163, 184, 0.15);
-	--nav-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-	--nav-bg-elevated: rgba(30, 41, 59, 0.9);
-	--nav-border-elevated: rgba(148, 163, 184, 0.25);
-	--nav-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.5);
-
-	/* Shadows: Softened for refinement */
-	--shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-	--shadow-md: 0 6px 16px rgba(0, 0, 0, 0.35);
-	--shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.4);
-	--shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.45);
-
-	/* Glows: Aligned with accent */
-	--glow-blue: 0 0 20px rgba(99, 102, 241, 0.4);
-
-	/* Focus & Transitions */
-	--focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.5);
-	--transition-fast: 140ms;
-	--transition-medium: 280ms;
-	--transition-slow: 480ms;
-
-	/* Input States */
-	--input-bg: rgba(30, 41, 59, 0.6);
-	--input-border: rgba(148, 163, 184, 0.3);
-	--input-border-focus: rgba(99, 102, 241, 0.6);
-	--input-text: #f8fafc;
-	--input-placeholder: #94a3b8;
-
-	/* Button States */
-	--button-primary-bg: linear-gradient(135deg, #6366f1, #8b5cf6);
-	--button-primary-hover: linear-gradient(135deg, #4f46e5, #7c3aed);
-	--button-secondary-bg: rgba(51, 65, 85, 0.8);
-	--button-secondary-border: rgba(148, 163, 184, 0.3);
-	--button-secondary-hover: rgba(71, 85, 105, 0.9);
-
-	/* Card backgrounds */
-	--card-bg: rgba(30, 41, 59, 0.6);
-	--card-border: rgba(148, 163, 184, 0.2);
-	--card-hover-bg: rgba(51, 65, 85, 0.7);
-}
 
 /* Light Theme: Crisp, clean, and high contrast */
-:root[data-theme='light'] {
-	/* Accents: Deeper for strong contrast */
-	--accent-1: #4f46e5; /* Indigo-600 */
-	--accent-2: #7c3aed; /* Violet-600 */
-	--accent-glow: #4338ca; /* Indigo-700 */
+:root[data-theme='dark'], [data-theme='dark'] {
+  --accent-1: #ff7b6b;
+  --accent-2: #ffb86b;
+  --accent-glow: rgba(255,123,107,0.2);
 
-	/* Backgrounds: Clean and bright */
-	--bg-base: #ffffff;
-	--bg-soft: #f8fafc; /* Slate-50 */
-	--bg-softer: #f1f5f9; /* Slate-100 */
+  --bg-base: #081018;
+  --bg-soft: #0b1418;
+  --bg-muted: #071018;
 
-	/* Glass Surfaces: Subtle elegance */
-	--glass-bg: rgba(248, 250, 252, 0.85);
-	--glass-border: rgba(30, 41, 59, 0.12);
-	--glass-hover: rgba(241, 245, 249, 0.95);
+  --nav-bg: rgba(8,10,12,0.6);
+  --nav-border: rgba(255,255,255,0.04);
 
-	/* Text: Dark and high-contrast */
-	--text-primary: #0f172a; /* Slate-900 */
-	--text-secondary: #475569; /* Slate-600 */
-	--text-muted: #64748b; /* Slate-500 */
+  --text-primary: #fff7f6;
+  --text-secondary: #ffdcd0;
+  --text-muted: #d9bfb4;
 
-	/* Navigation: Bright and clean */
-	--nav-bg: rgba(255, 255, 255, 0.85);
-	--nav-border: rgba(30, 41, 59, 0.1);
-	--nav-shadow: 0 4px 24px rgba(30, 41, 59, 0.08);
-	--nav-bg-elevated: rgba(255, 255, 255, 0.95);
-	--nav-border-elevated: rgba(30, 41, 59, 0.15);
-	--nav-shadow-elevated: 0 8px 32px rgba(30, 41, 59, 0.12);
+  --card-bg: rgba(10,14,16,0.6);
+  --card-border: rgba(255,255,255,0.03);
 
-	/* Shadows: Subtle for lighter feel */
-	--shadow-sm: 0 2px 8px rgba(30, 41, 59, 0.08);
-	--shadow-md: 0 6px 16px rgba(30, 41, 59, 0.1);
-	--shadow-lg: 0 10px 30px rgba(30, 41, 59, 0.12);
-	--shadow-xl: 0 20px 50px rgba(30, 41, 59, 0.15);
+  --button-primary-bg: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  --button-primary-hover: linear-gradient(135deg,#ff6b6b,#ff9a43);
 
-	/* Glows: Aligned with accent */
-	--glow-blue: 0 0 20px rgba(79, 70, 229, 0.3);
+  --input-bg: rgba(10,14,16,0.44);
+  --input-border: rgba(255,200,180,0.06);
 
-	/* Focus & Transitions */
-	--focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.4);
-
-	/* Input States */
-	--input-bg: rgba(255, 255, 255, 0.9);
-	--input-border: rgba(30, 41, 59, 0.2);
-	--input-border-focus: rgba(79, 70, 229, 0.5);
-	--input-text: #0f172a;
-	--input-placeholder: #64748b;
-
-	/* Button States */
-	--button-primary-bg: linear-gradient(135deg, #4f46e5, #7c3aed);
-	--button-primary-hover: linear-gradient(135deg, #4338ca, #6d28d9);
-	--button-secondary-bg: rgba(248, 250, 252, 0.9);
-	--button-secondary-border: rgba(30, 41, 59, 0.2);
-	--button-secondary-hover: rgba(241, 245, 249, 1);
-
-	/* Card backgrounds */
-	--card-bg: rgba(255, 255, 255, 0.8);
-	--card-border: rgba(30, 41, 59, 0.1);
-	--card-hover-bg: rgba(248, 250, 252, 0.95);
+  --focus-ring: 0 0 0 4px rgba(255,107,107,0.08);
 }
+
+
 
 /* ==========================================================================
    2. BASE & TYPOGRAPHY
