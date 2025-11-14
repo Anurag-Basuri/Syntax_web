@@ -73,6 +73,8 @@ const isWebGLAvailable = () => {
 
 /**
  * Enhanced Grid Component with Improved Cloth Texture
+ * - Stable shader strings (memoized)
+ * - Uniforms are maintained in a ref and updated in-place to avoid recompilation on theme toggles
  */
 const Grid = ({ theme, breakpoint }) => {
 	const meshRef = useRef();
@@ -95,67 +97,60 @@ const Grid = ({ theme, breakpoint }) => {
 		return configs[breakpoint] || configs.desktop;
 	}, [breakpoint]);
 
-	const uniforms = useMemo(
-		() => ({
-			uTime: { value: 0 },
-			uWaveAmplitude: { value: breakpoint === 'mobile' ? 3.5 : 5.0 },
-			uWaveFrequency: { value: 0.055 },
-			uWaveSpeed: { value: prefersReduced ? 0.0 : 0.45 },
-			uDepthFade: { value: 0.75 },
-			uWireOpacity: { value: theme === 'light' ? 0.85 : 1.0 },
-			uWireColor: { value: new THREE.Color(theme === 'light' ? '#94a3b8' : '#64748b') },
-			uAccent: { value: new THREE.Color(readCssVar('--accent-1')) },
-			// Enhanced cloth texture parameters
-			uClothScale: { value: 6.0 },
-			uClothDetail: { value: 6.0 },
-			uClothStrength: { value: 0.6 },
-			uWeaveDensity: { value: 2.5 },
-			uFabricSoftness: { value: 0.8 },
-			uMouseX: { value: 0 },
-			uMouseY: { value: 0 },
-		}),
-		[theme, prefersReduced, breakpoint]
-	);
-
-	useFrame((state) => {
-		const t = state.clock.elapsedTime;
-		if (wireMatRef.current) {
-			wireMatRef.current.uniforms.uTime.value = t;
-
-			if (!prefersReduced && meshRef.current) {
-				const { pointer } = state;
-
-				// Smooth mouse tracking
-				wireMatRef.current.uniforms.uMouseX.value = THREE.MathUtils.lerp(
-					wireMatRef.current.uniforms.uMouseX.value,
-					pointer.x * 0.6,
-					0.05
-				);
-				wireMatRef.current.uniforms.uMouseY.value = THREE.MathUtils.lerp(
-					wireMatRef.current.uniforms.uMouseY.value,
-					pointer.y * 0.5,
-					0.05
-				);
-
-				// 3D tilt
-				const targetRotX = THREE.MathUtils.degToRad(-22 + pointer.y * 8);
-				const targetRotY = THREE.MathUtils.degToRad(pointer.x * 9);
-
-				meshRef.current.rotation.x = THREE.MathUtils.lerp(
-					meshRef.current.rotation.x,
-					targetRotX,
-					0.05
-				);
-				meshRef.current.rotation.y = THREE.MathUtils.lerp(
-					meshRef.current.rotation.y,
-					targetRotY,
-					0.05
-				);
-			}
-		}
+	// Keep uniforms stable in a ref so material always references same object
+	const uniformsRef = useRef({
+		uTime: { value: 0 },
+		uWaveAmplitude: { value: breakpoint === 'mobile' ? 3.5 : 5.0 },
+		uWaveFrequency: { value: 0.055 },
+		uWaveSpeed: { value: prefersReduced ? 0.0 : 0.45 },
+		uDepthFade: { value: 0.75 },
+		uWireOpacity: { value: theme === 'light' ? 0.85 : 1.0 },
+		uWireColor: { value: new THREE.Color(theme === 'light' ? '#94a3af' : '#64748b') },
+		uAccent: { value: new THREE.Color(readCssVar('--accent-1')) },
+		uClothScale: { value: 6.0 },
+		uClothDetail: { value: 6.0 },
+		uClothStrength: { value: 0.6 },
+		uWeaveDensity: { value: 2.5 },
+		uFabricSoftness: { value: 0.8 },
+		uMouseX: { value: 0 },
+		uMouseY: { value: 0 },
+		// grid sizes as uniforms so shader doesn't need to be recompiled when they change
+		uGridHeight: { value: gridParams.height },
+		uGridHalfHeight: { value: gridParams.height / 2.0 },
 	});
 
-	const vertexShader = `
+	// Ensure uniformsRef updates when breakpoint / theme / prefersReduced / accent changes.
+	useEffect(() => {
+		const u = uniformsRef.current;
+		u.uWaveAmplitude.value = breakpoint === 'mobile' ? 3.5 : 5.0;
+		u.uWaveSpeed.value = prefersReduced ? 0.0 : 0.45;
+		u.uWireOpacity.value = theme === 'light' ? 0.85 : 1.0;
+
+		// update color without replacing object to keep references stable
+		u.uWireColor.value.set(theme === 'light' ? '#94a3af' : '#64748b');
+		u.uAccent.value.set(readCssVar('--accent-1') || '#6366f1');
+
+		u.uGridHeight.value = gridParams.height;
+		u.uGridHalfHeight.value = gridParams.height / 2.0;
+
+		// push updates to material if already created
+		if (wireMatRef.current && wireMatRef.current.uniforms) {
+			Object.keys(u).forEach((key) => {
+				if (wireMatRef.current.uniforms[key]) {
+					wireMatRef.current.uniforms[key].value = u[key].value;
+				} else {
+					// in case a new uniform is missing, set it
+					wireMatRef.current.uniforms[key] = { value: u[key].value };
+				}
+			});
+			// flag update
+			wireMatRef.current.needsUpdate = true;
+		}
+	}, [theme, breakpoint, prefersReduced, gridParams.height]);
+
+	// Stable shader source (memoized)
+	const vertexShader = useMemo(
+		() => `
         uniform float uTime;
         uniform float uWaveAmplitude;
         uniform float uWaveFrequency;
@@ -167,6 +162,8 @@ const Grid = ({ theme, breakpoint }) => {
         uniform float uClothStrength;
         uniform float uWeaveDensity;
         uniform float uFabricSoftness;
+        uniform float uGridHeight;
+        uniform float uGridHalfHeight;
 
         varying vec2 vUv;
         varying float vElevation;
@@ -259,8 +256,8 @@ const Grid = ({ theme, breakpoint }) => {
                                    exp(-mouseDist * 0.08) * 1.5;
             combinedElevation += mouseInfluence;
 
-            // Depth calculation and attenuation
-            vDepth = (pos.y + ${gridParams.height / 2}.0) / ${gridParams.height}.0;
+            // Depth calculation and attenuation using uniforms for grid height
+            vDepth = (pos.y + uGridHalfHeight) / uGridHeight;
             float depthAtten = smoothstep(0.0, 0.8, 1.0 - vDepth);
             depthAtten = pow(depthAtten, 1.3);
             combinedElevation *= depthAtten;
@@ -284,9 +281,12 @@ const Grid = ({ theme, breakpoint }) => {
 
             gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
         }
-    `;
+    `,
+		[]
+	);
 
-	const fragmentShader = `
+	const fragmentShader = useMemo(
+		() => `
         uniform vec3 uWireColor;
         uniform float uWireOpacity;
         uniform float uDepthFade;
@@ -363,7 +363,45 @@ const Grid = ({ theme, breakpoint }) => {
             if (alpha <= 0.01) discard;
             gl_FragColor = vec4(finalColor, alpha);
         }
-    `;
+    `,
+		[]
+	);
+
+	// update uTime and mouse/tilt each frame
+	useFrame((state) => {
+		const t = state.clock.elapsedTime;
+		const mat = wireMatRef.current;
+		if (mat && mat.uniforms) {
+			mat.uniforms.uTime.value = t;
+			if (!prefersReduced && meshRef.current) {
+				const { pointer } = state;
+				mat.uniforms.uMouseX.value = THREE.MathUtils.lerp(
+					mat.uniforms.uMouseX.value,
+					pointer.x * 0.6,
+					0.05
+				);
+				mat.uniforms.uMouseY.value = THREE.MathUtils.lerp(
+					mat.uniforms.uMouseY.value,
+					pointer.y * 0.5,
+					0.05
+				);
+
+				const targetRotX = THREE.MathUtils.degToRad(-22 + pointer.y * 8);
+				const targetRotY = THREE.MathUtils.degToRad(pointer.x * 9);
+
+				meshRef.current.rotation.x = THREE.MathUtils.lerp(
+					meshRef.current.rotation.x,
+					targetRotX,
+					0.05
+				);
+				meshRef.current.rotation.y = THREE.MathUtils.lerp(
+					meshRef.current.rotation.y,
+					targetRotY,
+					0.05
+				);
+			}
+		}
+	});
 
 	return (
 		<group
@@ -380,9 +418,10 @@ const Grid = ({ theme, breakpoint }) => {
 						Math.floor(gridParams.segs * 0.75),
 					]}
 				/>
+				{/* Pass the stable uniforms object */}
 				<shaderMaterial
 					ref={wireMatRef}
-					uniforms={uniforms}
+					uniforms={uniformsRef.current}
 					transparent={true}
 					depthWrite={false}
 					wireframe={true}
@@ -421,7 +460,12 @@ const FloatingLogo = ({ breakpoint, logoOpacity = 0.34 }) => {
 
 	useEffect(() => {
 		if (!texture) return;
-		texture.colorSpace = THREE.SRGBColorSpace;
+		// newer three.js versions use colorSpace; fallback to encoding if needed
+		if (texture.colorSpace !== undefined) {
+			texture.colorSpace = THREE.SRGBColorSpace;
+		} else {
+			texture.encoding = THREE.sRGBEncoding;
+		}
 		texture.minFilter = THREE.LinearFilter;
 		texture.magFilter = THREE.LinearFilter;
 		texture.generateMipmaps = false;
@@ -565,7 +609,12 @@ const Background3D = () => {
 				dpr={Math.min(1.5, window.devicePixelRatio || 1)}
 				onCreated={({ gl }) => {
 					gl.setClearColor(0x000000, 0);
-					gl.outputColorSpace = THREE.SRGBColorSpace;
+					// newer three uses outputColorSpace
+					if (gl.outputColorSpace !== undefined) {
+						gl.outputColorSpace = THREE.SRGBColorSpace;
+					} else {
+						gl.gammaFactor = 2.2;
+					}
 					try {
 						gl.getContext().getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
 					} catch (e) {
