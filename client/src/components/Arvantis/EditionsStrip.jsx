@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 const EditionsStrip = ({ editions, currentIdentifier, onSelect }) => {
 	if (!editions?.length) return null;
 	return (
-		<motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="p-3 rounded-xl overflow-x-auto" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+		<motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="p-3 rounded-xl overflow-x-auto" style={{ background: 'transparent', border: '1px solid var(--glass-border)' }}>
 			<div className="flex items-center gap-3">
 				<span className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>Past Editions</span>
 				<ChevronRight size={18} style={{ color: 'var(--text-muted)' }} />

@@ -48,9 +48,9 @@ const EventsGrid = ({ events = [], onEventClick }) => {
 									{poster ? (
 										<img src={poster} alt={title} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" loading="lazy" />
 									) : (
-										<div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', color: 'var(--text-secondary)' }}>No image</div>
+										<div className="w-full h-full flex items-center justify-center" style={{ background: 'transparent', color: 'var(--text-secondary)' }}>No image</div>
 									)}
-									<div className="absolute left-4 top-4 inline-flex items-center gap-2 px-3 py-1 rounded-full" style={{ background: 'rgba(0,0,0,0.36)', color: 'var(--text-primary)' }}>
+									<div className="absolute left-4 top-4 inline-flex items-center gap-2 px-3 py-1 rounded-full" style={{ background: 'rgba(0,0,0,0.28)', color: 'var(--text-primary)' }}>
 										<Calendar size={14} />
 										<span style={{ fontSize: 13 }}>{formatDate(ev?.eventDate)}</span>
 									</div>
@@ -68,7 +68,7 @@ const EventsGrid = ({ events = [], onEventClick }) => {
 									</div>
 
 									<div className="mt-4 flex items-center gap-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-										<span style={{ padding: '0.25rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>{ev?.type || 'General'}</span>
+										<span style={{ padding: '0.25rem 0.5rem', background: 'transparent', borderRadius: 6, border: '1px solid var(--glass-border)' }}>{ev?.type || 'General'}</span>
 										<span className="ml-auto" style={{ color: 'var(--text-muted)', fontSize: 13 }}>{ev?.location || ''}</span>
 									</div>
 								</div>
