@@ -61,30 +61,20 @@ router.post(
 			.withMessage('Event date is required')
 			.bail()
 			.isISO8601()
-			.toDate()
-			.withMessage('A valid ISO 8601 event date is required'),
+			.withMessage('Event date must be a valid ISO-8601 date/time'),
 		body('venue').notEmpty().trim().withMessage('Venue is required'),
-		body('organizer').notEmpty().trim().withMessage('Organizer is required'),
 		body('category').notEmpty().trim().withMessage('Category is required'),
-		body('tags').optional().isString(),
-		body('totalSpots')
+		body('tags').optional().isArray().withMessage('Tags must be an array'),
+		body('totalSpots').optional().isInt({ min: 0 }).toInt(),
+		body('ticketPrice').optional().isFloat({ min: 0 }).toFloat(),
+		body('registration.mode')
 			.optional()
-			.isInt({ min: 0 })
-			.withMessage('Total spots must be a non-negative integer'),
-		body('ticketPrice')
+			.isIn(['internal', 'external', 'none'])
+			.withMessage('Invalid registration.mode'),
+		body('registration.externalUrl')
 			.optional()
-			.isFloat({ min: 0 })
-			.withMessage('Ticket price must be a non-negative number'),
-		body('registrationOpenDate')
-			.optional()
-			.isISO8601()
-			.toDate()
-			.withMessage('Invalid registration open date format'),
-		body('registrationCloseDate')
-			.optional()
-			.isISO8601()
-			.toDate()
-			.withMessage('Invalid registration close date format'),
+			.isURL()
+			.withMessage('registration.externalUrl must be a valid URL'),
 	]),
 	createEvent
 );
@@ -94,11 +84,12 @@ router.patch(
 	normalizeEventPayload, // map date/location aliases before validation
 	validate([
 		param('id').isMongoId().withMessage('Invalid event ID'),
-		// Add validation for any fields you allow to be updated
-		body('title').optional().notEmpty().trim(),
-		body('description').optional().notEmpty().trim(),
-		body('eventDate').optional().isISO8601().toDate(),
-		body('venue').optional().notEmpty().trim(),
+		body('eventDate').optional().isISO8601().withMessage('Invalid date format'),
+		body('venue').optional().trim(),
+		body('title').optional().trim().isLength({ min: 1 }),
+		body('description').optional().trim().isLength({ min: 1 }),
+		body('category').optional().trim(),
+		body('tags').optional().isArray(),
 		body('status')
 			.optional()
 			.isIn(['upcoming', 'ongoing', 'completed', 'cancelled', 'postponed']),
