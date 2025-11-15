@@ -15,9 +15,18 @@ import {
 } from 'lucide-react';
 
 const MAX_POSTERS = 5;
-const MAX_GALLERY = 10;
 
-const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubmit, loading }) => {
+const EventModal = ({
+	isEdit,
+	open,
+	onClose,
+	eventFields,
+	setEventFields,
+	onSubmit,
+	loading,
+	existingPosters = [],
+	onRemovePoster = null,
+}) => {
 	const [tagsInput, setTagsInput] = useState((eventFields.tags || []).join(', '));
 	const [localError, setLocalError] = useState('');
 	const [activeTab, setActiveTab] = useState('basic');
@@ -122,12 +131,16 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 	const handleFileChange = (e, field) => {
 		const files = Array.from(e.target.files || []);
 		if (field === 'posters') {
-			if (files.length > MAX_POSTERS) {
-				setLocalError(`Max ${MAX_POSTERS} posters allowed.`);
+			// enforce total posters limit including existing posters in edit mode
+			const existingCount = Array.isArray(existingPosters) ? existingPosters.length : 0;
+			if (existingCount + files.length > MAX_POSTERS) {
+				setLocalError(`Max ${MAX_POSTERS} posters allowed in total (existing + new).`);
 				return;
 			}
-			// keep raw File objects (EventsTab will append to FormData with key 'posters')
+			// keep raw File objects (EventsTab will append to FormData with key 'posters' for create,
+			// and EventsTab will call addEventPoster individually for edits)
 			setEventFields((prev) => ({ ...prev, posters: files }));
+			setLocalError('');
 		}
 	};
 
@@ -599,6 +612,56 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 					{/* MEDIA */}
 					{activeTab === 'media' && (
 						<div className="space-y-5">
+							{/* Existing posters (edit mode) */}
+							{isEdit &&
+								Array.isArray(existingPosters) &&
+								existingPosters.length > 0 && (
+									<div>
+										<label className="block text-sm text-gray-400 mb-1">
+											Existing Posters
+										</label>
+										<div className="flex gap-2 flex-wrap">
+											{existingPosters.map((p, i) => {
+												const publicId =
+													p.publicId || p.public_id || `${i}`;
+												return (
+													<div key={publicId} className="w-28">
+														<div className="w-28 h-16 bg-gray-800 rounded overflow-hidden flex items-center justify-center">
+															{p.url ? (
+																<img
+																	src={p.url}
+																	alt={p.caption || 'poster'}
+																	className="object-cover w-full h-full"
+																/>
+															) : (
+																<span className="text-xs text-gray-400">
+																	No preview
+																</span>
+															)}
+														</div>
+														<div className="mt-1 flex items-center justify-between gap-2">
+															<span className="text-xs text-gray-300 truncate">
+																{p.caption || ''}
+															</span>
+															{onRemovePoster ? (
+																<button
+																	type="button"
+																	onClick={() =>
+																		onRemovePoster(publicId)
+																	}
+																	className="text-red-400 p-1"
+																>
+																	<Trash2 className="h-4 w-4" />
+																</button>
+															) : null}
+														</div>
+													</div>
+												);
+											})}
+										</div>
+									</div>
+								)}
+
 							<div>
 								<label className="block text-sm text-gray-400 mb-1">
 									Event Posters {isEdit ? '(optional)' : '*'}

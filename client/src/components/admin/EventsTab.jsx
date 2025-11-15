@@ -521,6 +521,23 @@ const EventsTab = ({
 		setShowEditEvent(true);
 	};
 
+	// Add missing delete handler
+	const handleDeleteEvent = async (eventId) => {
+		setActionError('');
+		if (!eventId) {
+			setActionError('Missing event id to delete.');
+			return;
+		}
+		try {
+			await deleteEvent(eventId);
+			await getAllEvents?.();
+		} catch (err) {
+			const msg = formatApiError(err);
+			setActionError(msg);
+			setDashboardError?.(msg);
+		}
+	};
+
 	// small responsive helpers
 	const isEmpty = !eventsLoading && filteredEvents.length === 0;
 
