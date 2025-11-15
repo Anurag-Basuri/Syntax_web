@@ -1,24 +1,75 @@
 import { apiClient, publicClient } from './api.js';
 
-/**
- * Normalizes paginated API responses to a single object
- * { docs, totalDocs, page, totalPages, limit, hasPrevPage, hasNextPage, prevPage, nextPage }
- */
-const normalizePagination = (res) => {
-	const payload = res?.data ?? {};
-	let docs = [];
-	if (Array.isArray(payload.data)) {
-		docs = payload.data;
-	} else if (payload.data && Array.isArray(payload.data.docs)) {
-		docs = payload.data.docs;
-	} else if (Array.isArray(payload.data?.docs)) {
-		docs = payload.data.docs;
+// Generic request wrapper to handle errors
+const request = async (fn) => {
+	try {
+		const res = await fn();
+		return res;
+	} catch (err) {
+		// Normalize axios errors
+		if (err?.response) {
+			const payload = err.response.data ?? {};
+			const message =
+				payload.message || payload.error || err.response.statusText || err.message;
+			const error = new Error(message);
+			error.status = err.response.status;
+			error.payload = payload;
+			throw error;
+		}
+		// Non-HTTP or cancellation
+		throw err;
 	}
-	const meta =
-		payload.pagination ?? payload.meta ?? (payload.data && payload.data.pagination) ?? {};
-	return { docs, ...meta };
 };
 
+// Normalize pagination responses from various endpoints
+const normalizePagination = (axiosResponse) => {
+	const payload = axiosResponse?.data ?? {};
+	const data = payload.data ?? payload;
+	let docs = [];
+	let meta = {};
+
+	// payload.data could be an array, an object with docs, or pagination wrapper
+	if (Array.isArray(payload.data)) {
+		docs = payload.data;
+		meta = payload.pagination || payload.meta || {};
+	} else if (payload.data && Array.isArray(payload.data.docs)) {
+		docs = payload.data.docs;
+		meta = payload.pagination ?? payload.data.pagination ?? payload.data.meta ?? {};
+	} else if (Array.isArray(data.docs)) {
+		docs = data.docs;
+		meta = data.pagination ?? data.meta ?? payload.pagination ?? {};
+	} else if (Array.isArray(data)) {
+		docs = data;
+		meta = payload.pagination ?? payload.meta ?? {};
+	} else {
+		// fallback: wrap single item
+		docs = Array.isArray(payload.data) ? payload.data : payload.data ? [payload.data] : [];
+		meta = payload.pagination ?? payload.meta ?? {};
+	}
+
+	// Normalize meta defaults
+	const normalizedMeta = {
+		totalDocs: typeof meta.totalDocs !== 'undefined' ? meta.totalDocs : meta.total || 0,
+		page: typeof meta.page !== 'undefined' ? meta.page : meta.currentPage || 1,
+		limit: typeof meta.limit !== 'undefined' ? meta.limit : meta.pageSize || docs.length,
+		totalPages:
+			typeof meta.totalPages !== 'undefined'
+				? meta.totalPages
+				: Math.ceil(
+						(meta.totalDocs || meta.total || docs.length) /
+							(meta.limit || docs.length || 1)
+				  ),
+		hasPrevPage: !!meta.hasPrevPage,
+		hasNextPage: !!meta.hasNextPage,
+		prevPage: meta.prevPage ?? null,
+		nextPage: meta.nextPage ?? null,
+		raw: payload,
+	};
+
+	return { docs, ...normalizedMeta };
+};
+
+// Sanitize and validate query parameters for event listing
 const sanitizeParams = (params = {}) => {
 	const allowed = ['page', 'limit', 'search', 'status', 'period', 'sortBy', 'sortOrder'];
 	const out = {};
@@ -32,180 +83,213 @@ const sanitizeParams = (params = {}) => {
 	return out;
 };
 
-// Fetches all events with filtering and pagination.
-// params: { page, limit, search, status, period, sortBy, sortOrder }
-export const getAllEvents = async (params) => {
-	const response = await publicClient.get('/api/v1/events', {
-		params: sanitizeParams(params),
-	});
-	return normalizePagination(response);
+const encodeSegment = (v) => encodeURIComponent(String(v));
+
+/**
+ * Public API methods
+ */
+
+// GET /events (public) - supports pagination/filtering
+const getAllEvents = async (params = {}, { signal } = {}) => {
+	const sanitized = sanitizeParams(params);
+	return request(() =>
+		publicClient.get('/api/v1/events', {
+			params: sanitized,
+			signal,
+		})
+	).then(normalizePagination);
 };
 
-// Fetches a single event by its ID.
-export const getEventById = async (id) => {
+// GET /events/:id (public)
+const getEventById = async (id, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
-	const response = await publicClient.get(`/api/v1/events/${id}`);
-	return response.data?.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}`;
+	return request(() => publicClient.get(url, { signal })).then((res) => res.data?.data ?? null);
 };
 
-// Public sanitized details endpoint
-export const getPublicEventDetails = async (id) => {
+// GET /events/:id/public (public sanitized)
+const getPublicEventDetails = async (id, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
-	const response = await publicClient.get(`/api/v1/events/${id}/public`);
-	return response.data?.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/public`;
+	return request(() => publicClient.get(url, { signal })).then((res) => res.data?.data ?? null);
 };
 
-// Creates a new event (Admin only).
-// NOTE: when uploading posters, use the field name "posters" (array) to match the server multer config.
-// Accepts either FormData (files) or plain JSON object.
-export const createEvent = async (formData) => {
-	const response = await apiClient.post('/api/v1/events', formData);
-	return response.data?.data ?? null;
+// POST /events (admin) - accepts FormData OR plain object
+const createEvent = async (payload, { signal } = {}) => {
+	if (!payload) throw new Error('Payload is required');
+	const config = { signal };
+
+	// Let browser/axios set Content-Type when sending FormData
+	if (!(payload instanceof FormData)) {
+		config.headers = { 'Content-Type': 'application/json' };
+	}
+
+	return request(() => apiClient.post('/api/v1/events', payload, config)).then(
+		(res) => res.data?.data ?? null
+	);
 };
 
-// Updates an event's details (Admin only).
-export const updateEventDetails = async (id, updateData) => {
+// PATCH /events/:id/details (admin)
+const updateEventDetails = async (id, updateData, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
-	const response = await apiClient.patch(`/api/v1/events/${id}/details`, updateData, {
-		headers: { 'Content-Type': 'application/json' },
-	});
-	return response.data?.data ?? null;
+	if (!updateData) throw new Error('updateData is required');
+	const url = `/api/v1/events/${encodeSegment(id)}/details`;
+	const config = { signal };
+
+	// If sending JSON ensure proper header; if FormData, allow axios to set header
+	if (!(updateData instanceof FormData)) config.headers = { 'Content-Type': 'application/json' };
+
+	return request(() => apiClient.patch(url, updateData, config)).then(
+		(res) => res.data?.data ?? null
+	);
 };
 
-// Deletes an event (Admin only).
-export const deleteEvent = async (id) => {
+// DELETE /events/:id (admin)
+const deleteEvent = async (id, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
-	const response = await apiClient.delete(`/api/v1/events/${id}`);
-	if (response.status === 204) return null;
-	return response.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}`;
+	return request(() => apiClient.delete(url, { signal })).then((res) =>
+		res.status === 204 ? null : res.data ?? null
+	);
 };
 
-// Fetches statistics about all events (Admin only).
-export const getEventStats = async () => {
-	const response = await apiClient.get('/api/v1/events/admin/statistics');
-	return response.data?.data ?? null;
+// GET /events/admin/statistics (admin)
+const getEventStats = async ({ signal } = {}) => {
+	return request(() => apiClient.get('/api/v1/events/admin/statistics', { signal })).then(
+		(res) => res.data?.data ?? null
+	);
 };
 
-// Fetches registrations for a specific event (Admin only).
-export const getEventRegistrations = async (id) => {
+// GET /events/:id/registrations (admin)
+const getEventRegistrations = async (id, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
-	const response = await apiClient.get(`/api/v1/events/${id}/registrations`);
-	return response.data?.data ?? [];
+	const url = `/api/v1/events/${encodeSegment(id)}/registrations`;
+	return request(() => apiClient.get(url, { signal })).then((res) => res.data?.data ?? []);
 };
 
-// Adds a poster (Admin only).
-// NOTE: server expects single file under field name "poster" for this endpoint.
-// Accepts FormData instance containing a key 'poster'.
-export const addEventPoster = async (id, formData) => {
+// POST /events/:id/posters (admin) - single file field "poster" (FormData)
+const addEventPoster = async (id, formData, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (!(formData instanceof FormData)) throw new Error('FormData with poster file is required');
-	const response = await apiClient.post(`/api/v1/events/${id}/posters`, formData);
-	return response.data?.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/posters`;
+	return request(() => apiClient.post(url, formData, { signal })).then(
+		(res) => res.data?.data ?? null
+	);
 };
 
-// Removes a poster (Admin only).
-export const removeEventPoster = async (id, publicId) => {
+// DELETE /events/:id/posters/:publicId (admin)
+const removeEventPoster = async (id, publicId, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (!publicId) throw new Error('publicId is required');
-	// encode publicId because it may contain slashes or other chars that break the URL
-	const encoded = encodeURIComponent(publicId);
-	const response = await apiClient.delete(`/api/v1/events/${id}/posters/${encoded}`);
-	return response.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/posters/${encodeSegment(publicId)}`;
+	return request(() => apiClient.delete(url, { signal })).then((res) => res.data ?? null);
 };
 
 // Partners
 
-// Add partner (Admin only).
-// Accepts either FormData (with 'logo' file + fields) or plain object { name, website, tier, booth, description }.
-export const addEventPartner = async (id, payload) => {
+// POST /events/:id/partners (admin) - FormData or JSON
+const addEventPartner = async (id, payload, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
-	let response;
-	console.log(
-		'Payload type for addEventPartner:',
-		payload instanceof FormData ? 'FormData' : typeof payload
+	if (!payload) throw new Error('payload is required');
+	const url = `/api/v1/events/${encodeSegment(id)}/partners`;
+	const config = { signal };
+	if (!(payload instanceof FormData)) config.headers = { 'Content-Type': 'application/json' };
+	return request(() => apiClient.post(url, payload, config)).then(
+		(res) => res.data?.data ?? null
 	);
-	if (payload instanceof FormData) {
-		response = await apiClient.post(`/api/v1/events/${id}/partners`, payload);
-	} else {
-		response = await apiClient.post(`/api/v1/events/${id}/partners`, payload, {
-			headers: { 'Content-Type': 'application/json' },
-		});
-	}
-	return response.data?.data ?? null;
 };
 
-export const removeEventPartner = async (id, partnerId) => {
+const removeEventPartner = async (id, partnerId, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (!partnerId) throw new Error('partnerId is required');
-	// encode partnerId because it may be a name or a cloudinary public_id containing spaces/slashes
-	const encoded = encodeURIComponent(partnerId);
-	const response = await apiClient.delete(`/api/v1/events/${id}/partners/${encoded}`);
-	return response.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/partners/${encodeSegment(partnerId)}`;
+	return request(() => apiClient.delete(url, { signal })).then((res) => res.data ?? null);
 };
 
 // Speakers
 
-// Add speaker (Admin only).
-// Accepts FormData (with 'photo' file + name/title/bio/links) or plain object.
-export const addEventSpeaker = async (id, payload) => {
+const addEventSpeaker = async (id, payload, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
-	let response;
-	if (payload instanceof FormData) {
-		response = await apiClient.post(`/api/v1/events/${id}/speakers`, payload);
-	} else {
-		response = await apiClient.post(`/api/v1/events/${id}/speakers`, payload, {
-			headers: { 'Content-Type': 'application/json' },
-		});
-	}
-	return response.data?.data ?? null;
+	if (!payload) throw new Error('payload is required');
+	const url = `/api/v1/events/${encodeSegment(id)}/speakers`;
+	const config = { signal };
+	if (!(payload instanceof FormData)) config.headers = { 'Content-Type': 'application/json' };
+	return request(() => apiClient.post(url, payload, config)).then(
+		(res) => res.data?.data ?? null
+	);
 };
 
-export const removeEventSpeaker = async (id, index) => {
+const removeEventSpeaker = async (id, index, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (typeof index === 'undefined' || index === null)
 		throw new Error('speaker index is required');
-	const response = await apiClient.delete(`/api/v1/events/${id}/speakers/${index}`);
-	return response.data?.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/speakers/${encodeSegment(index)}`;
+	return request(() => apiClient.delete(url, { signal })).then((res) => res.data?.data ?? null);
 };
 
 // Resources
 
-export const addEventResource = async (id, { title, url }) => {
+const addEventResource = async (id, { title, url }, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (!title || !url) throw new Error('title and url are required');
-	const response = await apiClient.post(`/api/v1/events/${id}/resources`, { title, url });
-	return response.data?.data ?? null;
+	const endpoint = `/api/v1/events/${encodeSegment(id)}/resources`;
+	return request(() => apiClient.post(endpoint, { title, url }, { signal })).then(
+		(res) => res.data?.data ?? null
+	);
 };
 
-export const removeEventResource = async (id, index) => {
+const removeEventResource = async (id, index, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (typeof index === 'undefined' || index === null)
 		throw new Error('resource index is required');
-	const response = await apiClient.delete(`/api/v1/events/${id}/resources/${index}`);
-	return response.data?.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/resources/${encodeSegment(index)}`;
+	return request(() => apiClient.delete(url, { signal })).then((res) => res.data?.data ?? null);
 };
 
 // Co-organizers
 
-export const addEventCoOrganizer = async (id, { name }) => {
+const addEventCoOrganizer = async (id, { name }, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (!name) throw new Error('name is required');
-	const response = await apiClient.post(`/api/v1/events/${id}/co-organizers`, { name });
-	return response.data?.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/co-organizers`;
+	return request(() => apiClient.post(url, { name }, { signal })).then(
+		(res) => res.data?.data ?? null
+	);
 };
 
-export const removeEventCoOrganizerByIndex = async (id, index) => {
+const removeEventCoOrganizerByIndex = async (id, index, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (typeof index === 'undefined' || index === null) throw new Error('index is required');
-	const response = await apiClient.delete(`/api/v1/events/${id}/co-organizers/${index}`);
-	return response.data?.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/co-organizers/${encodeSegment(index)}`;
+	return request(() => apiClient.delete(url, { signal })).then((res) => res.data?.data ?? null);
 };
 
-export const removeEventCoOrganizerByName = async (id, name) => {
+const removeEventCoOrganizerByName = async (id, name, { signal } = {}) => {
 	if (!id) throw new Error('Event id is required');
 	if (!name) throw new Error('name is required');
-	const response = await apiClient.delete(
-		`/api/v1/events/${id}/co-organizers/name/${encodeURIComponent(name)}`
-	);
-	return response.data?.data ?? null;
+	const url = `/api/v1/events/${encodeSegment(id)}/co-organizers/name/${encodeSegment(name)}`;
+	return request(() => apiClient.delete(url, { signal })).then((res) => res.data?.data ?? null);
+};
+
+// Export all methods at once
+export {
+	getAllEvents,
+	getEventById,
+	getPublicEventDetails,
+	createEvent,
+	updateEventDetails,
+	deleteEvent,
+	getEventStats,
+	getEventRegistrations,
+	addEventPoster,
+	removeEventPoster,
+	addEventPartner,
+	removeEventPartner,
+	addEventSpeaker,
+	removeEventSpeaker,
+	addEventResource,
+	removeEventResource,
+	addEventCoOrganizer,
+	removeEventCoOrganizerByIndex,
+	removeEventCoOrganizerByName,
 };
