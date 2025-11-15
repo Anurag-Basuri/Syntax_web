@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import './tech.css';
 
 const ImageLightbox = ({ image, onClose, onPrev, onNext }) => {
 	useEffect(() => {
@@ -18,30 +19,28 @@ const ImageLightbox = ({ image, onClose, onPrev, onNext }) => {
 
 	return (
 		<div
-			className="fixed inset-0 z-50 flex items-center justify-center p-4"
+			className="fixed inset-0 z-50 flex items-center justify-center p-4 lightbox-wrap"
 			onClick={(e) => {
 				if (e.target === e.currentTarget) onClose && onClose();
 			}}
 			aria-modal="true"
 			role="dialog"
 			aria-label={image?.caption || 'Image preview'}
-			style={{ background: 'transparent' }}
 		>
-			{/* glass backdrop to keep page background visible while focusing the image */}
-			<div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)' }} />
+			<div className="absolute inset-0 lightbox-backdrop" />
 
-			<div className="relative max-w-6xl w-full max-h-[90vh]">
-				<button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-md" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-primary)' }}>
+			<div className="relative max-w-6xl w-full max-h-[90vh] lightbox-panel">
+				<button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-md control-btn">
 					<X size={18} />
 				</button>
 
 				{onPrev && (
-					<button onClick={onPrev} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-primary)' }}>
+					<button onClick={onPrev} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-md control-btn">
 						<ChevronLeft size={20} />
 					</button>
 				)}
 				{onNext && (
-					<button onClick={onNext} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--text-primary)' }}>
+					<button onClick={onNext} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md control-btn">
 						<ChevronRight size={20} />
 					</button>
 				)}
