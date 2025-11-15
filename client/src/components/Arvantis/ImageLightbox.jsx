@@ -1,51 +1,54 @@
-import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const ImageLightbox = ({ image, onClose }) => {
+const ImageLightbox = ({ image, onClose, onPrev, onNext }) => {
 	useEffect(() => {
-		if (!image) return;
-		const onKey = (e) => {
-			if (e.key === 'Escape') onClose();
+		const handler = (e) => {
+			if (e.key === 'Escape') onClose && onClose();
+			if (e.key === 'ArrowLeft' && onPrev) onPrev();
+			if (e.key === 'ArrowRight' && onNext) onNext();
 		};
-		window.addEventListener('keydown', onKey);
-		return () => window.removeEventListener('keydown', onKey);
-	}, [image, onClose]);
+		window.addEventListener('keydown', handler);
+		return () => window.removeEventListener('keydown', handler);
+	}, [onClose, onPrev, onNext]);
 
 	if (!image) return null;
 
+	const src = image?.url || image?.src || image?.publicUrl;
+
 	return (
-		<motion.div
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1 }}
-			exit={{ opacity: 0 }}
-			className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-			onClick={onClose}
-			role="dialog"
+		<div
+			className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+			onClick={(e) => {
+				if (e.target === e.currentTarget) onClose && onClose();
+			}}
 			aria-modal="true"
+			role="dialog"
+			aria-label={image?.caption || 'Image preview'}
 		>
-			<motion.div
-				initial={{ scale: 0.8, y: 20 }}
-				animate={{ scale: 1, y: 0 }}
-				exit={{ scale: 0.8, y: 20 }}
-				className="relative"
-				onClick={(e) => e.stopPropagation()}
-			>
-				<img
-					src={image.url}
-					alt={image.caption || 'Gallery Image'}
-					className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
-				/>
-				<button
-					onClick={onClose}
-					className="absolute -top-3 -right-3 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white transition"
-					aria-label="Close image view"
-					type="button"
-				>
-					<X size={20} />
+			<div className="relative max-w-6xl w-full max-h-[90vh]">
+				<button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-md bg-white/8 text-white">
+					<X size={18} />
 				</button>
-			</motion.div>
-		</motion.div>
+
+				{onPrev && (
+					<button onClick={onPrev} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-md bg-white/6 text-white">
+						<ChevronLeft size={20} />
+					</button>
+				)}
+				{onNext && (
+					<button onClick={onNext} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md bg-white/6 text-white">
+						<ChevronRight size={20} />
+					</button>
+				)}
+
+				<div className="w-full h-full rounded-xl overflow-hidden">
+					<img src={src} alt={image?.caption || 'Image'} className="w-full h-auto max-h-[85vh] object-contain mx-auto" />
+				</div>
+
+				{image?.caption && <div className="mt-3 text-sm text-gray-300 text-center">{image.caption}</div>}
+			</div>
+		</div>
 	);
 };
 
