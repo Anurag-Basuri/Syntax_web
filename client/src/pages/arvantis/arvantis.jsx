@@ -62,7 +62,6 @@ const ArvantisPage = () => {
 		if (landing) {
 			const id = landing.slug || String(landing.year || '');
 			if (id) {
-				console.debug('[ArvantisPage] set identifier from landing', id);
 				setIdentifier(id);
 				return;
 			}
@@ -72,7 +71,6 @@ const ArvantisPage = () => {
 			const first = editions[0];
 			const id = first?.slug || String(first?.year || '');
 			if (id) {
-				console.debug('[ArvantisPage] set identifier from editions', id);
 				setIdentifier(id);
 			}
 		}
@@ -139,40 +137,36 @@ const ArvantisPage = () => {
 		setSelectedImage(null);
 	}, []);
 
-	// Defensive UI: show loading / error / empty states
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 text-gray-100 font-sans">
 			<div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-16">
-				<header className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+				<header className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
 					<div>
-						<h2 className="text-5xl md:text-6xl font-black tracking-tight text-white drop-shadow-lg">
+						<h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white drop-shadow-lg leading-tight">
 							Arvantis
+							<span className="ml-2 text-cyan-400 font-extrabold">
+								{fest?.year ? ` ’${String(fest.year).slice(-2)}` : ''}
+							</span>
 						</h2>
-						<p className="text-xl text-gray-400 mt-2 font-medium">
-							The annual flagship fest by{' '}
-							<span className="text-cyan-400 font-bold">Syntax Club</span>.
+						<p className="text-base md:text-lg text-gray-300 mt-2 max-w-2xl">
+							{fest?.subtitle ||
+								'The annual flagship fest by Syntax Club focused on tech, creativity and collaboration.'}
 						</p>
 					</div>
-					<div className="flex gap-4">
+
+					<div className="flex gap-3 items-center">
 						<a
 							href="#register"
-							className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-cyan-500 hover:bg-cyan-400 text-gray-900 font-bold shadow-xl transition-all duration-300 transform hover:scale-105"
+							className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-cyan-500 hover:bg-cyan-400 text-gray-900 font-semibold shadow-xl transition-transform transform hover:scale-105"
 						>
-							<span className="hidden sm:inline">Register Now</span>
-							<svg
-								className="w-6 h-6"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									d="M17 8l4 4m0 0l-4 4m4-4H3"
-								/>
-							</svg>
+							Register
 						</a>
+						<button
+							onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+							className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/6 hover:bg-white/8 text-sm text-gray-100"
+						>
+							See Gallery
+						</button>
 					</div>
 				</header>
 
@@ -189,20 +183,11 @@ const ArvantisPage = () => {
 					<LoadingBlock />
 				) : !fest ? (
 					<div className="py-24 text-center">
-						<h3 className="text-3xl font-bold mb-3 text-white">
-							No Fest Data Available
-						</h3>
-						<p className="text-lg text-gray-400">
-							Please check back later for updates on Arvantis.
-						</p>
+						<h3 className="text-3xl font-bold mb-3 text-white">No Fest Data Available</h3>
+						<p className="text-lg text-gray-400">Please check back later for updates on Arvantis.</p>
 					</div>
 				) : (
-					<motion.div
-						initial={{ opacity: 0, y: 30 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.7 }}
-						className="space-y-16"
-					>
+					<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="space-y-12">
 						{/* Poster / Hero */}
 						<PosterHero fest={fest} />
 
@@ -218,67 +203,32 @@ const ArvantisPage = () => {
 						/>
 
 						{/* Stats */}
-						<div className="bg-gradient-to-r from-gray-900/80 via-gray-900/60 to-gray-900/80 rounded-3xl p-8 shadow-2xl border border-gray-800">
-							<section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-								{stats.map((s, idx) => (
-									<StatCard
-										key={idx}
-										icon={s.icon}
-										label={s.label}
-										value={s.value}
-										index={idx}
-									/>
-								))}
-							</section>
+						<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+							{stats.map((s, idx) => (
+								<StatCard key={idx} icon={s.icon} label={s.label} value={s.value} index={idx} />
+							))}
 						</div>
 
 						{/* Main content sections */}
-						<div className="space-y-16">
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.1, duration: 0.7 }}
-								className="rounded-2xl bg-gradient-to-br from-gray-900/70 to-gray-800/80 p-8 shadow-lg"
-							>
-								<EventsGrid
-									events={Array.isArray(fest?.events) ? fest.events : []}
-									onEventClick={handleEventClick}
-								/>
-							</motion.div>
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.2, duration: 0.7 }}
-								className="rounded-2xl bg-gradient-to-br from-gray-900/70 to-gray-800/80 p-8 shadow-lg"
-							>
-								<PartnersGrid
-									partners={Array.isArray(fest?.partners) ? fest.partners : []}
-								/>
-							</motion.div>
-							<motion.div
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: 0.3, duration: 0.7 }}
-								className="rounded-2xl bg-gradient-to-br from-gray-900/70 to-gray-800/80 p-8 shadow-lg"
-							>
-								<GalleryGrid
-									gallery={Array.isArray(fest?.gallery) ? fest.gallery : []}
-									onImageClick={handleImageClick}
-								/>
-							</motion.div>
+						<div className="space-y-10">
+							<div className="rounded-3xl p-6 bg-gradient-to-br from-gray-900/60 to-gray-800/60 border border-gray-800 shadow-xl">
+								<EventsGrid events={Array.isArray(fest?.events) ? fest.events : []} onEventClick={handleEventClick} />
+							</div>
+
+							<div className="rounded-3xl p-6 bg-gradient-to-br from-gray-900/60 to-gray-800/60 border border-gray-800 shadow-xl">
+								<PartnersGrid partners={Array.isArray(fest?.partners) ? fest.partners : []} />
+							</div>
+
+							<div className="rounded-3xl p-6 bg-gradient-to-br from-gray-900/60 to-gray-800/60 border border-gray-800 shadow-xl">
+								<GalleryGrid gallery={Array.isArray(fest?.gallery) ? fest.gallery : []} onImageClick={handleImageClick} />
+							</div>
 						</div>
 					</motion.div>
 				)}
 
 				{/* Modals */}
 				<AnimatePresence>
-					{selectedEvent && (
-						<EventDetailModal
-							event={selectedEvent}
-							isOpen={!!selectedEvent}
-							onClose={closeModal}
-						/>
-					)}
+					{selectedEvent && <EventDetailModal event={selectedEvent} isOpen={!!selectedEvent} onClose={closeModal} />}
 					{selectedImage && <ImageLightbox image={selectedImage} onClose={closeModal} />}
 				</AnimatePresence>
 			</div>
