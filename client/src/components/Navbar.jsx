@@ -17,7 +17,7 @@ import {
 	Info,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth.js';
 import ThemeToggle from './ThemeToggle.jsx';
 import NavLogo from './NavLogo.jsx';
