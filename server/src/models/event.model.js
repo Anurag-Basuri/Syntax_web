@@ -1,22 +1,45 @@
 import mongoose from 'mongoose';
 import aggregatePaginate from 'mongoose-aggregate-paginate-v2';
 
-const posterSchema = new mongoose.Schema({
-	url: {
-		type: String,
-		required: [true, 'Poster URL is required'],
-		// A more robust URL validation regex
-		match: [
-			/^(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/[a-zA-Z0-9]+\.[^\s]{2,}|[a-zA-Z0-9]+\.[^\s]{2,})$/,
-			'Please provide a valid URL for the poster.',
-		],
+// Sub-schema for media (posters, gallery)
+const mediaSchema = new mongoose.Schema(
+	{
+		url: {
+			type: String,
+			required: [true, 'Poster URL is required'],
+			match: [
+				/^(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/[a-zA-Z0-9]+\.[^\s]{2,}|[a-zA-Z0-9]+\.[^\s]{2,})$/,
+				'Please provide a valid URL for the poster.',
+			],
+		},
+		publicId: {
+			type: String,
+			required: [true, 'Cloudinary public_id is required for the poster'],
+		},
+		caption: { type: String, trim: true, maxlength: 250 },
+		alt: { type: String, trim: true, maxlength: 150 },
+		resource_type: { type: String, enum: ['image', 'video'], default: 'image' },
 	},
-	publicId: {
-		type: String,
-		required: [true, 'Cloudinary public_id is required for the poster'],
-	},
-});
+	{ timestamps: false, _id: false }
+);
 
+const speakerSchema = new mongoose.Schema(
+	{
+		name: { type: String, required: true, trim: true, maxlength: 120 },
+		title: { type: String, trim: true, maxlength: 120 },
+		photo: { type: mediaSchema },
+		bio: { type: String, trim: true, maxlength: 1000 },
+		company: { type: String, trim: true, maxlength: 140 },
+		links: {
+			twitter: String,
+			linkedin: String,
+			website: String,
+		},
+	},
+	{ _id: false }
+);
+
+// --- Main Event Schema ---
 const EventSchema = new mongoose.Schema(
 	{
 		title: {
@@ -26,6 +49,7 @@ const EventSchema = new mongoose.Schema(
 			minlength: [3, 'Title must be at least 3 characters long'],
 			maxlength: [150, 'Title cannot exceed 150 characters'],
 		},
+		slug: { type: String, trim: true, lowercase: true, index: true },
 		description: {
 			type: String,
 			required: [true, 'Description is required'],
@@ -33,18 +57,17 @@ const EventSchema = new mongoose.Schema(
 			minlength: [10, 'Description must be at least 10 characters long'],
 			maxlength: [2000, 'Description cannot exceed 2000 characters'],
 		},
-		// Combined date and time for easier querying and time zone management
 		eventDate: {
 			type: Date,
 			required: [true, 'Event date and time are required'],
 			validate: {
 				validator: function (v) {
-					// Ensure the event date is not in the past at the time of creation/update
-					return v.getTime() >= Date.now() - 60000; // Allow a 1-minute grace period
+					return v.getTime() >= Date.now() - 60000;
 				},
 				message: 'Event date cannot be in the past.',
 			},
 		},
+		durationMinutes: { type: Number, min: 0 },
 		venue: {
 			type: String,
 			required: [true, 'Venue is required'],
@@ -52,45 +75,47 @@ const EventSchema = new mongoose.Schema(
 			minlength: [2, 'Venue must be at least 2 characters'],
 			maxlength: [150, 'Venue cannot exceed 150 characters'],
 		},
+		locationCoordinates: {
+			lat: Number,
+			lng: Number,
+		},
+		room: { type: String, trim: true, maxlength: 60 },
 		organizer: {
 			type: String,
 			trim: true,
 			default: 'Syntax Organization',
 			maxlength: [100, 'Organizer cannot exceed 100 characters'],
 		},
+		coOrganizers: { type: [String], default: [] },
 		category: {
 			type: String,
 			required: [true, 'Event category is required (e.g., Workshop, Competition)'],
 			trim: true,
 		},
-		// Posters array to hold multiple poster objects
-		// Posters can uploaded after event creation as well
+		subcategory: { type: String, trim: true },
 		posters: {
-			type: [posterSchema],
+			type: [mediaSchema],
 			default: [],
 			validate: {
 				validator: function (v) {
-					return Array.isArray(v) && v.length <= 5; // Limit to 5 posters max
+					return Array.isArray(v) && v.length <= 5;
 				},
 				message: 'You can upload a maximum of 5 posters per event.',
 			},
 		},
-		tags: {
-			type: [String],
-			default: [],
+		thumbnail: { type: mediaSchema },
+		gallery: { type: [mediaSchema], default: [] },
+		speakers: { type: [speakerSchema], default: [] },
+		tags: { type: [String], default: [] },
+		totalSpots: { type: Number, min: [0, 'Total spots cannot be negative'], default: 0 },
+		ticketPrice: { type: Number, min: [0, 'Ticket price cannot be negative'], default: 0 },
+		prerequisites: { type: [String], default: [] },
+		resources: { type: [{ title: String, url: String }], default: [] },
+		livestream: {
+			enabled: { type: Boolean, default: false },
+			platform: { type: String, trim: true },
+			url: { type: String, trim: true },
 		},
-		totalSpots: {
-			type: Number,
-			min: [0, 'Total spots cannot be negative'],
-			default: 0, // 0 = unlimited
-		},
-		ticketPrice: {
-			type: Number,
-			min: [0, 'Ticket price cannot be negative'],
-			default: 0, // Default to a free event
-		},
-
-		// registration object: supports two registration types
 		registration: {
 			mode: {
 				type: String,
@@ -98,13 +123,12 @@ const EventSchema = new mongoose.Schema(
 				default: 'internal',
 				required: true,
 			},
-			// when mode === 'external' client should provide this URL
 			externalUrl: {
 				type: String,
 				trim: true,
 				validate: {
 					validator: function (v) {
-						if (!v) return true; // allow empty unless mode === external (checked in pre-save)
+						if (!v) return true;
 						return /^(https?:\/\/)?((([a-zA-Z0-9\-_]+\.)+[a-zA-Z]{2,})|localhost)(:\d{2,5})?(\/[^\s]*)?$/.test(
 							v
 						);
@@ -112,26 +136,14 @@ const EventSchema = new mongoose.Schema(
 					message: 'Invalid external registration URL',
 				},
 			},
-			// if true, allow anonymous/guest ticketing (no member account required)
-			allowGuests: {
-				type: Boolean,
-				default: true,
-			},
-			// optional per-event capacity that overrides totalSpots when set (0/unset = use totalSpots)
-			capacityOverride: {
-				type: Number,
-				min: [0, 'Capacity cannot be negative'],
-			},
+			allowGuests: { type: Boolean, default: true },
+			capacityOverride: { type: Number, min: [0, 'Capacity cannot be negative'] },
 		},
-
-		// This array stores references to Member documents (legacy quick-check).
-		registeredUsers: [
-			{
-				type: mongoose.Schema.Types.ObjectId,
-				ref: 'Member',
-			},
-		],
-
+		registeredUsers: {
+			type: [mongoose.Schema.Types.ObjectId],
+			ref: 'Member',
+			default: [],
+		},
 		status: {
 			type: String,
 			enum: {
@@ -141,13 +153,20 @@ const EventSchema = new mongoose.Schema(
 			},
 			default: 'upcoming',
 		},
-
-		registrationOpenDate: {
-			type: Date,
+		registrationOpenDate: { type: Date },
+		registrationCloseDate: { type: Date },
+		isFeatured: { type: Boolean, default: false },
+		language: { type: String, trim: true, default: 'en' },
+		accessibility: {
+			captions: { type: Boolean, default: false },
+			accessibleSeating: { type: Boolean, default: false },
 		},
-		registrationCloseDate: {
-			type: Date,
+		seo: {
+			title: String,
+			description: String,
+			ogImage: mediaSchema,
 		},
+		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 	},
 	{
 		timestamps: true,
@@ -156,71 +175,54 @@ const EventSchema = new mongoose.Schema(
 	}
 );
 
-// Virtual property to check if the event is free
+// Virtuals
 EventSchema.virtual('isFree').get(function () {
 	return this.ticketPrice === 0;
 });
 
-// derived capacity used for registration calculations
 EventSchema.virtual('effectiveCapacity').get(function () {
-	// If registration.capacityOverride is a positive number use it, otherwise use totalSpots.
 	const cap = this.registration?.capacityOverride;
 	if (typeof cap === 'number' && cap > 0) return cap;
 	return this.totalSpots;
 });
 
-// Virtual property to calculate remaining spots (for internal registration)
 EventSchema.virtual('spotsLeft').get(function () {
 	const cap = this.effectiveCapacity || 0;
-	// treat 0 as unlimited
 	if (!cap) return Infinity;
 	const registeredCount = Array.isArray(this.registeredUsers) ? this.registeredUsers.length : 0;
 	return Math.max(0, cap - registeredCount);
 });
 
-// Virtual property to check if the event is full
 EventSchema.virtual('isFull').get(function () {
 	const cap = this.effectiveCapacity || 0;
-	if (!cap) return false; // unlimited
+	if (!cap) return false;
 	const registeredCount = Array.isArray(this.registeredUsers) ? this.registeredUsers.length : 0;
 	return registeredCount >= cap;
 });
 
-// Virtual property for registration status (accounts for external mode)
 EventSchema.virtual('registrationStatus').get(function () {
 	const now = new Date();
-
-	// If registration explicitly disabled
 	if (this.registration?.mode === 'none') return 'CLOSED';
-
-	// External registration: report as EXTERNAL if URL present, otherwise CLOSED
 	if (this.registration?.mode === 'external') {
 		return this.registration?.externalUrl ? 'EXTERNAL' : 'CLOSED';
 	}
-
-	// Internal registration flow
 	if (this.status === 'cancelled') return 'CANCELLED';
 	if (this.status === 'completed' || this.status === 'ongoing') return 'CLOSED';
 	if (this.isFull) return 'FULL';
-
-	// If dates are not set, consider closed unless upcoming
 	if (!this.registrationOpenDate || !this.registrationCloseDate) {
 		return this.status === 'upcoming' ? 'CLOSED' : 'PAST';
 	}
-
 	if (now < this.registrationOpenDate) return 'COMING_SOON';
 	if (now >= this.registrationOpenDate && now <= this.registrationCloseDate) return 'OPEN';
 	if (now > this.registrationCloseDate) return 'CLOSED';
-
 	return 'UNAVAILABLE';
 });
 
-// Text index for efficient searching on title, description, and tags
+// Indexes
 EventSchema.index({ title: 'text', description: 'text', tags: 'text', category: 'text' });
-// Index for common filtering and sorting
 EventSchema.index({ eventDate: 1, status: 1 });
 
-// Pre-save hook to sanitize tags and validate dates + registration constraints
+// Pre-save sanitization and validations
 EventSchema.pre('save', function (next) {
 	if (this.isModified('tags') && this.tags) {
 		this.tags = this.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
@@ -234,34 +236,32 @@ EventSchema.pre('save', function (next) {
 		return next(new Error('Registration open date cannot be after the close date.'));
 	}
 
-	// If external mode ensure externalUrl exists
-	if (this.registration?.mode === 'external') {
-		if (!this.registration.externalUrl) {
-			return next(
-				new Error(
-					'External registration URL is required when registration.mode is "external".'
-				)
-			);
-		}
+	if (this.registration?.mode === 'external' && !this.registration.externalUrl) {
+		return next(
+			new Error('External registration URL is required when registration.mode is "external".')
+		);
 	}
 
-	// Ensure capacity override is not negative and not greater than a sensible max (optional)
 	if (this.registration?.capacityOverride && this.registration.capacityOverride < 0) {
 		return next(new Error('registration.capacityOverride cannot be negative.'));
+	}
+
+	// Generate slug if missing
+	if (!this.slug && this.title) {
+		let base = this.title
+			.toString()
+			.toLowerCase()
+			.trim()
+			.replace(/\s+/g, '-')
+			.replace(/[^\w-]+/g, '')
+			.replace(/--+/g, '-');
+		this.slug = `${base}-${Date.now().toString().slice(-5)}`;
 	}
 
 	next();
 });
 
-// Ensure array defaults exist
-EventSchema.add({
-	registeredUsers: {
-		type: [mongoose.Schema.Types.ObjectId],
-		ref: 'Member',
-		default: [],
-	},
-});
-
+// Ensure array defaults exist (already present for registeredUsers)
 EventSchema.plugin(aggregatePaginate);
 
 const Event = mongoose.model('Event', EventSchema);

@@ -43,11 +43,9 @@ const ArvantisPage = () => {
 	const editions = useMemo(() => {
 		const raw = editionsQuery.data;
 		if (!raw) return [];
-		// server might return pagination shape or plain array
 		if (Array.isArray(raw)) return raw;
 		if (Array.isArray(raw.docs)) return raw.docs;
 		if (Array.isArray(raw.data)) return raw.data;
-		// fallback: try nested data
 		const payload = raw?.data ?? raw;
 		if (Array.isArray(payload)) return payload;
 		if (Array.isArray(payload?.docs)) return payload.docs;
@@ -57,7 +55,6 @@ const ArvantisPage = () => {
 	// Initialize identifier from landing or editions (only once)
 	useEffect(() => {
 		if (identifier) return;
-		// prefer landing if available
 		const landing = landingQuery.data;
 		if (landing) {
 			const id = landing.slug || String(landing.year || '');
@@ -66,13 +63,10 @@ const ArvantisPage = () => {
 				return;
 			}
 		}
-		// fallback to first edition from editions list
 		if (editions.length > 0) {
 			const first = editions[0];
 			const id = first?.slug || String(first?.year || '');
-			if (id) {
-				setIdentifier(id);
-			}
+			if (id) setIdentifier(id);
 		}
 	}, [identifier, landingQuery.data, editions]);
 
@@ -86,9 +80,10 @@ const ArvantisPage = () => {
 	});
 
 	// Resolve the fest to display (details -> landing fallback)
-	const fest = useMemo(() => {
-		return detailsQuery.data ?? landingQuery.data ?? null;
-	}, [detailsQuery.data, landingQuery.data]);
+	const fest = useMemo(() => detailsQuery.data ?? landingQuery.data ?? null, [
+		detailsQuery.data,
+		landingQuery.data,
+	]);
 
 	// Stats for UI cards (defensive access)
 	const stats = useMemo(() => {
@@ -114,23 +109,16 @@ const ArvantisPage = () => {
 		'Unknown error occurred.';
 
 	const handleEventClick = useCallback((event) => {
-		// normalize event object if server returns different keys
 		const normalized = {
 			...event,
 			title: event.title ?? event.name ?? '',
 			eventDate: event.eventDate ?? event.date ?? null,
-			posters: Array.isArray(event.posters)
-				? event.posters
-				: event.posters
-				? [event.posters]
-				: [],
+			posters: Array.isArray(event.posters) ? event.posters : event.posters ? [event.posters] : [],
 		};
 		setSelectedEvent(normalized);
 	}, []);
 
-	const handleImageClick = useCallback((image) => {
-		setSelectedImage(image);
-	}, []);
+	const handleImageClick = useCallback((image) => setSelectedImage(image), []);
 
 	const closeModal = useCallback(() => {
 		setSelectedEvent(null);
@@ -138,17 +126,17 @@ const ArvantisPage = () => {
 	}, []);
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 text-gray-100 font-sans">
+		<div className="min-h-screen" style={{ background: 'linear-gradient(180deg,#04121a,#071826)', color: 'var(--text-primary)' }}>
 			<div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-16">
 				<header className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
 					<div>
-						<h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white drop-shadow-lg leading-tight">
+						<h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight" style={{ color: 'var(--text-primary)', fontFamily: 'Space Grotesk, system-ui' }}>
 							Arvantis
-							<span className="ml-2 text-cyan-400 font-extrabold">
+							<span className="ml-2" style={{ color: 'var(--accent-1)' }}>
 								{fest?.year ? ` ’${String(fest.year).slice(-2)}` : ''}
 							</span>
 						</h2>
-						<p className="text-base md:text-lg text-gray-300 mt-2 max-w-2xl">
+						<p className="text-base md:text-lg mt-2 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
 							{fest?.subtitle ||
 								'The annual flagship fest by Syntax Club focused on tech, creativity and collaboration.'}
 						</p>
@@ -157,13 +145,15 @@ const ArvantisPage = () => {
 					<div className="flex gap-3 items-center">
 						<a
 							href="#register"
-							className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-cyan-500 hover:bg-cyan-400 text-gray-900 font-semibold shadow-xl transition-transform transform hover:scale-105"
+							className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-semibold shadow-xl transition-transform transform hover:scale-105"
+							style={{ background: 'var(--button-primary-bg)', color: 'var(--text-primary)' }}
 						>
 							Register
 						</a>
 						<button
 							onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-							className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/6 hover:bg-white/8 text-sm text-gray-100"
+							className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm"
+							style={{ background: 'var(--button-secondary-bg)', color: 'var(--text-primary)', border: `1px solid var(--button-secondary-border)` }}
 						>
 							See Gallery
 						</button>
@@ -183,11 +173,11 @@ const ArvantisPage = () => {
 					<LoadingBlock />
 				) : !fest ? (
 					<div className="py-24 text-center">
-						<h3 className="text-3xl font-bold mb-3 text-white">No Fest Data Available</h3>
-						<p className="text-lg text-gray-400">Please check back later for updates on Arvantis.</p>
+						<h3 className="text-3xl font-bold mb-3">No Fest Data Available</h3>
+						<p className="text-lg" style={{ color: 'var(--text-secondary)' }}>Please check back later for updates on Arvantis.</p>
 					</div>
 				) : (
-					<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="space-y-12">
+					<motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="space-y-12">
 						{/* Poster / Hero */}
 						<PosterHero fest={fest} />
 
@@ -211,15 +201,15 @@ const ArvantisPage = () => {
 
 						{/* Main content sections */}
 						<div className="space-y-10">
-							<div className="rounded-3xl p-6 bg-gradient-to-br from-gray-900/60 to-gray-800/60 border border-gray-800 shadow-xl">
+							<div className="rounded-3xl p-6" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00))', border: '1px solid rgba(255,255,255,0.04)' }}>
 								<EventsGrid events={Array.isArray(fest?.events) ? fest.events : []} onEventClick={handleEventClick} />
 							</div>
 
-							<div className="rounded-3xl p-6 bg-gradient-to-br from-gray-900/60 to-gray-800/60 border border-gray-800 shadow-xl">
+							<div className="rounded-3xl p-6" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00))', border: '1px solid rgba(255,255,255,0.04)' }}>
 								<PartnersGrid partners={Array.isArray(fest?.partners) ? fest.partners : []} />
 							</div>
 
-							<div className="rounded-3xl p-6 bg-gradient-to-br from-gray-900/60 to-gray-800/60 border border-gray-800 shadow-xl">
+							<div className="rounded-3xl p-6" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00))', border: '1px solid rgba(255,255,255,0.04)' }}>
 								<GalleryGrid gallery={Array.isArray(fest?.gallery) ? fest.gallery : []} onImageClick={handleImageClick} />
 							</div>
 						</div>
