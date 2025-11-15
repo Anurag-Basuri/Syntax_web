@@ -11,6 +11,12 @@ import {
 	List,
 } from 'lucide-react';
 import { useCreateEvent, useUpdateEvent, useDeleteEvent } from '../../hooks/useEvents.js';
+import {
+	getEventStats,
+	getEventRegistrations,
+	addEventPoster,
+	removeEventPoster,
+} from '../../services/eventServices.js';
 import LoadingSpinner from './LoadingSpinner.jsx';
 import ErrorMessage from './ErrorMessage.jsx';
 import EventModal from './EventModal.jsx';
@@ -95,6 +101,8 @@ const EventsTab = ({
 	const [showEditEvent, setShowEditEvent] = useState(false);
 	const [eventFields, setEventFields] = useState(initialEventFields);
 	const [editEventId, setEditEventId] = useState(null);
+	// Keep existing posters for edit separately (server-owned posters)
+	const [editExistingPosters, setEditExistingPosters] = useState([]);
 
 	// Filters & search
 	const [searchTerm, setSearchTerm] = useState('');
@@ -414,10 +422,45 @@ const EventsTab = ({
 							: undefined,
 				},
 			};
+			// Update details first (posters must be managed via dedicated endpoints)
 			await updateEvent(editEventId, updatePayload);
+
+			// If user selected new poster files during edit, upload them via addEventPoster (single 'poster' field)
+			if (Array.isArray(eventFields.posters) && eventFields.posters.length > 0) {
+				for (const file of eventFields.posters) {
+					try {
+						const fd = new FormData();
+						fd.append('poster', file); // server expects single field 'poster'
+						const added = await addEventPoster(editEventId, fd);
+						// update local existing posters list to include newly added poster(s)
+						if (Array.isArray(added)) {
+							// addEventPoster returns ev.posters (array) per controller; merge conservatively
+							setEditExistingPosters((prev) => {
+								// avoid duplicates by publicId
+								const combined = [...(prev || [])];
+								(added || []).forEach((p) => {
+									const id = p.publicId || p.public_id;
+									if (!combined.some((x) => (x.publicId || x.public_id) === id)) {
+										combined.push(p);
+									}
+								});
+								return combined;
+							});
+						} else if (added) {
+							setEditExistingPosters((prev) => [...(prev || []), added]);
+						}
+					} catch (posterErr) {
+						const msg = formatApiError(posterErr);
+						// surface error but continue with other uploads
+						setActionError((prev) => (prev ? `${prev}; ${msg}` : msg));
+					}
+				}
+			}
+
 			resetForm();
 			setShowEditEvent(false);
 			setEditEventId(null);
+			setEditExistingPosters([]);
 			await getAllEvents?.();
 		} catch (err) {
 			const msg = formatApiError(err);
@@ -426,12 +469,14 @@ const EventsTab = ({
 		}
 	};
 
-	const handleDeleteEvent = async (id) => {
-		setActionError('');
-		if (!window.confirm('Delete this event? This action cannot be undone.')) return;
+	// Remove an existing poster (calls service and updates local editExistingPosters)
+	const handleRemoveExistingPoster = async (publicId) => {
+		if (!editEventId || !publicId) return;
 		try {
-			await deleteEvent(id);
-			await getAllEvents?.();
+			await removeEventPoster(editEventId, publicId);
+			setEditExistingPosters((prev) =>
+				(prev || []).filter((p) => (p.publicId || p.public_id) !== publicId)
+			);
 		} catch (err) {
 			const msg = formatApiError(err);
 			setActionError(msg);
@@ -441,6 +486,7 @@ const EventsTab = ({
 
 	const openEditEventModal = (event) => {
 		setEditEventId(event._id);
+		setEditExistingPosters(event.posters || []);
 		setEventFields({
 			title: event.title || '',
 			date: toDatetimeLocalInput(event.eventDate || event.date),
@@ -455,7 +501,7 @@ const EventsTab = ({
 			totalSpots: event.totalSpots ?? '',
 			ticketPrice: event.ticketPrice ?? '',
 			tags: event.tags || [],
-			posters: [],
+			posters: [], // user can add poster files for upload while editing
 			registrationMode: event.registration?.mode || 'none',
 			externalUrl: event.registration?.externalUrl || '',
 			allowGuests:
@@ -703,17 +749,25 @@ const EventsTab = ({
 					setEventFields={setEventFields}
 					onSubmit={handleCreateEvent}
 					loading={createLoading}
+					existingPosters={[]} // none for create
+					onRemovePoster={null}
 				/>
 			)}
 			{showEditEvent && (
 				<EventModal
 					isEdit={true}
 					open={showEditEvent}
-					onClose={() => setShowEditEvent(false)}
+					onClose={() => {
+						setShowEditEvent(false);
+						// keep editExistingPosters cleared when closing
+						setEditExistingPosters([]);
+					}}
 					eventFields={eventFields}
 					setEventFields={setEventFields}
 					onSubmit={handleEditEvent}
 					loading={updateLoading}
+					existingPosters={editExistingPosters}
+					onRemovePoster={handleRemoveExistingPoster}
 				/>
 			)}
 		</div>

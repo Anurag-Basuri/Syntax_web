@@ -148,6 +148,7 @@ export const uploadFile = (fieldName, options = {}) => {
 				req.file = undefined; // ensure single slot isn't set for arrays
 			}
 
+			console.log(`[MULTER] upload handler completed successfully for field="${fieldName}"`);
 			next();
 		});
 	};

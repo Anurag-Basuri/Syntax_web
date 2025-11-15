@@ -56,30 +56,104 @@ router.get('/:id/registrations', validate([param('id').isMongoId()]), getEventRe
 // Core event management
 router.post(
 	'/',
-	// multer must parse multipart/form-data before validators that read req.body
 	uploadFile('posters', { multiple: true, maxCount: 5 }),
 	normalizeEventPayload,
 	validate([
 		body('title').notEmpty().trim().withMessage('Title is required'),
 		body('description').notEmpty().trim().withMessage('Description is required'),
+
+		// accept either `eventDate` or frontend `date` (datetime-local or ISO)
 		body('eventDate')
 			.notEmpty()
 			.withMessage('Event date is required')
 			.bail()
-			.isISO8601()
-			.withMessage('eventDate must be ISO-8601'),
+			.custom((value, { req }) => {
+				const val = value ?? req.body.date ?? req.body.eventDate;
+				if (!val) return false;
+				const dt = new Date(val);
+				return !Number.isNaN(dt.getTime());
+			})
+			.withMessage('eventDate must be a valid ISO/datetime-local string'),
+
 		body('venue').notEmpty().trim().withMessage('Venue is required'),
 		body('category').notEmpty().trim().withMessage('Category is required'),
-		body('tags').optional().isArray().withMessage('Tags must be an array'),
-		body('totalSpots').optional().isInt({ min: 0 }).toInt(),
-		body('ticketPrice').optional().isFloat({ min: 0 }).toFloat(),
+
+		// tags: accept array or comma-separated string, sanitize to array
+		body('tags')
+			.optional()
+			.customSanitizer((value, { req }) => {
+				const v = typeof value !== 'undefined' ? value : req.body.tags;
+				if (Array.isArray(v)) return v;
+				if (typeof v === 'string') {
+					if (v.includes(','))
+						return v
+							.split(',')
+							.map((t) => t.trim())
+							.filter(Boolean);
+					if (v.trim().length) return [v.trim()];
+					return [];
+				}
+				return v;
+			})
+			.isArray()
+			.withMessage('Tags must be an array or a comma-separated string'),
+
+		// numeric fields: allow numeric strings, coerce then validate
+		body('totalSpots')
+			.optional()
+			.customSanitizer((v, { req }) => {
+				const val = typeof v !== 'undefined' ? v : req.body.totalSpots;
+				if (typeof val === 'string' && val.trim() !== '') {
+					const n = Number(val);
+					return Number.isNaN(n) ? val : n;
+				}
+				return val;
+			})
+			.isInt({ min: 0 })
+			.toInt(),
+
+		body('ticketPrice')
+			.optional()
+			.customSanitizer((v, { req }) => {
+				const val = typeof v !== 'undefined' ? v : req.body.ticketPrice;
+				if (typeof val === 'string' && val.trim() !== '') {
+					const n = Number(val);
+					return Number.isNaN(n) ? val : n;
+				}
+				return val;
+			})
+			.isFloat({ min: 0 })
+			.toFloat(),
+
+		// registration.mode: accept nested or flattened `registrationMode`
 		body('registration.mode')
 			.optional()
-			.isIn(['internal', 'external', 'none'])
+			.custom((value, { req }) => {
+				const mode =
+					typeof value !== 'undefined'
+						? value
+						: (req.body.registrationMode ?? req.body?.registration?.mode);
+				return ['internal', 'external', 'none'].includes(mode);
+			})
 			.withMessage('Invalid registration.mode'),
+
+		// registration.externalUrl: accept nested or flattened `externalUrl`
 		body('registration.externalUrl')
-			.optional()
-			.isURL()
+			.optional({ checkFalsy: true })
+			.custom((value, { req }) => {
+				const url =
+					typeof value !== 'undefined'
+						? value
+						: (req.body.externalUrl ?? req.body?.registration?.externalUrl);
+				if (!url) return true;
+				try {
+					/* eslint-disable no-new */
+					new URL(url);
+					return true;
+				} catch {
+					return false;
+				}
+			})
 			.withMessage('registration.externalUrl must be a valid URL'),
 	]),
 	createEvent
@@ -90,12 +164,44 @@ router.patch(
 	normalizeEventPayload,
 	validate([
 		param('id').isMongoId().withMessage('Invalid event ID'),
-		body('eventDate').optional().isISO8601().withMessage('Invalid date format'),
+
+		// accept `eventDate` or `date` in patch too
+		body('eventDate')
+			.optional()
+			.custom((value, { req }) => {
+				const val =
+					typeof value !== 'undefined' ? value : (req.body.date ?? req.body.eventDate);
+				if (!val) return true;
+				const dt = new Date(val);
+				return !Number.isNaN(dt.getTime());
+			})
+			.withMessage('Invalid date format'),
+
 		body('venue').optional().trim(),
 		body('title').optional().trim().isLength({ min: 1 }),
 		body('description').optional().trim().isLength({ min: 1 }),
 		body('category').optional().trim(),
-		body('tags').optional().isArray(),
+
+		// tags flexible for patch as well
+		body('tags')
+			.optional()
+			.customSanitizer((value, { req }) => {
+				const v = typeof value !== 'undefined' ? value : req.body.tags;
+				if (Array.isArray(v)) return v;
+				if (typeof v === 'string') {
+					if (v.includes(','))
+						return v
+							.split(',')
+							.map((t) => t.trim())
+							.filter(Boolean);
+					if (v.trim().length) return [v.trim()];
+					return [];
+				}
+				return v;
+			})
+			.isArray()
+			.withMessage('Tags must be an array or a comma-separated string'),
+
 		body('status')
 			.optional()
 			.isIn(['upcoming', 'ongoing', 'completed', 'cancelled', 'postponed']),
