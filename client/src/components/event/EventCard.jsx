@@ -34,6 +34,10 @@ const EventCard = ({ event }) => {
 		(event.status === 'ongoing' || eventDate.toDateString() === now.toDateString());
 	const isUpcoming = isValidDate && eventDate > now && !isOngoing;
 
+	// quick inline registration link if available on listing data
+	const registrationLink =
+		event.registrationLink || event.registrationUrl || event.registration || null;
+
 	return (
 		<>
 			<motion.div
@@ -119,6 +123,43 @@ const EventCard = ({ event }) => {
 					<p className="text-gray-300 text-sm line-clamp-2 leading-relaxed">
 						{event.description}
 					</p>
+
+					{/* Footer with subtle actions */}
+					<div className="flex items-center justify-between mt-3">
+						<div className="text-xs text-gray-400">
+							{event.tags?.slice(0, 2).map((t) => (
+								<span key={t} className="inline-block mr-2 px-2 py-0.5 bg-white/5 rounded">
+									{t}
+								</span>
+							))}
+						</div>
+
+						<div className="flex items-center gap-2">
+							{registrationLink && (
+								<a
+									href={registrationLink}
+									target="_blank"
+									rel="noreferrer"
+									onClick={(e) => {
+										// prevent card click -> modal open when clicking register
+										e.stopPropagation();
+									}}
+									className="text-xs px-2 py-1 bg-emerald-500 text-white rounded"
+								>
+									Register
+								</a>
+							)}
+							<button
+								className="text-xs px-2 py-1 bg-transparent border border-white/10 rounded"
+								onClick={(e) => {
+									e.stopPropagation();
+									setShowModal(true);
+								}}
+							>
+								View
+							</button>
+						</div>
+					</div>
 				</div>
 			</motion.div>
 
