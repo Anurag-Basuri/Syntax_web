@@ -14,6 +14,7 @@ import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
 import { uploadFile } from '../middlewares/multer.middleware.js';
 import { body, param } from 'express-validator';
+import normalizeEventPayload from '../middlewares/normalizeEvent.middleware.js';
 
 const router = Router();
 const { protect, authorize } = authMiddleware;
@@ -51,10 +52,14 @@ router.get(
 router.post(
 	'/',
 	uploadFile('posters'), // Handles multiple poster uploads via the custom middleware
+	normalizeEventPayload, // normalize frontend aliases before validation
 	validate([
 		body('title').notEmpty().trim().withMessage('Title is required'),
 		body('description').notEmpty().trim().withMessage('Description is required'),
 		body('eventDate')
+			.notEmpty()
+			.withMessage('Event date is required')
+			.bail()
 			.isISO8601()
 			.toDate()
 			.withMessage('A valid ISO 8601 event date is required'),
@@ -86,6 +91,7 @@ router.post(
 
 router.patch(
 	'/:id/details',
+	normalizeEventPayload, // map date/location aliases before validation
 	validate([
 		param('id').isMongoId().withMessage('Invalid event ID'),
 		// Add validation for any fields you allow to be updated

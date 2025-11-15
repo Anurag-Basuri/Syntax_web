@@ -56,6 +56,7 @@ const EventSchema = new mongoose.Schema(
 			type: String,
 			required: [true, 'Organizer is required'],
 			trim: true,
+			default: 'Syntax Organization',
 			minlength: [2, 'Organizer must be at least 2 characters'],
 			maxlength: [100, 'Organizer cannot exceed 100 characters'],
 		},
@@ -64,9 +65,17 @@ const EventSchema = new mongoose.Schema(
 			required: [true, 'Event category is required (e.g., Workshop, Competition)'],
 			trim: true,
 		},
+		// Posters array to hold multiple poster objects
+		// Posters can uploaded after event creation as well
 		posters: {
 			type: [posterSchema],
-			validate: [(val) => val.length > 0, 'At least one event poster is required.'],
+			default: [],
+			validate: {
+				validator: function (v) {
+					return Array.isArray(v) && v.length <= 5; // Limit to 5 posters max
+				},
+				message: 'You can upload a maximum of 5 posters per event.',
+			},
 		},
 		tags: {
 			type: [String],
