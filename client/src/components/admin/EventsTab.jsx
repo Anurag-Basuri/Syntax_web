@@ -190,22 +190,111 @@ const EventsTab = ({
 	const resetForm = () => setEventFields(initialEventFields);
 
 	// validation (aligned with backend requirements)
+	const isValidUrl = (u) => {
+		if (!u) return false;
+		try {
+			// accept both with and without protocol (server validator allows optional protocol)
+			// but new URL requires protocol, so try to add if missing
+			if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(u)) {
+				// assume https if protocol missing for client-side check
+				u = `https://${u}`;
+			}
+			new URL(u);
+			return true;
+		} catch {
+			return false;
+		}
+	};
+
 	const validateFields = (fields, forEdit = false) => {
-		if (!fields.title || fields.title.trim().length < 3)
+		// Title
+		if (!fields.title || typeof fields.title !== 'string' || fields.title.trim().length < 3)
 			return 'Title is required (min 3 characters).';
-		if (!fields.date) return 'Date & time are required.';
+		if (fields.title.trim().length > 150) return 'Title cannot exceed 150 characters.';
+
+		// Date -> eventDate (client uses date field, normalized to ISO)
+		if (!fields.date) return 'Event date and time are required.';
 		const iso = datetimeLocalToISO(fields.date);
 		if (!iso) return 'Please provide a valid date & time.';
 		const dt = new Date(iso);
 		if (Number.isNaN(dt.getTime())) return 'Please provide a valid date & time.';
-		// backend requires venue (frontend uses location -> normalized to venue)
-		if (!fields.location || fields.location.trim().length < 2) return 'Venue is required.';
-		if (!fields.category || fields.category.trim().length < 2) return 'Category is required.';
-		if (!fields.description || fields.description.trim().length < 10)
+		// Server allows a 60s leeway; enforce same rule client-side
+		if (dt.getTime() < Date.now() - 60_000) return 'Event date cannot be in the past.';
+
+		// Venue
+		if (!fields.location || fields.location.trim().length < 2)
+			return 'Venue is required (min 2 characters).';
+		if (fields.location.trim().length > 150) return 'Venue cannot exceed 150 characters.';
+
+		// Category
+		if (!fields.category || fields.category.trim().length < 1) return 'Category is required.';
+
+		// Description
+		if (
+			!fields.description ||
+			typeof fields.description !== 'string' ||
+			fields.description.trim().length < 10
+		)
 			return 'Description is required (min 10 characters).';
-		// keep external registration rule: backend enforces externalUrl when mode is external
-		if (fields.registrationMode === 'external' && !fields.externalUrl)
-			return 'External registration URL is required for external mode.';
+		if (fields.description.trim().length > 2000)
+			return 'Description cannot exceed 2000 characters.';
+
+		// Numeric constraints
+		if (
+			fields.totalSpots !== undefined &&
+			fields.totalSpots !== '' &&
+			fields.totalSpots !== null
+		) {
+			const n = Number(fields.totalSpots);
+			if (Number.isNaN(n) || !Number.isFinite(n) || n < 0)
+				return 'Total spots must be a non-negative number.';
+		}
+		if (
+			fields.ticketPrice !== undefined &&
+			fields.ticketPrice !== '' &&
+			fields.ticketPrice !== null
+		) {
+			const p = Number(fields.ticketPrice);
+			if (Number.isNaN(p) || !Number.isFinite(p) || p < 0)
+				return 'Ticket price cannot be negative.';
+		}
+		if (
+			fields.registration &&
+			typeof fields.registration.capacityOverride !== 'undefined' &&
+			fields.registration.capacityOverride !== '' &&
+			fields.registration.capacityOverride !== null
+		) {
+			const c = Number(fields.registration.capacityOverride);
+			if (Number.isNaN(c) || !Number.isFinite(c) || c < 0)
+				return 'Capacity override cannot be negative.';
+		}
+
+		// Registration external URL rule (backend requires externalUrl when mode=external)
+		const mode =
+			(fields.registration && fields.registration.mode) || fields.registrationMode || 'none';
+		const externalUrl =
+			(fields.registration && fields.registration.externalUrl) || fields.externalUrl || '';
+		if (mode === 'external') {
+			if (!externalUrl || String(externalUrl).trim() === '')
+				return 'External registration URL is required when registration mode is "external".';
+			if (!isValidUrl(externalUrl)) return 'External registration URL is not a valid URL.';
+		}
+
+		// Registration window ordering
+		const open = fields.registrationOpenDate || '';
+		const close = fields.registrationCloseDate || '';
+		if (open && close) {
+			const oIso = datetimeLocalToISO(open);
+			const cIso = datetimeLocalToISO(close);
+			if (!oIso || !cIso) return 'Registration open/close must be valid dates.';
+			if (new Date(oIso).getTime() > new Date(cIso).getTime())
+				return 'Registration open date cannot be after the close date.';
+		}
+
+		// Posters count client-side guard (server allows up to 5)
+		if (Array.isArray(fields.posters) && fields.posters.length > 5)
+			return 'You can upload a maximum of 5 posters.';
+
 		return '';
 	};
 
@@ -220,23 +309,25 @@ const EventsTab = ({
 		}
 		try {
 			const fd = new FormData();
-			fd.append('title', eventFields.title);
+			fd.append('title', eventFields.title.trim());
 			const iso = eventFields.date ? datetimeLocalToISO(eventFields.date) : '';
 			if (iso) fd.append('eventDate', iso);
 			if (eventFields.eventTime) fd.append('eventTime', eventFields.eventTime);
-			fd.append('venue', eventFields.location);
-			if (eventFields.room) fd.append('room', eventFields.room);
-			fd.append('description', eventFields.description);
-			fd.append('organizer', eventFields.organizer);
-			fd.append('category', eventFields.category);
-			if (eventFields.subcategory) fd.append('subcategory', eventFields.subcategory);
-			fd.append('status', eventFields.status);
+			// backend expects 'venue'
+			fd.append('venue', eventFields.location.trim());
+			if (eventFields.room) fd.append('room', eventFields.room.trim());
+			fd.append('description', eventFields.description.trim());
+			if (eventFields.organizer) fd.append('organizer', eventFields.organizer.trim());
+			fd.append('category', eventFields.category.trim());
+			if (eventFields.subcategory) fd.append('subcategory', eventFields.subcategory.trim());
+			fd.append('status', eventFields.status || 'upcoming');
 
-			if (eventFields.totalSpots !== '')
+			if (eventFields.totalSpots !== '' && typeof eventFields.totalSpots !== 'undefined')
 				fd.append('totalSpots', String(eventFields.totalSpots));
-			if (eventFields.ticketPrice !== '')
+			if (eventFields.ticketPrice !== '' && typeof eventFields.ticketPrice !== 'undefined')
 				fd.append('ticketPrice', String(eventFields.ticketPrice));
 
+			// Tags: server normalize middleware will convert comma-string to array
 			if (eventFields.tags) {
 				if (Array.isArray(eventFields.tags)) fd.append('tags', eventFields.tags.join(','));
 				else fd.append('tags', String(eventFields.tags));
@@ -246,11 +337,14 @@ const EventsTab = ({
 				fd.append('posters', file);
 			}
 
-			// Registration fields
+			// Registration fields (flattened keys are handled by normalizeEventPayload on server)
 			fd.append('registrationMode', eventFields.registrationMode || 'none');
 			if (eventFields.externalUrl) fd.append('externalUrl', eventFields.externalUrl);
-			fd.append('allowGuests', String(eventFields.allowGuests));
-			if (eventFields.capacityOverride !== '')
+			fd.append('allowGuests', String(eventFields.allowGuests !== false));
+			if (
+				typeof eventFields.capacityOverride !== 'undefined' &&
+				eventFields.capacityOverride !== ''
+			)
 				fd.append('capacityOverride', String(eventFields.capacityOverride));
 			if (eventFields.registrationOpenDate)
 				fd.append(
@@ -313,7 +407,7 @@ const EventsTab = ({
 				registration: {
 					mode: eventFields.registrationMode || 'none',
 					externalUrl: eventFields.externalUrl || undefined,
-					allowGuests: eventFields.allowGuests,
+					allowGuests: !!eventFields.allowGuests,
 					capacityOverride:
 						eventFields.capacityOverride !== ''
 							? Number(eventFields.capacityOverride)
