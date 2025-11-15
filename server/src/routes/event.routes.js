@@ -3,13 +3,21 @@ import {
 	createEvent,
 	getAllEvents,
 	getEventById,
+	getPublicEventDetails,
 	updateEventDetails,
 	deleteEvent,
 	addEventPoster,
 	removeEventPoster,
+	addEventPartner,
+	removeEventPartner,
+	addEventSpeaker,
+	removeEventSpeaker,
+	addEventResource,
+	removeEventResource,
+	addEventCoOrganizer,
+	removeEventCoOrganizer,
 	getEventStats,
 	getEventRegistrations,
-	getPublicEventDetails,
 } from '../controllers/event.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { validate } from '../middlewares/validator.middleware.js';
@@ -31,18 +39,18 @@ router.get(
 	getAllEvents
 );
 
+// Public sanitized details (explicit endpoint) — place before '/:id' to avoid param collision with 'public'
+router.get(
+	'/:id/public',
+	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
+	getPublicEventDetails
+);
+
 // Get a single event by its ID (public, sanitized)
 router.get(
 	'/:id',
 	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
 	getEventById
-);
-
-// Public sanitized details (explicit endpoint)
-router.get(
-	'/:id/public',
-	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
-	getPublicEventDetails
 );
 
 // --------------------- Admin routes ---------------------
@@ -61,8 +69,6 @@ router.post(
 	validate([
 		body('title').notEmpty().trim().withMessage('Title is required'),
 		body('description').notEmpty().trim().withMessage('Description is required'),
-
-		// accept either `eventDate` or frontend `date` (datetime-local or ISO)
 		body('eventDate')
 			.notEmpty()
 			.withMessage('Event date is required')
@@ -74,11 +80,8 @@ router.post(
 				return !Number.isNaN(dt.getTime());
 			})
 			.withMessage('eventDate must be a valid ISO/datetime-local string'),
-
 		body('venue').notEmpty().trim().withMessage('Venue is required'),
 		body('category').notEmpty().trim().withMessage('Category is required'),
-
-		// tags: accept array or comma-separated string, sanitize to array
 		body('tags')
 			.optional()
 			.customSanitizer((value, { req }) => {
@@ -97,8 +100,6 @@ router.post(
 			})
 			.isArray()
 			.withMessage('Tags must be an array or a comma-separated string'),
-
-		// numeric fields: allow numeric strings, coerce then validate
 		body('totalSpots')
 			.optional()
 			.customSanitizer((v, { req }) => {
@@ -111,7 +112,6 @@ router.post(
 			})
 			.isInt({ min: 0 })
 			.toInt(),
-
 		body('ticketPrice')
 			.optional()
 			.customSanitizer((v, { req }) => {
@@ -124,8 +124,6 @@ router.post(
 			})
 			.isFloat({ min: 0 })
 			.toFloat(),
-
-		// registration.mode: accept nested or flattened `registrationMode`
 		body('registration.mode')
 			.optional()
 			.custom((value, { req }) => {
@@ -136,8 +134,6 @@ router.post(
 				return ['internal', 'external', 'none'].includes(mode);
 			})
 			.withMessage('Invalid registration.mode'),
-
-		// registration.externalUrl: accept nested or flattened `externalUrl`
 		body('registration.externalUrl')
 			.optional({ checkFalsy: true })
 			.custom((value, { req }) => {
@@ -164,8 +160,6 @@ router.patch(
 	normalizeEventPayload,
 	validate([
 		param('id').isMongoId().withMessage('Invalid event ID'),
-
-		// accept `eventDate` or `date` in patch too
 		body('eventDate')
 			.optional()
 			.custom((value, { req }) => {
@@ -176,13 +170,10 @@ router.patch(
 				return !Number.isNaN(dt.getTime());
 			})
 			.withMessage('Invalid date format'),
-
 		body('venue').optional().trim(),
 		body('title').optional().trim().isLength({ min: 1 }),
 		body('description').optional().trim().isLength({ min: 1 }),
 		body('category').optional().trim(),
-
-		// tags flexible for patch as well
 		body('tags')
 			.optional()
 			.customSanitizer((value, { req }) => {
@@ -201,7 +192,6 @@ router.patch(
 			})
 			.isArray()
 			.withMessage('Tags must be an array or a comma-separated string'),
-
 		body('status')
 			.optional()
 			.isIn(['upcoming', 'ongoing', 'completed', 'cancelled', 'postponed']),
@@ -216,7 +206,6 @@ router.delete(
 );
 
 // Poster endpoints
-// Validate route params before accepting uploaded file to avoid unnecessary uploads when id invalid
 router.post(
 	'/:id/posters',
 	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
@@ -229,6 +218,75 @@ router.delete(
 	removeEventPoster
 );
 
-// Keep ticket-specific admin endpoints in ticket.routes.js (do not duplicate here)
+// Partner endpoints (admin)
+router.post(
+	'/:id/partners',
+	validate([
+		param('id').isMongoId().withMessage('Invalid event ID'),
+		body('name').notEmpty().trim().withMessage('Partner name is required'),
+	]),
+	uploadFile('logo', { multiple: false }),
+	addEventPartner
+);
+router.delete(
+	'/:id/partners/:partnerId',
+	validate([param('id').isMongoId(), param('partnerId').notEmpty()]),
+	removeEventPartner
+);
+
+// Speaker endpoints (admin)
+router.post(
+	'/:id/speakers',
+	validate([
+		param('id').isMongoId().withMessage('Invalid event ID'),
+		body('name').notEmpty().trim().withMessage('Speaker name is required'),
+	]),
+	uploadFile('photo', { multiple: false }),
+	addEventSpeaker
+);
+router.delete(
+	'/:id/speakers/:index',
+	validate([
+		param('id').isMongoId(),
+		param('index').isInt().withMessage('Invalid speaker index'),
+	]),
+	removeEventSpeaker
+);
+
+// Resources endpoints (admin)
+router.post(
+	'/:id/resources',
+	validate([
+		param('id').isMongoId(),
+		body('title').notEmpty().trim(),
+		body('url').notEmpty().trim(),
+	]),
+	addEventResource
+);
+router.delete(
+	'/:id/resources/:index',
+	validate([
+		param('id').isMongoId(),
+		param('index').isInt().withMessage('Invalid resource index'),
+	]),
+	removeEventResource
+);
+
+// Co-organizers endpoints (admin)
+router.post(
+	'/:id/co-organizers',
+	validate([param('id').isMongoId(), body('name').notEmpty().trim()]),
+	addEventCoOrganizer
+);
+router.delete(
+	'/:id/co-organizers/:index',
+	validate([param('id').isMongoId(), param('index').isInt().withMessage('Invalid index')]),
+	removeEventCoOrganizer
+);
+router.delete(
+	'/:id/co-organizers/name/:name',
+	validate([param('id').isMongoId(), param('name').notEmpty().trim()]),
+	removeEventCoOrganizer
+);
 
 export default router;
