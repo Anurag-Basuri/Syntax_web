@@ -6,7 +6,6 @@ import { apiClient, publicClient } from './api.js';
  */
 const normalizePagination = (res) => {
 	const payload = res?.data ?? {};
-	// Support different shapes: { data: [docs], pagination: {...} } or { data: { docs: [...] }, pagination: {...} }
 	let docs = [];
 	if (Array.isArray(payload.data)) {
 		docs = payload.data;
@@ -28,7 +27,6 @@ const sanitizeParams = (params = {}) => {
 			out[k] = params[k];
 		}
 	}
-	// ensure numeric params are numbers
 	if (out.page) out.page = Number(out.page);
 	if (out.limit) out.limit = Number(out.limit);
 	return out;
@@ -50,8 +48,16 @@ export const getEventById = async (id) => {
 	return response.data?.data ?? null;
 };
 
+// Public sanitized details endpoint
+export const getPublicEventDetails = async (id) => {
+	if (!id) throw new Error('Event id is required');
+	const response = await publicClient.get(`/api/v1/events/${id}/public`);
+	return response.data?.data ?? null;
+};
+
 // Creates a new event (Admin only).
 // NOTE: when uploading posters, use the field name "posters" (array) to match the server multer config.
+// Accepts either FormData (files) or plain JSON object.
 export const createEvent = async (formData) => {
 	const response = await apiClient.post('/api/v1/events', formData);
 	return response.data?.data ?? null;
@@ -89,8 +95,10 @@ export const getEventRegistrations = async (id) => {
 
 // Adds a poster (Admin only).
 // NOTE: server expects single file under field name "poster" for this endpoint.
+// Accepts FormData instance containing a key 'poster'.
 export const addEventPoster = async (id, formData) => {
 	if (!id) throw new Error('Event id is required');
+	if (!(formData instanceof FormData)) throw new Error('FormData with poster file is required');
 	const response = await apiClient.post(`/api/v1/events/${id}/posters`, formData);
 	return response.data?.data ?? null;
 };
@@ -101,4 +109,95 @@ export const removeEventPoster = async (id, publicId) => {
 	if (!publicId) throw new Error('publicId is required');
 	const response = await apiClient.delete(`/api/v1/events/${id}/posters/${publicId}`);
 	return response.data ?? null;
+};
+
+// Partners
+
+// Add partner (Admin only).
+// Accepts either FormData (with 'logo' file + fields) or plain object { name, website, tier, booth, description }.
+export const addEventPartner = async (id, payload) => {
+	if (!id) throw new Error('Event id is required');
+	let response;
+	if (payload instanceof FormData) {
+		response = await apiClient.post(`/api/v1/events/${id}/partners`, payload);
+	} else {
+		response = await apiClient.post(`/api/v1/events/${id}/partners`, payload, {
+			headers: { 'Content-Type': 'application/json' },
+		});
+	}
+	return response.data?.data ?? null;
+};
+
+export const removeEventPartner = async (id, partnerId) => {
+	if (!id) throw new Error('Event id is required');
+	if (!partnerId) throw new Error('partnerId is required');
+	const response = await apiClient.delete(`/api/v1/events/${id}/partners/${partnerId}`);
+	return response.data ?? null;
+};
+
+// Speakers
+
+// Add speaker (Admin only).
+// Accepts FormData (with 'photo' file + name/title/bio/links) or plain object.
+export const addEventSpeaker = async (id, payload) => {
+	if (!id) throw new Error('Event id is required');
+	let response;
+	if (payload instanceof FormData) {
+		response = await apiClient.post(`/api/v1/events/${id}/speakers`, payload);
+	} else {
+		response = await apiClient.post(`/api/v1/events/${id}/speakers`, payload, {
+			headers: { 'Content-Type': 'application/json' },
+		});
+	}
+	return response.data?.data ?? null;
+};
+
+export const removeEventSpeaker = async (id, index) => {
+	if (!id) throw new Error('Event id is required');
+	if (typeof index === 'undefined' || index === null)
+		throw new Error('speaker index is required');
+	const response = await apiClient.delete(`/api/v1/events/${id}/speakers/${index}`);
+	return response.data?.data ?? null;
+};
+
+// Resources
+
+export const addEventResource = async (id, { title, url }) => {
+	if (!id) throw new Error('Event id is required');
+	if (!title || !url) throw new Error('title and url are required');
+	const response = await apiClient.post(`/api/v1/events/${id}/resources`, { title, url });
+	return response.data?.data ?? null;
+};
+
+export const removeEventResource = async (id, index) => {
+	if (!id) throw new Error('Event id is required');
+	if (typeof index === 'undefined' || index === null)
+		throw new Error('resource index is required');
+	const response = await apiClient.delete(`/api/v1/events/${id}/resources/${index}`);
+	return response.data?.data ?? null;
+};
+
+// Co-organizers
+
+export const addEventCoOrganizer = async (id, { name }) => {
+	if (!id) throw new Error('Event id is required');
+	if (!name) throw new Error('name is required');
+	const response = await apiClient.post(`/api/v1/events/${id}/co-organizers`, { name });
+	return response.data?.data ?? null;
+};
+
+export const removeEventCoOrganizerByIndex = async (id, index) => {
+	if (!id) throw new Error('Event id is required');
+	if (typeof index === 'undefined' || index === null) throw new Error('index is required');
+	const response = await apiClient.delete(`/api/v1/events/${id}/co-organizers/${index}`);
+	return response.data?.data ?? null;
+};
+
+export const removeEventCoOrganizerByName = async (id, name) => {
+	if (!id) throw new Error('Event id is required');
+	if (!name) throw new Error('name is required');
+	const response = await apiClient.delete(
+		`/api/v1/events/${id}/co-organizers/name/${encodeURIComponent(name)}`
+	);
+	return response.data?.data ?? null;
 };
