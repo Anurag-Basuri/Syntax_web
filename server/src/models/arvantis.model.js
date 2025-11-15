@@ -92,25 +92,6 @@ const partnerSchema = new mongoose.Schema(
     { _id: false }
 );
 
-// --- Sub-schema for daily schedule entries ---
-const dayScheduleSchema = new mongoose.Schema(
-    {
-        dayLabel: { type: String, trim: true },
-        date: { type: Date },
-        highlights: { type: [String], default: [] },
-        slots: [
-            {
-                start: Date,
-                end: Date,
-                title: String,
-                eventRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },
-                location: String,
-            },
-        ],
-    },
-    { _id: false }
-);
-
 // --- Main Arvantis Fest Schema ---
 const arvantisSchema = new mongoose.Schema(
     {
@@ -137,8 +118,16 @@ const arvantisSchema = new mongoose.Schema(
             lowercase: true,
             trim: true,
         },
-        tagline: { type: String, trim: true, maxlength: 200 },
-        description: { type: String, trim: true, maxlength: 5000 },
+        tagline: {
+			type: String,
+			trim: true, 
+			maxlength: 200
+		},
+        description: {
+			type: String,
+			trim: true, 
+			maxlength: 5000 
+		},
         startDate: {
             type: Date,
             required: [true, 'Start date is required.'],
@@ -149,7 +138,6 @@ const arvantisSchema = new mongoose.Schema(
             required: [true, 'End date is required.'],
             index: true,
         },
-        timezone: { type: String, trim: true, default: 'UTC' },
         status: {
             type: String,
             enum: ['upcoming', 'ongoing', 'completed', 'cancelled', 'postponed'],
@@ -182,10 +170,6 @@ const arvantisSchema = new mongoose.Schema(
             default: 'Lovely Professional University',
             maxlength: 200,
         },
-        venueCoordinates: {
-            lat: { type: Number },
-            lng: { type: Number },
-        },
         contactEmail: {
             type: String,
             trim: true,
@@ -195,19 +179,51 @@ const arvantisSchema = new mongoose.Schema(
                 message: (props) => `${props.value} is not a valid email`,
             },
         },
-        contactPhone: { type: String, trim: true, maxlength: 40 },
+        contactPhone: {
+			type: String,
+			trim: true,
+			maxlength: 40 
+		},
         socialLinks: {
-            website: { type: String, trim: true },
-            twitter: { type: String, trim: true },
-            instagram: { type: String, trim: true },
-            facebook: { type: String, trim: true },
-            linkedin: { type: String, trim: true },
+            website: { 
+				type: String, 
+				trim: true 
+			},
+            twitter: { 
+				type: String, 
+				trim: true 
+			},
+            instagram: { 
+				type: String, 
+				trim: true 
+			},
+            facebook: { 
+				type: String, 
+				trim: true 
+			},
+            linkedin: { 
+				type: String, 
+				trim: true 
+			},
         },
         themeColors: {
-            primary: { type: String, trim: true, default: '#06b6d4' },
-            accent: { type: String, trim: true, default: '#0284c7' },
-            bg: { type: String, trim: true, default: '#0f172a' },
+            primary: { 
+				type: String, 
+				trim: true, 
+				default: '#06b6d4' 
+			},
+            accent: { 
+				type: String, 
+				trim: true, 
+				default: '#0284c7' 
+			},
+            bg: { 
+				type: String, 
+				trim: true, 
+				default: '#0f172a' 
+			},
         },
+		// Additional fields for extended functionality
         tracks: {
             type: [
                 {
@@ -228,24 +244,16 @@ const arvantisSchema = new mongoose.Schema(
             ],
             default: [],
         },
-        schedule: { type: [dayScheduleSchema], default: [] },
         seo: {
             title: String,
             description: String,
             ogImage: mediaSchema,
         },
-        registrationSettings: {
-            mode: { type: String, enum: ['internal', 'external', 'none'], default: 'internal' },
-            externalUrl: { type: String, trim: true },
-            openDate: Date,
-            closeDate: Date,
-            allowGuests: { type: Boolean, default: true },
-        },
-        visibility: { type: String, enum: ['public', 'private', 'unlisted'], default: 'public' },
-        meta: {
-            views: { type: Number, default: 0 },
-            likes: { type: Number, default: 0 },
-        },
+        visibility: { 
+			type: String, enum: ['public', 'private', 'unlisted'], 
+			default: 'public'
+		},
+		
     },
     {
         timestamps: true,
