@@ -5,7 +5,6 @@ import {
 	Search,
 	ChevronDown,
 	AlertCircle,
-	Filter,
 	RefreshCw,
 	Grid,
 	List,
@@ -16,6 +15,15 @@ import {
 	getEventRegistrations,
 	addEventPoster,
 	removeEventPoster,
+	addEventPartner,
+	removeEventPartner,
+	addEventCoOrganizer,
+	removeEventCoOrganizerByIndex,
+	removeEventCoOrganizerByName,
+	addEventSpeaker,
+	removeEventSpeaker,
+	addEventResource,
+	removeEventResource,
 } from '../../services/eventServices.js';
 import LoadingSpinner from './LoadingSpinner.jsx';
 import ErrorMessage from './ErrorMessage.jsx';
@@ -538,6 +546,121 @@ const EventsTab = ({
 		}
 	};
 
+	// Manage actions: small prompt-driven manager using services
+	const handleManageEvent = async (event) => {
+		setActionError('');
+		if (!event || !event._id) return;
+		/* eslint-disable no-alert */
+		const action = window.prompt(
+			'Action for event "' +
+				(event.title || '') +
+				'":\n' +
+				'Options: add-coorg, remove-coorg-name, remove-coorg-index,\n' +
+				'add-resource, remove-resource-index,\n' +
+				'add-partner, remove-partner,\n' +
+				'add-speaker, remove-speaker-index,\n' +
+				'add-poster, remove-poster\n\n' +
+				'Enter action key:'
+		);
+		if (!action) return;
+		try {
+			switch (action.trim()) {
+				case 'add-coorg': {
+					const name = window.prompt('Co-organizer name:');
+					if (!name) throw new Error('Name required');
+					await addEventCoOrganizer(event._id, { name });
+					await getAllEvents?.();
+					break;
+				}
+				case 'remove-coorg-name': {
+					const name = window.prompt('Co-organizer name to remove:');
+					if (!name) throw new Error('Name required');
+					await removeEventCoOrganizerByName(event._id, name);
+					await getAllEvents?.();
+					break;
+				}
+				case 'remove-coorg-index': {
+					const idx = window.prompt('Co-organizer index to remove (0-based):');
+					if (idx === null) throw new Error('Index required');
+					await removeEventCoOrganizerByIndex(event._id, Number(idx));
+					await getAllEvents?.();
+					break;
+				}
+				case 'add-resource': {
+					const title = window.prompt('Resource title:');
+					const url = window.prompt('Resource url:');
+					if (!title || !url) throw new Error('Title and url required');
+					await addEventResource(event._id, { title, url });
+					await getAllEvents?.();
+					break;
+				}
+				case 'remove-resource-index': {
+					const idx = window.prompt('Resource index to remove (0-based):');
+					if (idx === null) throw new Error('Index required');
+					await removeEventResource(event._id, Number(idx));
+					await getAllEvents?.();
+					break;
+				}
+				case 'add-partner': {
+					const name = window.prompt('Partner name:');
+					const website = window.prompt('Partner website (optional):') || undefined;
+					if (!name) throw new Error('Partner name required');
+					// simple object payload; for logo upload use a FormData flow elsewhere
+					await addEventPartner(event._id, { name, website });
+					await getAllEvents?.();
+					break;
+				}
+				case 'remove-partner': {
+					const ident = window.prompt('Partner identifier (publicId or name):');
+					if (!ident) throw new Error('Identifier required');
+					await removeEventPartner(event._id, ident);
+					await getAllEvents?.();
+					break;
+				}
+				case 'add-speaker': {
+					const name = window.prompt('Speaker name:');
+					const title = window.prompt('Speaker title (optional):') || undefined;
+					const bio = window.prompt('Speaker bio (optional):') || undefined;
+					if (!name) throw new Error('Speaker name required');
+					await addEventSpeaker(event._id, { name, title, bio });
+					await getAllEvents?.();
+					break;
+				}
+				case 'remove-speaker-index': {
+					const idx = window.prompt('Speaker index to remove (0-based):');
+					if (idx === null) throw new Error('Index required');
+					await removeEventSpeaker(event._id, Number(idx));
+					await getAllEvents?.();
+					break;
+				}
+				case 'add-poster': {
+					// small helper: ask for image URL (convenience) — best to use upload UI in future
+					const url = window.prompt(
+						'Poster image URL (server expects uploads; this will call partner/patch endpoints if allowed):'
+					);
+					if (!url) throw new Error('URL required');
+					// create FormData with a blob fetch fallback is complex here; reject to prompt using real upload
+					throw new Error(
+						'Poster upload via URL not supported from this prompt. Use the Create/Edit modal to upload files.'
+					);
+				}
+				case 'remove-poster': {
+					const pub = window.prompt('Poster publicId to remove:');
+					if (!pub) throw new Error('publicId required');
+					await removeEventPoster(event._id, pub);
+					await getAllEvents?.();
+					break;
+				}
+				default:
+					throw new Error('Unknown action');
+			}
+		} catch (err) {
+			const msg = formatApiError(err);
+			setActionError(msg);
+			setDashboardError?.(msg);
+		}
+	};
+
 	// small responsive helpers
 	const isEmpty = !eventsLoading && filteredEvents.length === 0;
 
@@ -702,14 +825,23 @@ const EventsTab = ({
 					{viewMode === 'grid' ? (
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 							{filteredEvents.map((event) => (
-								<EventCard
-									key={event._id}
-									event={event}
-									compact={compactCards}
-									onEdit={() => openEditEventModal(event)}
-									onDelete={() => handleDeleteEvent(event._id)}
-									deleteLoading={deleteLoading}
-								/>
+								<div key={event._id} className="relative">
+									<EventCard
+										event={event}
+										compact={compactCards}
+										onEdit={() => openEditEventModal(event)}
+										onDelete={() => handleDeleteEvent(event._id)}
+										deleteLoading={deleteLoading}
+									/>
+									{/* Manage button */}
+									<button
+										onClick={() => handleManageEvent(event)}
+										title="Manage event (partners, speakers, resources, co-organizers)"
+										className="absolute right-3 top-3 z-10 px-2 py-1 rounded bg-black/40 text-xs text-white hover:bg-black/60"
+									>
+										Manage
+									</button>
+								</div>
 							))}
 						</div>
 					) : (
@@ -717,37 +849,42 @@ const EventsTab = ({
 							{filteredEvents.map((event) => (
 								<div
 									key={event._id}
-									className="bg-gray-800/40 rounded-lg p-4 border border-gray-700"
+									className="bg-gray-800/40 rounded-lg p-4 border border-gray-700 flex items-center justify-between"
 								>
-									<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-										<div className="flex items-start gap-3">
-											<div className="w-12 h-12 rounded-md bg-gradient-to-br from-purple-800 to-blue-800 flex items-center justify-center text-white text-sm font-semibold">
-												{(event.title || '').slice(0, 2).toUpperCase()}
-											</div>
-											<div>
-												<h4 className="font-semibold text-white">
-													{event.title}
-												</h4>
-												<p className="text-xs text-gray-400">
-													{event.venue || event.location || 'TBA'}
-												</p>
-											</div>
+									<div className="flex items-start gap-3">
+										<div className="w-12 h-12 rounded-md bg-gradient-to-br from-purple-800 to-blue-800 flex items-center justify-center text-white text-sm font-semibold">
+											{(event.title || '').slice(0, 2).toUpperCase()}
 										</div>
-										<div className="flex items-center gap-2">
-											<button
-												onClick={() => openEditEventModal(event)}
-												className="px-3 py-1 rounded bg-gray-700/30 text-white text-sm"
-											>
-												Edit
-											</button>
-											<button
-												onClick={() => handleDeleteEvent(event._id)}
-												disabled={deleteLoading}
-												className="px-3 py-1 rounded bg-red-700/60 text-white text-sm disabled:opacity-50"
-											>
-												Delete
-											</button>
+										<div>
+											<h4 className="font-semibold text-white">
+												{event.title}
+											</h4>
+											<p className="text-xs text-gray-400">
+												{event.venue || event.location || 'TBA'}
+											</p>
 										</div>
+									</div>
+
+									<div className="flex items-center gap-2">
+										<button
+											onClick={() => openEditEventModal(event)}
+											className="px-3 py-1 rounded bg-gray-700/30 text-white text-sm"
+										>
+											Edit
+										</button>
+										<button
+											onClick={() => handleDeleteEvent(event._id)}
+											disabled={deleteLoading}
+											className="px-3 py-1 rounded bg-red-700/60 text-white text-sm disabled:opacity-50"
+										>
+											Delete
+										</button>
+										<button
+											onClick={() => handleManageEvent(event)}
+											className="px-3 py-1 rounded bg-black/40 text-white text-sm"
+										>
+											Manage
+										</button>
 									</div>
 								</div>
 							))}

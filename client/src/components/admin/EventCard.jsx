@@ -35,7 +35,9 @@ const EventCard = ({ event, compact = false, onEdit, onDelete, deleteLoading }) 
 				<div className="flex justify-between items-start">
 					<div>
 						<h3 className="font-bold text-white">{event.title}</h3>
-						<p className="text-sm text-gray-300 mt-1">{event.description}</p>
+						<p className="text-sm text-gray-300 mt-1 line-clamp-2">
+							{event.description}
+						</p>
 					</div>
 					{!compact && (
 						<div className="flex gap-2">
@@ -81,7 +83,9 @@ const EventCard = ({ event, compact = false, onEdit, onDelete, deleteLoading }) 
 					<div className="mt-4 pt-4 border-t border-gray-700 flex justify-between items-center">
 						<div className="flex items-center gap-2">
 							<Users className="h-4 w-4 text-gray-400" />
-							<span className="text-sm text-gray-300">124 registered</span>
+							<span className="text-sm text-gray-300">
+								{event.ticketCount ?? '0'} registered
+							</span>
 						</div>
 						<div className="flex gap-2">
 							<span className="px-2.5 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded-full">
