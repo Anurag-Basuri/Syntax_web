@@ -107,7 +107,9 @@ export const addEventPoster = async (id, formData) => {
 export const removeEventPoster = async (id, publicId) => {
 	if (!id) throw new Error('Event id is required');
 	if (!publicId) throw new Error('publicId is required');
-	const response = await apiClient.delete(`/api/v1/events/${id}/posters/${publicId}`);
+	// encode publicId because it may contain slashes or other chars that break the URL
+	const encoded = encodeURIComponent(publicId);
+	const response = await apiClient.delete(`/api/v1/events/${id}/posters/${encoded}`);
 	return response.data ?? null;
 };
 
@@ -118,6 +120,10 @@ export const removeEventPoster = async (id, publicId) => {
 export const addEventPartner = async (id, payload) => {
 	if (!id) throw new Error('Event id is required');
 	let response;
+	console.log(
+		'Payload type for addEventPartner:',
+		payload instanceof FormData ? 'FormData' : typeof payload
+	);
 	if (payload instanceof FormData) {
 		response = await apiClient.post(`/api/v1/events/${id}/partners`, payload);
 	} else {
@@ -131,7 +137,9 @@ export const addEventPartner = async (id, payload) => {
 export const removeEventPartner = async (id, partnerId) => {
 	if (!id) throw new Error('Event id is required');
 	if (!partnerId) throw new Error('partnerId is required');
-	const response = await apiClient.delete(`/api/v1/events/${id}/partners/${partnerId}`);
+	// encode partnerId because it may be a name or a cloudinary public_id containing spaces/slashes
+	const encoded = encodeURIComponent(partnerId);
+	const response = await apiClient.delete(`/api/v1/events/${id}/partners/${encoded}`);
 	return response.data ?? null;
 };
 

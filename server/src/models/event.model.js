@@ -14,7 +14,6 @@ const mediaSchema = new mongoose.Schema(
 		},
 		publicId: {
 			type: String,
-			required: [true, 'Cloudinary public_id is required for the poster'],
 		},
 		caption: {
 			type: String,
@@ -171,7 +170,7 @@ const EventSchema = new mongoose.Schema(
 		},
 		subcategory: {
 			type: String,
-			trim: true 
+			trim: true,
 		},
 
 		posters: {
