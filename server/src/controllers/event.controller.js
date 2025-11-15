@@ -52,17 +52,35 @@ const createEvent = asyncHandler(async (req, res) => {
 	if (Number.isNaN(eventDate.getTime())) throw ApiError.BadRequest('Invalid eventDate.');
 
 	// Upload posters if present (req.files normalized by multer middleware)
-	const uploadedPosters =
-		Array.isArray(req.files) && req.files.length
-			? await Promise.all(
-					req.files.map((file) => uploadFile(file, { folder: 'events/posters' }))
-				)
-			: [];
+	let uploadedPosters = [];
+	try {
+		uploadedPosters =
+			Array.isArray(req.files) && req.files.length
+				? await Promise.all(
+						req.files.map((file) => uploadFile(file, { folder: 'events/posters' }))
+					)
+				: [];
+	} catch (uploadErr) {
+		// If some uploads succeeded and others failed, ensure we cleanup uploaded ones.
+		if (Array.isArray(uploadedPosters) && uploadedPosters.length) {
+			const toDelete = uploadedPosters.filter(Boolean).map((u) => ({
+				public_id: u.publicId || u.public_id,
+				resource_type: u.resource_type || u.resourceType || 'image',
+			}));
+			try {
+				await deleteFiles(toDelete);
+			} catch (e) {
+				// Log and continue to surface the original upload error
+				console.warn('Failed to clean up partially uploaded posters', e.message);
+			}
+		}
+		throw uploadErr;
+	}
 
 	// Normalize posters into model shape
 	const posters = (uploadedPosters || []).map((u) => ({
 		url: u.url || u.secure_url || u.publicUrl || '',
-		publicId: u.publicId || u.public_id || u.public_id,
+		publicId: u.publicId || u.public_id,
 		resource_type: u.resource_type || u.resourceType || 'image',
 	}));
 
@@ -82,6 +100,18 @@ const createEvent = asyncHandler(async (req, res) => {
 	const regExternalUrl = regObj.externalUrl || null;
 
 	if (regMode === 'external' && !regExternalUrl) {
+		// cleanup posters on validation error
+		if (posters.length) {
+			const toDelete = posters.map((p) => ({
+				public_id: p.publicId,
+				resource_type: p.resource_type || 'image',
+			}));
+			try {
+				await deleteFiles(toDelete);
+			} catch (e) {
+				console.warn('Failed to clean up posters after validation error', e.message);
+			}
+		}
 		throw ApiError.BadRequest(
 			'registration.externalUrl is required when registration.mode is "external".'
 		);
@@ -115,7 +145,25 @@ const createEvent = asyncHandler(async (req, res) => {
 		status: status || 'upcoming',
 	};
 
-	const created = await Event.create(eventDoc);
+	let created;
+	try {
+		created = await Event.create(eventDoc);
+	} catch (err) {
+		// If creation fails, ensure uploaded posters are deleted from Cloudinary
+		if (posters.length) {
+			const toDelete = posters.map((p) => ({
+				public_id: p.publicId,
+				resource_type: p.resource_type || 'image',
+			}));
+			try {
+				await deleteFiles(toDelete);
+			} catch (e) {
+				console.warn('Failed to clean up posters after Event.create error', e.message);
+			}
+		}
+		throw err;
+	}
+
 	return ApiResponse.success(res, created, 'Event created successfully', 201);
 });
 
@@ -219,23 +267,35 @@ const getEventById = asyncHandler(async (req, res) => {
 const updateEventDetails = asyncHandler(async (req, res) => {
 	const ev = await findEventById(req.params.id);
 
-	// Merge registration updates carefully
+	// Merge registration updates carefully - support subdocument toObject and plain objects
+	const existingRegistration =
+		ev.registration && typeof ev.registration === 'object'
+			? ev.registration && ev.registration.toObject
+				? ev.registration.toObject()
+				: ev.registration
+			: {};
+
 	if (req.body.registration) {
-		ev.registration = { ...ev.registration?.toObject?.(), ...req.body.registration };
+		ev.registration = { ...existingRegistration, ...req.body.registration };
 	}
+
 	// convenience flat fields
-	if (typeof req.body.registrationMode !== 'undefined')
-		((ev.registration = ev.registration || {}),
-			(ev.registration.mode = req.body.registrationMode));
-	if (typeof req.body.externalUrl !== 'undefined')
-		((ev.registration = ev.registration || {}),
-			(ev.registration.externalUrl = req.body.externalUrl));
-	if (typeof req.body.capacityOverride !== 'undefined')
-		((ev.registration = ev.registration || {}),
-			(ev.registration.capacityOverride = req.body.capacityOverride));
-	if (typeof req.body.allowGuests !== 'undefined')
-		((ev.registration = ev.registration || {}),
-			(ev.registration.allowGuests = req.body.allowGuests));
+	if (typeof req.body.registrationMode !== 'undefined') {
+		ev.registration = ev.registration || {};
+		ev.registration.mode = req.body.registrationMode;
+	}
+	if (typeof req.body.externalUrl !== 'undefined') {
+		ev.registration = ev.registration || {};
+		ev.registration.externalUrl = req.body.externalUrl;
+	}
+	if (typeof req.body.capacityOverride !== 'undefined') {
+		ev.registration = ev.registration || {};
+		ev.registration.capacityOverride = req.body.capacityOverride;
+	}
+	if (typeof req.body.allowGuests !== 'undefined') {
+		ev.registration = ev.registration || {};
+		ev.registration.allowGuests = req.body.allowGuests;
+	}
 
 	// Prevent setting registration.mode to non-internal when tickets exist
 	if (
@@ -269,7 +329,20 @@ const updateEventDetails = asyncHandler(async (req, res) => {
 	];
 	updatable.forEach((k) => {
 		if (typeof req.body[k] !== 'undefined') {
-			ev[k] = typeof req.body[k] === 'string' ? req.body[k].trim() : req.body[k];
+			// normalize strings
+			if (k === 'tags') {
+				// normalize tags array or comma string
+				if (Array.isArray(req.body.tags)) {
+					ev.tags = req.body.tags.map((t) => String(t).trim()).filter(Boolean);
+				} else if (typeof req.body.tags === 'string') {
+					ev.tags = req.body.tags
+						.split(',')
+						.map((t) => t.trim())
+						.filter(Boolean);
+				}
+			} else {
+				ev[k] = typeof req.body[k] === 'string' ? req.body[k].trim() : req.body[k];
+			}
 		}
 	});
 
@@ -309,18 +382,41 @@ const deleteEvent = asyncHandler(async (req, res) => {
 // Add poster (admin)
 const addEventPoster = asyncHandler(async (req, res) => {
 	const ev = await findEventById(req.params.id);
-	if (!req.file && (!req.files || req.files.length === 0))
-		throw ApiError.BadRequest('Poster file is required.');
-
+	// multer middleware normalizes req.files => array, req.file may/may not be set
 	const file = req.file || (req.files && req.files[0]);
-	const uploaded = await uploadFile(file, { folder: 'events/posters' });
+	if (!file) throw ApiError.BadRequest('Poster file is required.');
+
+	let uploaded;
+	try {
+		uploaded = await uploadFile(file, { folder: 'events/posters' });
+	} catch (err) {
+		// uploadFile will throw ApiError; just rethrow
+		throw err;
+	}
+
 	const normalized = {
 		url: uploaded.url || uploaded.secure_url || '',
 		publicId: uploaded.publicId || uploaded.public_id,
 		resource_type: uploaded.resource_type || 'image',
 	};
+
 	ev.posters.push(normalized);
-	await ev.save();
+
+	try {
+		await ev.save();
+	} catch (saveErr) {
+		// Rollback cloudinary upload when DB save fails
+		try {
+			await deleteFile({
+				public_id: normalized.publicId,
+				resource_type: normalized.resource_type || 'image',
+			});
+		} catch (cleanupErr) {
+			console.warn('Failed to cleanup poster after DB save error', cleanupErr.message);
+		}
+		throw saveErr;
+	}
+
 	return ApiResponse.success(res, ev.posters, 'Poster added', 201);
 });
 

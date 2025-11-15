@@ -56,6 +56,7 @@ router.get('/:id/registrations', validate([param('id').isMongoId()]), getEventRe
 // Core event management
 router.post(
 	'/',
+	// multer must parse multipart/form-data before validators that read req.body
 	uploadFile('posters', { multiple: true, maxCount: 5 }),
 	normalizeEventPayload,
 	validate([
@@ -109,10 +110,11 @@ router.delete(
 );
 
 // Poster endpoints
+// Validate route params before accepting uploaded file to avoid unnecessary uploads when id invalid
 router.post(
 	'/:id/posters',
+	validate([param('id').isMongoId().withMessage('Invalid event ID')]),
 	uploadFile('poster', { multiple: false }),
-	validate([param('id').isMongoId()]),
 	addEventPoster
 );
 router.delete(
