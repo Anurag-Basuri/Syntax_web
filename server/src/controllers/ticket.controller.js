@@ -1,12 +1,175 @@
-import Ticket from '../models/ticket.model.js';
 import Event from '../models/event.model.js';
+import Ticket from '../models/ticket.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
+import asyncHandler from '../utils/asyncHandler.js';
+import mongoose from 'mongoose';
 import { generateTicketQR } from '../services/qrcode.service.js';
 import { sendRegistrationEmail } from '../services/email.service.js';
 import { deleteFile } from '../utils/cloudinary.js';
-import mongoose from 'mongoose';
+
+// Register for an event (internal registration -> creates a Ticket)
+const registerForEvent = asyncHandler(async (req, res) => {
+	const eventId = req.params.id;
+	const {
+		fullName,
+		email,
+		phone,
+		lpuId,
+		gender,
+		course,
+		hosteler = false,
+		hostel,
+		paymentDetails = null,
+	} = req.body;
+
+	// Basic required checks (route also validates but keep defensive)
+	if (!fullName || !email || !phone || !lpuId || !gender || !course) {
+		return ApiResponse.error(res, 'Missing required attendee fields.', 400);
+	}
+
+	// Load event (read-only)
+	const event = await Event.findById(eventId).lean();
+	if (!event) return ApiResponse.notFound(res, 'Event not found');
+
+	// Ensure event uses internal registration
+	const mode = (event.registration && event.registration.mode) || 'none';
+	if (mode !== 'internal') {
+		if (mode === 'external') {
+			return ApiResponse.error(
+				res,
+				'This event uses external registration. Use the external link.',
+				400,
+				{ externalUrl: event.registration?.externalUrl || null }
+			);
+		}
+		return ApiResponse.error(res, 'Registration for this event is not available.', 400);
+	}
+
+	// Check registration window (respect optional open/close)
+	const now = Date.now();
+	if (event.registrationOpenDate && now < new Date(event.registrationOpenDate).getTime()) {
+		return ApiResponse.error(res, 'Registration has not opened yet.', 400);
+	}
+	if (event.registrationCloseDate && now > new Date(event.registrationCloseDate).getTime()) {
+		return ApiResponse.error(res, 'Registration has already closed.', 400);
+	}
+
+	// Hosteler check
+	if (hosteler && (!hostel || String(hostel).trim().length === 0)) {
+		return ApiResponse.error(res, 'Hostel is required for hosteler attendees.', 400);
+	}
+
+	// Use transaction to avoid race conditions (overbooking) and to atomically create ticket + update event
+	const session = await mongoose.startSession();
+	let createdTicket = null;
+	try {
+		await session.withTransaction(async () => {
+			// Re-load event inside transaction
+			const ev = await Event.findById(eventId).session(session);
+			if (!ev) throw ApiError.NotFound('Event not found during registration.');
+
+			// Capacity: respect capacityOverride > 0 else totalSpots (0 = unlimited)
+			const effectiveCap =
+				ev.registration?.capacityOverride && ev.registration.capacityOverride > 0
+					? ev.registration.capacityOverride
+					: ev.totalSpots || 0;
+
+			if (effectiveCap > 0) {
+				// Count active tickets (exclude cancelled)
+				const soldCount = await Ticket.countDocuments({
+					eventId,
+					status: { $ne: 'cancelled' },
+				})
+					.session(session)
+					.exec();
+				if (soldCount >= effectiveCap) {
+					throw ApiError.BadRequest('Event is full.');
+				}
+			}
+
+			// Build ticket (no user account required)
+			const ticketPayload = {
+				eventId: ev._id,
+				eventName: ev.title || ev.name || 'Event',
+				fullName: String(fullName).trim(),
+				email: String(email).toLowerCase().trim(),
+				phone: String(phone).trim(),
+				lpuId: String(lpuId).trim(),
+				gender,
+				course: String(course).trim(),
+				hosteler: !!hosteler,
+				hostel: hosteler ? String(hostel).trim() : undefined,
+				paymentDetails: paymentDetails || undefined,
+			};
+
+			// Create ticket within transaction (unique indexes will be enforced)
+			createdTicket = await Ticket.create([ticketPayload], { session }).then((arr) => arr[0]);
+
+			// Link ticket to event.tickets (keeps event document in sync)
+			await Event.findByIdAndUpdate(
+				ev._id,
+				{ $addToSet: { tickets: createdTicket._id } },
+				{ session }
+			);
+		});
+	} catch (err) {
+		// Translate duplicate key into friendly message
+		if (err && err.code === 11000) {
+			return ApiResponse.conflict(
+				res,
+				'You have already registered for this event with this Email or LPU ID.',
+				{ detail: err.keyValue || null }
+			);
+		}
+		// ApiError instances should be forwarded with proper messages
+		if (err instanceof ApiError) {
+			return ApiResponse.error(
+				res,
+				err.message || 'Registration failed',
+				err.statusCode || 400
+			);
+		}
+		console.error('Registration transaction failed', err);
+		return ApiResponse.error(res, 'Registration failed due to server error', 500);
+	} finally {
+		session.endSession();
+	}
+
+	// Post-transaction side effects (QR + email) — run outside transaction
+	try {
+		const qrCode = await generateTicketQR(createdTicket.ticketId);
+		createdTicket.qrCode = { url: qrCode.url, publicId: qrCode.public_id };
+		// attempt to send email (best-effort)
+		await sendRegistrationEmail({
+			to: createdTicket.email,
+			name: createdTicket.fullName,
+			eventName: createdTicket.eventName,
+			eventDate: event.eventDate || event.startDate || null,
+			qrUrl: createdTicket.qrCode.url,
+		});
+		createdTicket.emailStatus = 'sent';
+	} catch (sideEffectError) {
+		console.error(
+			'Post-registration side effects failed',
+			sideEffectError?.message || sideEffectError
+		);
+		createdTicket.emailStatus = 'failed';
+	}
+
+	// Persist side-effect changes (non-transactional)
+	try {
+		await Ticket.findByIdAndUpdate(
+			createdTicket._id,
+			{ qrCode: createdTicket.qrCode, emailStatus: createdTicket.emailStatus },
+			{ new: true, runValidators: true }
+		);
+	} catch (persistErr) {
+		console.error('Failed to persist ticket side-effects', persistErr);
+	}
+
+	return ApiResponse.success(res, { ticket: createdTicket }, 'Ticket created', 201);
+});
 
 // Create a new ticket (event registration)
 const createTicket = asyncHandler(async (req, res) => {
@@ -33,65 +196,7 @@ const createTicket = asyncHandler(async (req, res) => {
 		);
 	}
 
-	// Start a transaction to avoid race conditions (overbooking)
-	const session = await mongoose.startSession();
-	let ticket;
-	try {
-		await session.withTransaction(async () => {
-			// Re-load the event inside the transaction for a fresh view
-			const ev = await Event.findById(eventId).session(session);
-			if (!ev) throw ApiError.NotFound('Event not found during registration.');
-
-			// Check capacity (treat 0 as unlimited)
-			const effectiveCap = ev.effectiveCapacity || 0;
-			if (effectiveCap > 0) {
-				// count currently registered (tickets stored in registeredUsers array)
-				const currentCount = Array.isArray(ev.registeredUsers)
-					? ev.registeredUsers.length
-					: 0;
-				if (currentCount >= effectiveCap) {
-					throw ApiError.BadRequest('Event is full.');
-				}
-			}
-
-			// Build ticket
-			ticket = new Ticket({
-				eventId,
-				eventName: ev.title,
-				fullName,
-				email,
-				phone,
-				lpuId,
-				gender,
-				course,
-				hosteler,
-				hostel: hosteler ? hostel : undefined,
-			});
-
-			// Save ticket within transaction
-			await ticket.save({ session });
-
-			// Add ticket._id to the event.registeredUsers to reflect occupancy.
-			// Note: schema historically held Member ids; using ticket ids here is intentional to track tickets.
-			await Event.findByIdAndUpdate(
-				eventId,
-				{ $addToSet: { registeredUsers: ticket._id } },
-				{ session }
-			);
-		});
-	} catch (err) {
-		// translate duplicate key into friendly message if thrown by mongoose
-		if (err && err.code === 11000) {
-			throw ApiError.Conflict(
-				'You have already registered for this event with this Email or LPU ID.'
-			);
-		}
-		// rethrow ApiError or other errors
-		throw err;
-	} finally {
-		session.endSession();
-	}
-
+	// Start a transaction to avoid race conditions
 	// Post-create side effects (QR + email) — run outside transaction
 	try {
 		const qrCode = await generateTicketQR(ticket.ticketId);
@@ -276,4 +381,5 @@ export {
 	getTicketsByEvent,
 	deleteTicket,
 	checkAvailability,
+	registerForEvent,
 };
