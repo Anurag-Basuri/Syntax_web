@@ -16,25 +16,86 @@ const mediaSchema = new mongoose.Schema(
 			type: String,
 			required: [true, 'Cloudinary public_id is required for the poster'],
 		},
-		caption: { type: String, trim: true, maxlength: 250 },
-		alt: { type: String, trim: true, maxlength: 150 },
-		resource_type: { type: String, enum: ['image', 'video'], default: 'image' },
+		caption: {
+			type: String,
+			trim: true,
+			maxlength: 250,
+		},
+		resource_type: {
+			type: String,
+			enum: ['image', 'video'],
+			default: 'image',
+		},
 	},
 	{ timestamps: false, _id: false }
 );
 
 const speakerSchema = new mongoose.Schema(
 	{
-		name: { type: String, required: true, trim: true, maxlength: 120 },
-		title: { type: String, trim: true, maxlength: 120 },
-		photo: { type: mediaSchema },
-		bio: { type: String, trim: true, maxlength: 1000 },
-		company: { type: String, trim: true, maxlength: 140 },
+		name: {
+			type: String,
+			required: true,
+			trim: true,
+			maxlength: 120,
+		},
+		title: {
+			type: String,
+			trim: true,
+			maxlength: 120,
+		},
+		photo: {
+			type: mediaSchema,
+		},
+		bio: {
+			type: String,
+			trim: true,
+			maxlength: 1000,
+		},
 		links: {
 			twitter: String,
 			linkedin: String,
 			website: String,
 		},
+	},
+	{ _id: false }
+);
+
+const partnerSchema = new mongoose.Schema(
+	{
+		name: {
+			type: String,
+			required: true,
+			trim: true,
+			maxlength: 120,
+		},
+		logo: {
+			type: mediaSchema,
+			required: false,
+		},
+		website: {
+			type: String,
+			trim: true,
+			validate: {
+				validator: (v) => !v || urlRegex.test(v),
+				message: (props) => `${props.value} is not a valid website URL`,
+			},
+			set: (v) => {
+				if (!v) return v;
+				if (!/^https?:\/\//i.test(v)) return `https://${v}`;
+				return v;
+			},
+		},
+		tier: {
+			type: String,
+			trim: true,
+			maxlength: 40,
+		},
+		booth: {
+			type: String,
+			trim: true,
+			maxlength: 40,
+		},
+		description: { type: String, trim: true, maxlength: 500 },
 	},
 	{ _id: false }
 );
@@ -67,7 +128,17 @@ const EventSchema = new mongoose.Schema(
 				message: 'Event date cannot be in the past.',
 			},
 		},
-		durationMinutes: { type: Number, min: 0 },
+		eventTime: {
+			type: String,
+			trim: true,
+			validate: {
+				validator: function (v) {
+					if (!v) return true;
+					return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+				},
+				message: 'Event time must be in HH:MM 24-hour format.',
+			},
+		},
 		venue: {
 			type: String,
 			required: [true, 'Venue is required'],
@@ -75,18 +146,21 @@ const EventSchema = new mongoose.Schema(
 			minlength: [2, 'Venue must be at least 2 characters'],
 			maxlength: [150, 'Venue cannot exceed 150 characters'],
 		},
-		locationCoordinates: {
-			lat: Number,
-			lng: Number,
+		room: {
+			type: String,
+			trim: true,
+			maxlength: 60,
 		},
-		room: { type: String, trim: true, maxlength: 60 },
 		organizer: {
 			type: String,
 			trim: true,
 			default: 'Syntax Organization',
 			maxlength: [100, 'Organizer cannot exceed 100 characters'],
 		},
-		coOrganizers: { type: [String], default: [] },
+		coOrganizers: {
+			type: [String],
+			default: [],
+		},
 		category: {
 			type: String,
 			required: [true, 'Event category is required (e.g., Workshop, Competition)'],
@@ -103,24 +177,43 @@ const EventSchema = new mongoose.Schema(
 				message: 'You can upload a maximum of 5 posters per event.',
 			},
 		},
-		thumbnail: { type: mediaSchema },
-		gallery: { type: [mediaSchema], default: [] },
-		speakers: { type: [speakerSchema], default: [] },
-		tags: { type: [String], default: [] },
-		totalSpots: { type: Number, min: [0, 'Total spots cannot be negative'], default: 0 },
-		ticketPrice: { type: Number, min: [0, 'Ticket price cannot be negative'], default: 0 },
-		prerequisites: { type: [String], default: [] },
-		resources: { type: [{ title: String, url: String }], default: [] },
-		livestream: {
-			enabled: { type: Boolean, default: false },
-			platform: { type: String, trim: true },
-			url: { type: String, trim: true },
+		gallery: {
+			type: [mediaSchema],
+			default: [],
+		},
+		speakers: {
+			type: [speakerSchema],
+			default: [],
+		},
+		totalSpots: {
+			type: Number,
+			min: [0, 'Total spots cannot be negative'],
+			default: 0,
+		},
+		ticketPrice: {
+			type: Number,
+			min: [0, 'Ticket price cannot be negative'],
+			default: 0,
+		},
+		tickets: [
+			{
+				type: mongoose.Schema.Types.ObjectId,
+				ref: 'Ticket',
+			},
+		],
+		prerequisites: {
+			type: [String],
+			default: [],
+		},
+		resources: {
+			type: [{ title: String, url: String }],
+			default: [],
 		},
 		registration: {
 			mode: {
 				type: String,
 				enum: ['internal', 'external', 'none'],
-				default: 'internal',
+				default: 'none',
 				required: true,
 			},
 			externalUrl: {
@@ -139,11 +232,6 @@ const EventSchema = new mongoose.Schema(
 			allowGuests: { type: Boolean, default: true },
 			capacityOverride: { type: Number, min: [0, 'Capacity cannot be negative'] },
 		},
-		registeredUsers: {
-			type: [mongoose.Schema.Types.ObjectId],
-			ref: 'Member',
-			default: [],
-		},
 		status: {
 			type: String,
 			enum: {
@@ -155,18 +243,6 @@ const EventSchema = new mongoose.Schema(
 		},
 		registrationOpenDate: { type: Date },
 		registrationCloseDate: { type: Date },
-		isFeatured: { type: Boolean, default: false },
-		language: { type: String, trim: true, default: 'en' },
-		accessibility: {
-			captions: { type: Boolean, default: false },
-			accessibleSeating: { type: Boolean, default: false },
-		},
-		seo: {
-			title: String,
-			description: String,
-			ogImage: mediaSchema,
-		},
-		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 	},
 	{
 		timestamps: true,
@@ -200,22 +276,121 @@ EventSchema.virtual('isFull').get(function () {
 	return registeredCount >= cap;
 });
 
+// new virtual: ticket count (reads tickets array length safely)
+EventSchema.virtual('ticketCount').get(function () {
+	return Array.isArray(this.tickets) ? this.tickets.length : 0;
+});
+
+// Helper: check if now is within optional open/close window
+function _isWithinWindow(open, close) {
+	const now = Date.now();
+	if (open && now < new Date(open).getTime()) return false;
+	if (close && now > new Date(close).getTime()) return false;
+	return true;
+}
+
+// Returns boolean: is registration currently open according to mode & optional window
+EventSchema.virtual('isRegistrationOpen').get(function () {
+	const mode = this.registration?.mode || 'none';
+
+	// If mode is 'none' -> not open
+	if (mode === 'none') return false;
+
+	// If mode is 'external' or 'internal' we respect registration window if provided,
+	// otherwise assume open.
+	const open = this.registrationOpenDate;
+	const close = this.registrationCloseDate;
+	return _isWithinWindow(open, close);
+});
+
+// Human-friendly registration info for frontend consumption
+EventSchema.virtual('registrationInfo').get(function () {
+	const mode = this.registration?.mode || 'none';
+	const isOpen = this.isRegistrationOpen;
+	const externalUrl = this.registration?.externalUrl || null;
+
+	// Compose message + CTA info
+	if (mode === 'none') {
+		return {
+			mode: 'none',
+			isOpen: false,
+			message: 'Registration has not started.',
+			actionLabel: null,
+			actionUrl: null,
+		};
+	}
+
+	// External registration flow
+	if (mode === 'external') {
+		if (!externalUrl) {
+			return {
+				mode: 'external',
+				isOpen: false,
+				message: 'External registration is configured but no link is provided.',
+				actionLabel: null,
+				actionUrl: null,
+			};
+		}
+		if (!isOpen) {
+			return {
+				mode: 'external',
+				isOpen: false,
+				message: 'External registration is not open at the moment.',
+				actionLabel: null,
+				actionUrl: externalUrl,
+			};
+		}
+		// open & external link present
+		return {
+			mode: 'external',
+			isOpen: true,
+			message: 'Register on the external site.',
+			actionLabel: 'Register (External)',
+			actionUrl: externalUrl,
+		};
+	}
+
+	// Internal registration flow
+	if (mode === 'internal') {
+		if (!isOpen) {
+			return {
+				mode: 'internal',
+				isOpen: false,
+				message: 'Registration is not open yet.',
+				actionLabel: null,
+				actionUrl: null,
+			};
+		}
+		// Provide a default internal CTA path (frontend can map to route using id/slug)
+		const actionUrl = this.slug
+			? `/events/${this.slug}/register`
+			: `/events/${this._id}/register`;
+		return {
+			mode: 'internal',
+			isOpen: true,
+			message: 'Register on our website.',
+			actionLabel: 'Register',
+			actionUrl,
+		};
+	}
+
+	// Fallback
+	return {
+		mode,
+		isOpen: false,
+		message: 'Registration is not available.',
+		actionLabel: null,
+		actionUrl: null,
+	};
+});
+
+// Virtual for simplified registration status
 EventSchema.virtual('registrationStatus').get(function () {
-	const now = new Date();
-	if (this.registration?.mode === 'none') return 'CLOSED';
-	if (this.registration?.mode === 'external') {
-		return this.registration?.externalUrl ? 'EXTERNAL' : 'CLOSED';
-	}
-	if (this.status === 'cancelled') return 'CANCELLED';
-	if (this.status === 'completed' || this.status === 'ongoing') return 'CLOSED';
-	if (this.isFull) return 'FULL';
-	if (!this.registrationOpenDate || !this.registrationCloseDate) {
-		return this.status === 'upcoming' ? 'CLOSED' : 'PAST';
-	}
-	if (now < this.registrationOpenDate) return 'COMING_SOON';
-	if (now >= this.registrationOpenDate && now <= this.registrationCloseDate) return 'OPEN';
-	if (now > this.registrationCloseDate) return 'CLOSED';
-	return 'UNAVAILABLE';
+	const info = this.registrationInfo;
+	if (info.mode === 'none') return 'NOT_STARTED';
+	if (info.mode === 'external') return info.isOpen ? 'OPEN_EXTERNAL' : 'CLOSED';
+	if (info.mode === 'internal') return info.isOpen ? 'OPEN_INTERNAL' : 'CLOSED';
+	return 'CLOSED';
 });
 
 // Indexes
@@ -246,6 +421,15 @@ EventSchema.pre('save', function (next) {
 		return next(new Error('registration.capacityOverride cannot be negative.'));
 	}
 
+	// Ensure tickets belong only to events with internal registration
+	if (this.tickets && this.tickets.length > 0 && this.registration?.mode !== 'internal') {
+		return next(
+			new Error(
+				'Tickets are only allowed when registration.mode is "internal". Set registration.mode to "internal" or clear tickets.'
+			)
+		);
+	}
+
 	// Generate slug if missing
 	if (!this.slug && this.title) {
 		let base = this.title
@@ -259,6 +443,38 @@ EventSchema.pre('save', function (next) {
 	}
 
 	next();
+});
+
+// Prevent changing registration.mode to non-internal if tickets exist
+EventSchema.pre('findOneAndUpdate', async function (next) {
+	try {
+		const update = this.getUpdate() || {};
+		// Support nested $set
+		const maybeSet = update.$set || update;
+		const newMode =
+			maybeSet.registration && typeof maybeSet.registration.mode !== 'undefined'
+				? maybeSet.registration.mode
+				: undefined;
+
+		if (typeof newMode !== 'undefined' && newMode !== 'internal') {
+			// Check existing document for tickets
+			const doc = await this.model
+				.findOne(this.getQuery())
+				.select('tickets registration')
+				.lean();
+			const hasTickets = doc && Array.isArray(doc.tickets) && doc.tickets.length > 0;
+			if (hasTickets) {
+				return next(
+					new Error(
+						'Cannot change registration.mode to non-internal while tickets exist for this event. Remove tickets first or keep registration.mode "internal".'
+					)
+				);
+			}
+		}
+		return next();
+	} catch (err) {
+		return next(err);
+	}
 });
 
 // Ensure array defaults exist (already present for registeredUsers)
