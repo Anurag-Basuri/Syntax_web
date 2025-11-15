@@ -18,6 +18,23 @@ const toDatetimeLocalInput = (value) => {
 	return local.toISOString().slice(0, 16);
 };
 
+// NEW helper: convert a datetime-local input value (YYYY-MM-DDTHH:mm or with seconds) into an ISO string
+const datetimeLocalToISO = (localValue) => {
+	if (!localValue) return '';
+	// localValue may be "YYYY-MM-DDTHH:mm" or "YYYY-MM-DDTHH:mm:ss"
+	const [datePart, timePart = '00:00:00'] = localValue.split('T');
+	if (!datePart) return '';
+	const [year, month, day] = datePart.split('-').map((n) => Number(n));
+	const timeParts = timePart.split(':').map((n) => Number(n));
+	const hour = timeParts[0] ?? 0;
+	const minute = timeParts[1] ?? 0;
+	const second = timeParts[2] ?? 0;
+	// Construct a Date in local timezone explicitly
+	const dt = new Date(year, (month || 1) - 1, day || 1, hour, minute, second);
+	if (Number.isNaN(dt.getTime())) return '';
+	return dt.toISOString();
+};
+
 const statusOptions = [
 	{ value: 'all', label: 'All Statuses' },
 	{ value: 'upcoming', label: 'Upcoming' },
@@ -146,7 +163,7 @@ const EventsTab = ({
 			const fd = new FormData();
 			fd.append('title', eventFields.title);
 			// send full ISO string to backend (ISO-8601)
-			const iso = eventFields.date ? new Date(eventFields.date).toISOString() : '';
+			const iso = eventFields.date ? datetimeLocalToISO(eventFields.date) : '';
 			if (iso) fd.append('eventDate', iso);
 			fd.append('venue', eventFields.location);
 			fd.append('description', eventFields.description || '');
@@ -199,7 +216,7 @@ const EventsTab = ({
 			const updatePayload = {
 				title: eventFields.title?.trim(),
 				description: eventFields.description?.trim(),
-				eventDate: eventFields.date ? new Date(eventFields.date).toISOString() : undefined,
+				eventDate: eventFields.date ? datetimeLocalToISO(eventFields.date) : undefined,
 				venue: eventFields.location?.trim(),
 				organizer: eventFields.organizer?.trim(),
 				category: eventFields.category?.trim(),
