@@ -173,16 +173,6 @@ const EventSchema = new mongoose.Schema(
 		posters: {
 			type: [mediaSchema],
 			default: [],
-			validate: {
-				validator: function (v) {
-					return Array.isArray(v) && v.length <= 5;
-				},
-				message: 'You can upload a maximum of 5 posters per event.',
-			},
-		},
-		gallery: {
-			type: [mediaSchema],
-			default: [],
 		},
 		partners: {
 			type: [partnerSchema],

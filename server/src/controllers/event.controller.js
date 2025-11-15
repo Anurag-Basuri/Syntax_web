@@ -438,6 +438,102 @@ const removeEventPoster = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Poster removed');
 });
 
+// Add partner (admin)
+const addEventPartner = asyncHandler(async (req, res) => {
+	const ev = await findEventById(req.params.id);
+
+	const { name, website, tier, booth, description } = req.body;
+	if (!name || !String(name).trim()) {
+		throw ApiError.BadRequest('Partner name is required.');
+	}
+
+	// handle optional logo upload (single file expected under req.file or req.files[0])
+	const file = req.file || (req.files && req.files[0]);
+	let logo = null;
+	if (file) {
+		let uploaded;
+		try {
+			uploaded = await uploadFile(file, { folder: 'events/partners' });
+		} catch (err) {
+			throw err;
+		}
+		logo = {
+			url: uploaded.url || uploaded.secure_url || '',
+			publicId: uploaded.publicId || uploaded.public_id,
+			resource_type: uploaded.resource_type || 'image',
+		};
+	}
+
+	const partner = {
+		name: String(name).trim(),
+		logo: logo || undefined,
+		website: website ? String(website).trim() : undefined,
+		tier: tier ? String(tier).trim() : undefined,
+		booth: booth ? String(booth).trim() : undefined,
+		description: description ? String(description).trim() : undefined,
+	};
+
+	ev.partners.push(partner);
+
+	try {
+		await ev.save();
+	} catch (saveErr) {
+		// rollback uploaded logo if DB save fails
+		if (logo && logo.publicId) {
+			try {
+				await deleteFile({
+					public_id: logo.publicId,
+					resource_type: logo.resource_type || 'image',
+				});
+			} catch (cleanupErr) {
+				console.warn(
+					'Failed to cleanup partner logo after DB save error',
+					cleanupErr.message
+				);
+			}
+		}
+		throw saveErr;
+	}
+
+	return ApiResponse.success(res, ev.partners, 'Partner added', 201);
+});
+
+// Remove partner (admin)
+// partnerId param can be either partner logo publicId or partner name (case-insensitive)
+const removeEventPartner = asyncHandler(async (req, res) => {
+	const { id, partnerId } = req.params;
+	const ev = await findEventById(id);
+
+	if (!partnerId) throw ApiError.BadRequest('Partner identifier is required.');
+
+	const idx = ev.partners.findIndex((p) => {
+		const logoId = p.logo && (p.logo.publicId || p.logo.public_id);
+		if (logoId && logoId === partnerId) return true;
+		if (p.name && String(p.name).toLowerCase() === String(partnerId).toLowerCase()) return true;
+		return false;
+	});
+
+	if (idx === -1) throw ApiError.NotFound('Partner not found on this event.');
+
+	const [removed] = ev.partners.splice(idx, 1);
+
+	// delete logo from cloud if present
+	if (removed && removed.logo && (removed.logo.publicId || removed.logo.public_id)) {
+		try {
+			await deleteFile({
+				public_id: removed.logo.publicId || removed.logo.public_id,
+				resource_type: removed.logo.resource_type || 'image',
+			});
+		} catch (err) {
+			// log, but continue to save DB state
+			console.warn('Failed to delete partner logo from cloudinary', err.message);
+		}
+	}
+
+	await ev.save();
+	return ApiResponse.success(res, null, 'Partner removed');
+});
+
 // Get event registrations (admin) -- populate tickets for admin
 const getEventRegistrations = asyncHandler(async (req, res) => {
 	const ev = await findEventById(req.params.id, { populateTickets: true });
@@ -505,4 +601,6 @@ export {
 	getEventRegistrations,
 	getEventStats,
 	getPublicEventDetails,
+	addEventPartner,
+	removeEventPartner,
 };
