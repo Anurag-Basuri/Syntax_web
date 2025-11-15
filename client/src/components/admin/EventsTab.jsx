@@ -16,7 +16,7 @@ import EventCard from './EventCard.jsx';
 import EventModal from './EventModal.jsx';
 import ManageModal from './ManageModal.jsx';
 import { useCreateEvent, useUpdateEvent, useDeleteEvent } from '../../hooks/useEvents.js';
-import { formatApiError } from '../../utils/formatApiError.js';
+import formatApiError from '../../utils/formatApiError.js';
 
 // Converts a Date/string to <input type="datetime-local"> value
 const toDatetimeLocalInput = (value) => {

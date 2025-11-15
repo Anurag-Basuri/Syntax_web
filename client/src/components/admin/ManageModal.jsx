@@ -14,7 +14,7 @@ import {
 	addEventPoster,
 	removeEventPoster,
 } from '../../services/eventServices.js';
-import { formatApiError } from '../../utils/formatApiError.js';
+import formatApiError from '../../utils/formatApiError.js';
 
 const TABS = ['partners', 'speakers', 'resources', 'coOrganizers', 'posters'];
 
