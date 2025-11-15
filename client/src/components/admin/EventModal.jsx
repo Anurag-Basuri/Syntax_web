@@ -12,7 +12,6 @@ import {
 	Link,
 	Plus,
 	Trash2,
-	Speaker,
 } from 'lucide-react';
 
 const MAX_POSTERS = 5;
@@ -180,7 +179,6 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 		{ key: 'basic', label: 'Basic Info' },
 		{ key: 'registration', label: 'Registration' },
 		{ key: 'media', label: 'Media' },
-		{ key: 'advanced', label: 'Advanced' },
 	];
 
 	return (
@@ -344,7 +342,7 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
-										Organizer *
+										Organizer
 									</label>
 									<div className="relative">
 										<Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -355,7 +353,6 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 											type="text"
 											placeholder="Organizer name"
 											className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-											required
 										/>
 									</div>
 								</div>
@@ -697,170 +694,6 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 										))}
 									</div>
 								)}
-							</div>
-						</div>
-					)}
-
-					{/* ADVANCED */}
-					{activeTab === 'advanced' && (
-						<div className="space-y-5">
-							{/* speakers */}
-							<div>
-								<label className="block text-sm text-gray-400 mb-1">Speakers</label>
-								{(eventFields.speakers || []).map((s, idx) => (
-									<div key={idx} className="flex gap-2 mb-2">
-										<input
-											value={s.name || ''}
-											onChange={(e) =>
-												handleArrayChange(
-													'speakers',
-													idx,
-													'name',
-													e.target.value
-												)
-											}
-											placeholder="Name (required)"
-											className="w-1/3 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-										/>
-										<input
-											value={s.title || ''}
-											onChange={(e) =>
-												handleArrayChange(
-													'speakers',
-													idx,
-													'title',
-													e.target.value
-												)
-											}
-											placeholder="Title"
-											className="w-1/3 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-										/>
-										<input
-											value={s.bio || ''}
-											onChange={(e) =>
-												handleArrayChange(
-													'speakers',
-													idx,
-													'bio',
-													e.target.value
-												)
-											}
-											placeholder="Short bio"
-											className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-										/>
-										<button
-											type="button"
-											className="text-red-400"
-											onClick={() => handleRemoveArrayItem('speakers', idx)}
-										>
-											<Trash2 className="h-4 w-4" />
-										</button>
-									</div>
-								))}
-								<button
-									type="button"
-									className="mt-1 px-3 py-1 bg-blue-700/30 text-blue-300 rounded"
-									onClick={() =>
-										handleAddArrayItem('speakers', {
-											name: '',
-											title: '',
-											bio: '',
-										})
-									}
-								>
-									<Plus className="h-4 w-4 inline" /> Add Speaker
-								</button>
-							</div>
-
-							{/* prerequisites & resources */}
-							<div>
-								<label className="block text-sm text-gray-400 mb-1">
-									Prerequisites
-								</label>
-								{(eventFields.prerequisites || []).map((p, idx) => (
-									<div key={idx} className="flex gap-2 mb-2">
-										<input
-											value={p}
-											onChange={(e) =>
-												handleArrayChange(
-													'prerequisites',
-													idx,
-													null,
-													e.target.value
-												)
-											}
-											className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-										/>
-										<button
-											type="button"
-											className="text-red-400"
-											onClick={() =>
-												handleRemoveArrayItem('prerequisites', idx)
-											}
-										>
-											<Trash2 className="h-4 w-4" />
-										</button>
-									</div>
-								))}
-								<button
-									type="button"
-									className="mt-1 px-3 py-1 bg-blue-700/30 text-blue-300 rounded"
-									onClick={() => handleAddArrayItem('prerequisites', '')}
-								>
-									<Plus className="h-4 w-4 inline" /> Add
-								</button>
-							</div>
-
-							<div>
-								<label className="block text-sm text-gray-400 mb-1">
-									Resources
-								</label>
-								{(eventFields.resources || []).map((r, idx) => (
-									<div key={idx} className="flex gap-2 mb-2">
-										<input
-											value={r.title || ''}
-											onChange={(e) =>
-												handleArrayChange(
-													'resources',
-													idx,
-													'title',
-													e.target.value
-												)
-											}
-											placeholder="Title"
-											className="w-1/2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-										/>
-										<input
-											value={r.url || ''}
-											onChange={(e) =>
-												handleArrayChange(
-													'resources',
-													idx,
-													'url',
-													e.target.value
-												)
-											}
-											placeholder="URL"
-											className="w-1/2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-										/>
-										<button
-											type="button"
-											className="text-red-400"
-											onClick={() => handleRemoveArrayItem('resources', idx)}
-										>
-											<Trash2 className="h-4 w-4" />
-										</button>
-									</div>
-								))}
-								<button
-									type="button"
-									className="mt-1 px-3 py-1 bg-blue-700/30 text-blue-300 rounded"
-									onClick={() =>
-										handleAddArrayItem('resources', { title: '', url: '' })
-									}
-								>
-									<Plus className="h-4 w-4 inline" /> Add Resource
-								</button>
 							</div>
 						</div>
 					)}

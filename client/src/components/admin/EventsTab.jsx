@@ -195,7 +195,7 @@ const EventsTab = ({
 	// reset form
 	const resetForm = () => setEventFields(initialEventFields);
 
-	// validation (kept same but robust)
+	// validation (aligned with backend requirements)
 	const validateFields = (fields, forEdit = false) => {
 		if (!fields.title || fields.title.trim().length < 3)
 			return 'Title is required (min 3 characters).';
@@ -204,14 +204,12 @@ const EventsTab = ({
 		if (!iso) return 'Please provide a valid date & time.';
 		const dt = new Date(iso);
 		if (Number.isNaN(dt.getTime())) return 'Please provide a valid date & time.';
-		if (!fields.location || fields.location.trim().length < 2) return 'Location is required.';
-		if (!fields.organizer || fields.organizer.trim().length < 2)
-			return 'Organizer is required (min 2 characters).';
+		// backend requires venue (frontend uses location -> normalized to venue)
+		if (!fields.location || fields.location.trim().length < 2) return 'Venue is required.';
 		if (!fields.category || fields.category.trim().length < 2) return 'Category is required.';
 		if (!fields.description || fields.description.trim().length < 10)
 			return 'Description is required (min 10 characters).';
-		if (!forEdit && (!fields.posters || !fields.posters.length))
-			return 'At least one poster image is required.';
+		// keep external registration rule: backend enforces externalUrl when mode is external
 		if (fields.registrationMode === 'external' && !fields.externalUrl)
 			return 'External registration URL is required for external mode.';
 		return '';
