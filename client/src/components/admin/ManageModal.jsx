@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Users, User } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Trash2, Plus, User } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import {
 	addEventPartner,
 	removeEventPartner,
@@ -13,8 +14,7 @@ import {
 	addEventPoster,
 	removeEventPoster,
 } from '../../services/eventServices.js';
-import formatApiError from '../../utils/formatApiError.js';
-import { toast } from 'react-hot-toast';
+import { formatApiError } from '../../utils/formatApiError.js';
 
 const TABS = ['partners', 'speakers', 'resources', 'coOrganizers', 'posters'];
 
@@ -51,13 +51,16 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		setLoading(true);
 		try {
 			let payload;
-			if (partnerForm.logo) {
+			if (partnerForm.logo instanceof File) {
 				payload = new FormData();
 				payload.append('name', partnerForm.name.trim());
 				if (partnerForm.website) payload.append('website', partnerForm.website.trim());
 				payload.append('logo', partnerForm.logo);
 			} else {
-				payload = { name: partnerForm.name.trim(), website: partnerForm.website?.trim() };
+				payload = {
+					name: partnerForm.name.trim(),
+					website: partnerForm.website?.trim(),
+				};
 			}
 			await addEventPartner(event._id, payload);
 			setPartnerForm({ name: '', website: '', logo: null });
@@ -136,7 +139,10 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		setError('');
 		setLoading(true);
 		try {
-			await addEventResource(event._id, resourceForm);
+			await addEventResource(event._id, {
+				title: resourceForm.title.trim(),
+				url: resourceForm.url.trim(),
+			});
 			setResourceForm({ title: '', url: '' });
 			toast.success('Resource added');
 			onDone && onDone();
@@ -209,7 +215,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 
 	// Posters
 	const handleAddPoster = async () => {
-		if (!posterFile) return setError('Select a poster file first.');
+		if (!posterFile) return setError('Choose a file first');
 		setError('');
 		setLoading(true);
 		try {
@@ -217,7 +223,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 			fd.append('poster', posterFile);
 			await addEventPoster(event._id, fd);
 			setPosterFile(null);
-			toast.success('Poster uploaded');
+			toast.success('Poster added');
 			onDone && onDone();
 		} catch (err) {
 			handleApiError(err);
@@ -257,17 +263,13 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 					<h3 className="text-lg font-semibold">Manage: {event.title}</h3>
 					<div className="flex items-center gap-2">
 						<button
-							onClick={() => {
-								onClose?.();
-							}}
+							onClick={() => onClose?.()}
 							className="px-3 py-1 rounded bg-gray-800 text-white"
 						>
 							Close
 						</button>
 						<button
-							onClick={() => {
-								onDone?.();
-							}}
+							onClick={() => onDone?.()}
 							className="px-3 py-1 rounded bg-blue-600 text-white"
 						>
 							Done
@@ -344,7 +346,11 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											<div className="flex items-center gap-2">
 												<button
 													onClick={() =>
-														handleRemovePartner(p.publicId || p.name)
+														handleRemovePartner(
+															p.logo?.publicId ||
+																p.logo?.public_id ||
+																p.name
+														)
 													}
 													className="text-red-400 p-1"
 												>
