@@ -128,12 +128,6 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 			}
 			// keep raw File objects (EventsTab will append to FormData with key 'posters')
 			setEventFields((prev) => ({ ...prev, posters: files }));
-		} else if (field === 'gallery') {
-			if (files.length > MAX_GALLERY) {
-				setLocalError(`Max ${MAX_GALLERY} gallery images allowed.`);
-				return;
-			}
-			setEventFields((prev) => ({ ...prev, gallery: files }));
 		}
 	};
 
@@ -637,33 +631,6 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 										At least 1 poster required for creation (server expects
 										'posters' files).
 									</p>
-								)}
-							</div>
-
-							<div>
-								<label className="block text-sm text-gray-400 mb-1">Gallery</label>
-								<div className="flex items-center gap-3">
-									<label className="w-full cursor-pointer">
-										<div className="flex items-center gap-3 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
-											<UploadCloud className="h-5 w-5 text-gray-300" />
-											<span className="text-sm">Choose gallery images</span>
-										</div>
-										<input
-											type="file"
-											name="gallery"
-											onChange={(e) => handleFileChange(e, 'gallery')}
-											accept="image/*"
-											multiple
-											className="hidden"
-										/>
-									</label>
-								</div>
-								{eventFields.gallery && eventFields.gallery.length > 0 && (
-									<div className="mt-2 flex gap-2 flex-wrap text-xs text-gray-400">
-										{eventFields.gallery.map((f, i) => (
-											<div key={i}>{f.name}</div>
-										))}
-									</div>
 								)}
 							</div>
 
