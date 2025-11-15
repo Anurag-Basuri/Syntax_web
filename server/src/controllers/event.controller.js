@@ -565,6 +565,122 @@ const getEventStats = asyncHandler(async (_req, res) => {
 	return ApiResponse.success(res, stats[0] || {}, 'Event statistics retrieved');
 });
 
+// Add speaker (admin)
+const addEventSpeaker = asyncHandler(async (req, res) => {
+	const ev = await findEventById(req.params.id);
+	const { name, title, bio, links } = req.body;
+	if (!name || !String(name).trim()) throw ApiError.BadRequest('Speaker name is required.');
+
+	// optional photo upload
+	const file = req.file || (req.files && req.files[0]);
+	let photo = null;
+	if (file) {
+		const uploaded = await uploadFile(file, { folder: 'events/speakers' });
+		photo = {
+			url: uploaded.url || uploaded.secure_url || '',
+			publicId: uploaded.publicId || uploaded.public_id,
+			resource_type: uploaded.resource_type || 'image',
+		};
+	}
+
+	const speaker = {
+		name: String(name).trim(),
+		title: title ? String(title).trim() : undefined,
+		bio: bio ? String(bio).trim() : undefined,
+		photo: photo || undefined,
+		links:
+			typeof links === 'string'
+				? (() => {
+						try {
+							return JSON.parse(links);
+						} catch {
+							return undefined;
+						}
+					})()
+				: links,
+	};
+
+	ev.speakers.push(speaker);
+	await ev.save();
+	return ApiResponse.success(res, ev.speakers, 'Speaker added', 201);
+});
+
+// Remove speaker (admin) by index
+const removeEventSpeaker = asyncHandler(async (req, res) => {
+	const { id, index } = req.params;
+	const ev = await findEventById(id);
+	const idx = Number.isFinite(Number(index)) ? parseInt(index, 10) : -1;
+	if (idx < 0 || idx >= (ev.speakers || []).length) throw ApiError.NotFound('Speaker not found.');
+	const [removed] = ev.speakers.splice(idx, 1);
+	// delete photo if present
+	if (removed && removed.photo && (removed.photo.publicId || removed.photo.public_id)) {
+		try {
+			await deleteFile({
+				public_id: removed.photo.publicId || removed.photo.public_id,
+				resource_type: removed.photo.resource_type || 'image',
+			});
+		} catch (e) {
+			console.warn('Failed to delete speaker photo from cloud', e.message);
+		}
+	}
+	await ev.save();
+	return ApiResponse.success(res, ev.speakers, 'Speaker removed');
+});
+
+// Resources (title + url) management (index-based)
+const addEventResource = asyncHandler(async (req, res) => {
+	const ev = await findEventById(req.params.id);
+	const { title, url } = req.body;
+	if (!title || !url) throw ApiError.BadRequest('Resource title and url are required.');
+	ev.resources = ev.resources || [];
+	ev.resources.push({ title: String(title).trim(), url: String(url).trim() });
+	await ev.save();
+	return ApiResponse.success(res, ev.resources, 'Resource added', 201);
+});
+
+// Remove event resource (admin) - params: id, index
+const removeEventResource = asyncHandler(async (req, res) => {
+	const { id, index } = req.params;
+	const ev = await findEventById(id);
+	const idx = Number.isFinite(Number(index)) ? parseInt(index, 10) : -1;
+	if (idx < 0 || idx >= (ev.resources || []).length)
+		throw ApiError.NotFound('Resource not found.');
+	ev.resources.splice(idx, 1);
+	await ev.save();
+	return ApiResponse.success(res, ev.resources, 'Resource removed');
+});
+
+// Co-organizers
+const addEventCoOrganizer = asyncHandler(async (req, res) => {
+	const ev = await findEventById(req.params.id);
+	const { name } = req.body;
+	if (!name || !String(name).trim()) throw ApiError.BadRequest('Co-organizer name is required.');
+	ev.coOrganizers = ev.coOrganizers || [];
+	ev.coOrganizers.push(String(name).trim());
+	await ev.save();
+	return ApiResponse.success(res, ev.coOrganizers, 'Co-organizer added', 201);
+});
+
+// Remove co-organizer by index or name (case-insensitive)
+const removeEventCoOrganizer = asyncHandler(async (req, res) => {
+	const { id, index, name } = req.params;
+	const ev = await findEventById(id);
+	if (typeof index !== 'undefined') {
+		const idx = Number.isFinite(Number(index)) ? parseInt(index, 10) : -1;
+		if (idx < 0 || idx >= (ev.coOrganizers || []).length)
+			throw ApiError.NotFound('Co-organizer not found.');
+		ev.coOrganizers.splice(idx, 1);
+	} else if (typeof name !== 'undefined') {
+		ev.coOrganizers = (ev.coOrganizers || []).filter(
+			(n) => String(n).toLowerCase() !== String(name).toLowerCase()
+		);
+	} else {
+		throw ApiError.BadRequest('Provide index or name to remove co-organizer.');
+	}
+	await ev.save();
+	return ApiResponse.success(res, ev.coOrganizers, 'Co-organizer removed');
+});
+
 // Get public event details
 const getPublicEventDetails = asyncHandler(async (req, res) => {
 	const ev = await findEventById(req.params.id, { populateTickets: false });
@@ -598,9 +714,15 @@ export {
 	deleteEvent,
 	addEventPoster,
 	removeEventPoster,
-	getEventRegistrations,
-	getEventStats,
-	getPublicEventDetails,
 	addEventPartner,
 	removeEventPartner,
+	getEventRegistrations,
+	getEventStats,
+	addEventSpeaker,
+	removeEventSpeaker,
+	addEventResource,
+	removeEventResource,
+	addEventCoOrganizer,
+	removeEventCoOrganizer,
+	getPublicEventDetails,
 };

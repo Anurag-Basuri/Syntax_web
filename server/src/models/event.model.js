@@ -118,6 +118,7 @@ const EventSchema = new mongoose.Schema(
 			minlength: [10, 'Description must be at least 10 characters long'],
 			maxlength: [2000, 'Description cannot exceed 2000 characters'],
 		},
+
 		eventDate: {
 			type: Date,
 			required: [true, 'Event date and time are required'],
@@ -151,6 +152,7 @@ const EventSchema = new mongoose.Schema(
 			trim: true,
 			maxlength: 60,
 		},
+
 		organizer: {
 			type: String,
 			trim: true,
@@ -161,6 +163,7 @@ const EventSchema = new mongoose.Schema(
 			type: [String],
 			default: [],
 		},
+
 		category: {
 			type: String,
 			required: [true, 'Event category is required (e.g., Workshop, Competition)'],
@@ -170,6 +173,7 @@ const EventSchema = new mongoose.Schema(
 			type: String,
 			trim: true 
 		},
+
 		posters: {
 			type: [mediaSchema],
 			default: [],
@@ -178,7 +182,6 @@ const EventSchema = new mongoose.Schema(
 			type: [partnerSchema],
 			default: [],
 		},
-
 		speakers: {
 			type: [speakerSchema],
 			default: [],
@@ -200,10 +203,7 @@ const EventSchema = new mongoose.Schema(
 				ref: 'Ticket',
 			},
 		],
-		prerequisites: {
-			type: [String],
-			default: [],
-		},
+
 		resources: {
 			type: [{ title: String, url: String }],
 			default: [],
