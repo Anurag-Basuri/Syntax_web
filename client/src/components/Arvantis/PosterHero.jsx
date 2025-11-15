@@ -20,16 +20,18 @@ const PosterHero = ({ fest }) => {
 			transition={{ duration: 0.6 }}
 			className="relative overflow-hidden rounded-3xl min-h-[340px] md:min-h-[420px] flex items-center text-white"
 			aria-label={`${fest?.name || 'Arvantis'} hero`}
-			style={{ backgroundColor: 'var(--bg-base)' }}
+			style={{ background: 'transparent' }}
 		>
-			{/* Background */}
+			{/* Background image (visual only) */}
 			<img
 				src={posterUrl}
 				alt={fest?.poster?.caption || `${fest?.name || 'Arvantis'} poster`}
-				className="absolute inset-0 w-full h-full object-cover filter saturate-[.9] brightness-[.6] lg:brightness-[.55]"
+				className="absolute inset-0 w-full h-full object-cover filter saturate-[.9] brightness-[.7]"
 				loading="eager"
 			/>
-			<div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(4,6,10,0.64), rgba(4,6,10,0.28) 40%, rgba(4,6,10,0.12))' }} />
+
+			{/* Gentle gradient to ensure legibility while keeping transparency */}
+			<div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.24), rgba(0,0,0,0.08))' }} />
 
 			<div className="relative z-10 max-w-6xl w-full mx-auto px-6 py-10 md:py-14 lg:py-16">
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">

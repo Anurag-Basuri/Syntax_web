@@ -126,11 +126,18 @@ const ArvantisPage = () => {
 	}, []);
 
 	return (
-		<div className="min-h-screen" style={{ background: 'linear-gradient(180deg,#04121a,#071826)', color: 'var(--text-primary)' }}>
+		<div
+			className="min-h-screen"
+			aria-hidden={false}
+			style={{ background: 'transparent', color: 'var(--text-primary)' }}
+		>
 			<div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 sm:py-16">
 				<header className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
 					<div>
-						<h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight" style={{ color: 'var(--text-primary)', fontFamily: 'Space Grotesk, system-ui' }}>
+						<h2
+							className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight"
+							style={{ color: 'var(--text-primary)', fontFamily: 'Space Grotesk, system-ui' }}
+						>
 							Arvantis
 							<span className="ml-2" style={{ color: 'var(--accent-1)' }}>
 								{fest?.year ? ` ’${String(fest.year).slice(-2)}` : ''}
@@ -201,15 +208,15 @@ const ArvantisPage = () => {
 
 						{/* Main content sections */}
 						<div className="space-y-10">
-							<div className="rounded-3xl p-6" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00))', border: '1px solid rgba(255,255,255,0.04)' }}>
+							<div className="rounded-3xl p-6" style={{ background: 'transparent', border: '1px solid var(--glass-border)' }}>
 								<EventsGrid events={Array.isArray(fest?.events) ? fest.events : []} onEventClick={handleEventClick} />
 							</div>
 
-							<div className="rounded-3xl p-6" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00))', border: '1px solid rgba(255,255,255,0.04)' }}>
+							<div className="rounded-3xl p-6" style={{ background: 'transparent', border: '1px solid var(--glass-border)' }}>
 								<PartnersGrid partners={Array.isArray(fest?.partners) ? fest.partners : []} />
 							</div>
 
-							<div className="rounded-3xl p-6" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00))', border: '1px solid rgba(255,255,255,0.04)' }}>
+							<div className="rounded-3xl p-6" style={{ background: 'transparent', border: '1px solid var(--glass-border)' }}>
 								<GalleryGrid gallery={Array.isArray(fest?.gallery) ? fest.gallery : []} onImageClick={handleImageClick} />
 							</div>
 						</div>
