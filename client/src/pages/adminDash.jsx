@@ -6,7 +6,8 @@ import {
 	Users,
 	CalendarDays,
 	LayoutDashboard,
-	Sparkles,
+	Menu,
+	X,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import { useGetAllEvents } from '../hooks/useEvents.js';
@@ -21,26 +22,10 @@ import Modal from '../components/admin/Modal.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 
 const TABS = [
-	{
-		key: 'dashboard',
-		label: 'Dashboard',
-		icon: <LayoutDashboard className="h-5 w-5" />,
-	},
-	{
-		key: 'members',
-		label: 'Members',
-		icon: <Users className="h-5 w-5" />,
-	},
-	{
-		key: 'events',
-		label: 'Events',
-		icon: <CalendarDays className="h-5 w-5" />,
-	},
-	{
-		key: 'tickets',
-		label: 'Tickets',
-		icon: <Ticket className="h-5 w-5" />,
-	},
+	{ key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
+	{ key: 'members', label: 'Members', icon: <Users className="h-5 w-5" /> },
+	{ key: 'events', label: 'Events', icon: <CalendarDays className="h-5 w-5" /> },
+	{ key: 'tickets', label: 'Tickets', icon: <Ticket className="h-5 w-5" /> },
 ];
 
 const AdminDash = () => {
@@ -52,6 +37,7 @@ const AdminDash = () => {
 	const [activeTab, setActiveTab] = useState('dashboard');
 	const [dashboardError, setDashboardError] = useState('');
 	const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
+	const [sidebarOpen, setSidebarOpen] = useState(false);
 
 	// Events
 	const { getAllEvents, events, loading: eventsLoading, error: eventsError } = useGetAllEvents();
@@ -97,10 +83,8 @@ const AdminDash = () => {
 	if (authLoading) {
 		return (
 			<div
-				className={`${
-					isDark
-						? 'flex items-center justify-center min-h-screen bg-gray-900'
-						: 'flex items-center justify-center min-h-screen bg-white'
+				className={`flex items-center justify-center min-h-screen ${
+					isDark ? 'bg-gray-900' : 'bg-white'
 				}`}
 			>
 				<div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
@@ -129,9 +113,71 @@ const AdminDash = () => {
 		: 'bg-white/80';
 
 	return (
-		<div className={`min-h-screen ${rootBg}`}>
-			{/* Fixed Sidebar */}
-			<aside className={`fixed left-0 top-0 bottom-0 w-64 ${sidebarBg} z-40 flex flex-col`}>
+		<div className={`min-h-screen ${rootBg} pt-16`}>
+			{/* Mobile Sidebar Drawer */}
+			<div className="md:hidden">
+				<button
+					className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-blue-600 text-white shadow-lg"
+					onClick={() => setSidebarOpen(true)}
+					aria-label="Open sidebar"
+				>
+					<Menu className="h-6 w-6" />
+				</button>
+				{sidebarOpen && (
+					<div className="fixed inset-0 z-50 bg-black/60">
+						<aside
+							className={`fixed top-0 left-0 h-full w-64 ${sidebarBg} shadow-xl flex flex-col`}
+						>
+							<div className="flex items-center gap-3 px-6 py-6 border-b border-gray-800">
+								<ShieldCheck className="h-8 w-8 text-blue-400" />
+								<span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400">
+									Admin
+								</span>
+								<button
+									className="ml-auto text-gray-400 hover:text-white"
+									onClick={() => setSidebarOpen(false)}
+									aria-label="Close sidebar"
+								>
+									<X className="h-6 w-6" />
+								</button>
+							</div>
+							<nav className="flex-1 py-4 overflow-y-auto">
+								{TABS.map((tab) => (
+									<button
+										key={tab.key}
+										className={`w-full flex items-center gap-3 px-6 py-3 text-lg font-medium transition text-left ${
+											activeTab === tab.key
+												? 'bg-blue-900/30 text-blue-400'
+												: 'text-gray-300 hover:bg-gray-800 hover:text-white'
+										}`}
+										onClick={() => {
+											setActiveTab(tab.key);
+											setSidebarOpen(false);
+										}}
+									>
+										{tab.icon}
+										{tab.label}
+									</button>
+								))}
+							</nav>
+							<div className="px-6 py-4 border-t border-gray-800">
+								<button
+									onClick={handleLogout}
+									className="w-full flex items-center gap-2 px-4 py-2 rounded-lg bg-red-700/80 text-white hover:bg-red-600 transition"
+								>
+									<LogOut className="h-5 w-5" />
+									Logout
+								</button>
+							</div>
+						</aside>
+					</div>
+				)}
+			</div>
+
+			{/* Desktop Sidebar */}
+			<aside
+				className={`hidden md:fixed md:top-16 md:left-0 md:h-[calc(100vh-4rem)] md:w-64 ${sidebarBg} z-40 md:flex md:flex-col shadow-lg rounded-r-xl`}
+			>
 				<div
 					className={`flex items-center gap-3 px-6 py-6 border-b ${
 						isDark ? 'border-gray-800' : 'border-gray-200'
@@ -150,7 +196,6 @@ const AdminDash = () => {
 						Admin
 					</span>
 				</div>
-
 				<nav className="flex-1 py-4 overflow-y-auto">
 					{TABS.map((tab) => (
 						<button
@@ -167,7 +212,7 @@ const AdminDash = () => {
 												? 'text-gray-300 hover:bg-gray-800 hover:text-white'
 												: 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
 									  }`
-							}`}
+							} rounded-lg`}
 							onClick={() => setActiveTab(tab.key)}
 						>
 							{tab.icon}
@@ -175,7 +220,6 @@ const AdminDash = () => {
 						</button>
 					))}
 				</nav>
-
 				<div
 					className={`px-6 py-4 border-t ${
 						isDark ? 'border-gray-800' : 'border-gray-200'
@@ -195,9 +239,9 @@ const AdminDash = () => {
 				</div>
 			</aside>
 
-			{/* Fixed Header */}
+			{/* Header */}
 			<header
-				className={`fixed left-64 right-0 top-0 z-30 ${headerBg} h-16 flex items-center justify-between px-6`}
+				className={`sticky top-0 md:ml-64 ${headerBg} h-16 flex items-center justify-between px-4 md:px-6 shadow-md z-30`}
 			>
 				<div className="flex items-center gap-3">
 					<span
@@ -206,18 +250,16 @@ const AdminDash = () => {
 						{TABS.find((t) => t.key === activeTab)?.label || 'Dashboard'}
 					</span>
 				</div>
-
 				<div className="flex items-center gap-4">
 					<div
 						className={`flex items-center gap-2 rounded-lg px-4 py-2 ${
 							isDark ? 'bg-gray-700/50' : 'bg-gray-100'
-						}`}
+						} shadow`}
 					>
 						<span className={`${isDark ? 'text-white' : 'text-gray-900'} font-medium`}>
 							{user?.fullname || user?.name || 'Admin'}
 						</span>
 					</div>
-
 					{activeTab === 'tickets' && (
 						<button
 							onClick={() => setShowCreateTicketModal(true)}
@@ -225,7 +267,7 @@ const AdminDash = () => {
 								isDark
 									? 'bg-blue-700/80 text-white hover:bg-blue-600'
 									: 'bg-blue-600 text-white hover:bg-blue-500'
-							} transition`}
+							} transition shadow`}
 						>
 							<Ticket className="h-5 w-5" />
 							Create Ticket
@@ -235,8 +277,8 @@ const AdminDash = () => {
 			</header>
 
 			{/* Content area */}
-			<main className="pt-16 pl-64">
-				<div className={`min-h-screen p-4 md:p-8 ${mainPanelBg}`}>
+			<main className="md:ml-64 pt-6 px-2 md:px-8 transition-all">
+				<div className={`min-h-screen ${mainPanelBg} rounded-xl shadow-lg p-2 md:p-8`}>
 					{dashboardError && (
 						<div className="mb-4">
 							<ErrorMessage error={dashboardError} />
@@ -270,9 +312,6 @@ const AdminDash = () => {
 							events={events}
 							setDashboardError={setDashboardError}
 						/>
-					)}
-					{activeTab === 'arvantis' && (
-						<ArvantisTab token={token} setDashboardError={setDashboardError} />
 					)}
 				</div>
 			</main>
