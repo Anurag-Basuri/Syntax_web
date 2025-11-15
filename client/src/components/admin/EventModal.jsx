@@ -82,8 +82,40 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 							</div>
 						</div>
 
+						{/* New: Organizer & Category (required by server) */}
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+							<div>
+								<label className="block text-sm text-gray-400 mb-1">
+									Organizer *
+								</label>
+								<input
+									type="text"
+									name="organizer"
+									value={eventFields.organizer || ''}
+									onChange={handleChange}
+									placeholder="Organizer name"
+									className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+								/>
+							</div>
+							<div>
+								<label className="block text-sm text-gray-400 mb-1">
+									Category *
+								</label>
+								<input
+									type="text"
+									name="category"
+									value={eventFields.category || ''}
+									onChange={handleChange}
+									placeholder="e.g., Workshop, Competition"
+									className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+								/>
+							</div>
+						</div>
+
 						<div>
-							<label className="block text-sm text-gray-400 mb-1">Description</label>
+							<label className="block text-sm text-gray-400 mb-1">
+								Description *
+							</label>
 							<textarea
 								name="description"
 								value={eventFields.description}
