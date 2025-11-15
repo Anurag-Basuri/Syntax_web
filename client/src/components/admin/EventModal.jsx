@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
 	CalendarDays,
 	MapPin,
@@ -12,44 +12,77 @@ import {
 	Link,
 	Plus,
 	Trash2,
+	Speaker,
 } from 'lucide-react';
 
 const MAX_POSTERS = 5;
 const MAX_GALLERY = 10;
 
 const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubmit, loading }) => {
-	// Local helper state for tags string input
 	const [tagsInput, setTagsInput] = useState((eventFields.tags || []).join(', '));
 	const [localError, setLocalError] = useState('');
 	const [activeTab, setActiveTab] = useState('basic');
+	const firstInputRef = useRef(null);
 
 	useEffect(() => {
 		setTagsInput((eventFields.tags || []).join(', '));
 	}, [eventFields.tags, open]);
 
-	// Prevent background scrolling when modal is open and restore afterwards
+	// focus first input when modal opens
+	useEffect(() => {
+		if (open) {
+			setTimeout(() => {
+				firstInputRef.current?.focus?.();
+			}, 60);
+		}
+	}, [open]);
+
+	// block background scroll while modal open
 	useEffect(() => {
 		if (!open) return;
-		const previousOverflow = document.body.style.overflow;
+		const prev = {
+			overflow: document.documentElement.style.overflow,
+			bodyOverflow: document.body.style.overflow,
+		};
+		document.documentElement.style.overflow = 'hidden';
 		document.body.style.overflow = 'hidden';
 		return () => {
-			document.body.style.overflow = previousOverflow || '';
+			document.documentElement.style.overflow = prev.overflow || '';
+			document.body.style.overflow = prev.bodyOverflow || '';
 		};
 	}, [open]);
 
+	// close on ESC
+	useEffect(() => {
+		if (!open) return;
+		const onKey = (e) => {
+			if (e.key === 'Escape') onClose();
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+	}, [open, onClose]);
+
 	if (!open) return null;
 
-	// --- Handlers ---
+	// handlers
 	const handleChange = (e) => {
 		const { name, value, type, checked } = e.target;
-
-		// Boolean checkbox handling
 		if (type === 'checkbox') {
-			setEventFields((prev) => ({ ...prev, [name]: checked }));
+			// checkboxes for registration.allowGuests etc.
+			setEventFields((prev) => {
+				// if checkbox is for nested registration
+				if (name === 'allowGuests') {
+					return {
+						...prev,
+						registration: { ...(prev.registration || {}), allowGuests: checked },
+					};
+				}
+				return { ...prev, [name]: checked };
+			});
 			return;
 		}
 
-		// Special handling for registration-related flattened fields:
+		// flattened registration fields supported by backend
 		if (name === 'registrationMode') {
 			setEventFields((prev) => ({
 				...prev,
@@ -66,15 +99,7 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 			}));
 			return;
 		}
-		if (name === 'allowGuests') {
-			setEventFields((prev) => ({
-				...prev,
-				registration: { ...(prev.registration || {}), allowGuests: value === 'true' },
-			}));
-			return;
-		}
-
-		// capacityOverride numeric field
+		// capacity override lives under registration
 		if (name === 'capacityOverride') {
 			setEventFields((prev) => ({
 				...prev,
@@ -86,13 +111,12 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 			return;
 		}
 
-		// numeric fields keep string here; parent will normalize/convert
+		// numeric keep as string; parent will normalize
 		if (['totalSpots', 'ticketPrice'].includes(name)) {
 			setEventFields((prev) => ({ ...prev, [name]: value }));
 			return;
 		}
 
-		// Default shallow set for other fields
 		setEventFields((prev) => ({ ...prev, [name]: value }));
 	};
 
@@ -103,6 +127,7 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 				setLocalError(`Max ${MAX_POSTERS} posters allowed.`);
 				return;
 			}
+			// keep raw File objects (EventsTab will append to FormData with key 'posters')
 			setEventFields((prev) => ({ ...prev, posters: files }));
 		} else if (field === 'gallery') {
 			if (files.length > MAX_GALLERY) {
@@ -132,23 +157,16 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 		}
 	};
 
-	// --- Dynamic Array Fields ---
+	// arrays helpers (coOrganizers, speakers, prerequisites, resources)
 	const handleArrayChange = (field, idx, key, value) => {
 		const arr = [...(eventFields[field] || [])];
-		// support plain array of strings and array of objects
-		if (key === null) {
-			arr[idx] = value;
-		} else {
-			arr[idx] = { ...(arr[idx] || {}), [key]: value };
-		}
+		if (key === null) arr[idx] = value;
+		else arr[idx] = { ...(arr[idx] || {}), [key]: value };
 		setEventFields((prev) => ({ ...prev, [field]: arr }));
 	};
 
 	const handleAddArrayItem = (field, template) => {
-		setEventFields((prev) => ({
-			...prev,
-			[field]: [...(prev[field] || []), template],
-		}));
+		setEventFields((prev) => ({ ...prev, [field]: [...(prev[field] || []), template] }));
 	};
 
 	const handleRemoveArrayItem = (field, idx) => {
@@ -157,7 +175,7 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 		setEventFields((prev) => ({ ...prev, [field]: arr }));
 	};
 
-	// --- Tabs ---
+	// tabs
 	const tabs = [
 		{ key: 'basic', label: 'Basic Info' },
 		{ key: 'registration', label: 'Registration' },
@@ -166,28 +184,31 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 	];
 
 	return (
-		<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-			{/* Ensure modal container is above everything (z higher than overlay) */}
+		// overlay: extremely high z-index and strong blur
+		<div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl">
+			{/* modal container */}
 			<div
-				className="w-full max-w-3xl bg-gray-800 rounded-xl border border-gray-700 shadow-2xl overflow-hidden relative z-[10000]"
+				className="w-full max-w-3xl bg-gray-900 rounded-xl border border-gray-800 shadow-[0_20px_50px_rgba(2,6,23,0.9)] overflow-hidden"
 				role="dialog"
 				aria-modal="true"
+				aria-labelledby="event-modal-title"
 			>
-				<div className="flex justify-between items-center p-4 border-b border-gray-700">
-					<h3 className="text-lg font-semibold text-white">
+				{/* header */}
+				<div className="flex justify-between items-center p-4 border-b border-gray-800">
+					<h3 id="event-modal-title" className="text-lg font-semibold text-white">
 						{isEdit ? 'Edit Event' : 'Create New Event'}
 					</h3>
 					<button
 						onClick={onClose}
 						className="text-gray-400 hover:text-white rounded-full p-1"
-						aria-label="Close modal"
+						aria-label="Close"
 					>
 						<X className="h-5 w-5" />
 					</button>
 				</div>
 
-				{/* Tabs */}
-				<div className="flex border-b border-gray-700 bg-gray-900/40">
+				{/* tabs */}
+				<div className="flex border-b border-gray-800 bg-gray-900/50">
 					{tabs.map((tab) => (
 						<button
 							key={tab.key}
@@ -203,139 +224,144 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 					))}
 				</div>
 
-				{/* Scrollable content: capture wheel/touch to avoid outer scroll handlers (e.g., Lenis) */}
-				<div
-					className="p-6 overflow-y-auto max-h-[85vh] -webkit-overflow-scrolling-touch overscroll-contain"
-					onWheel={(e) => e.stopPropagation()}
-					onTouchMove={(e) => e.stopPropagation()}
-					onTouchStart={(e) => e.stopPropagation()}
-					tabIndex={-1}
-				>
+				{/* content: constrained height, scrollable */}
+				<div className="p-6 overflow-y-auto max-h-[85vh] scroll-smooth" tabIndex={0}>
 					{localError && (
-						<div className="bg-red-900/20 border border-red-700 rounded-lg p-2 mb-4 text-red-300 text-sm">
+						<div className="mb-4 text-sm text-red-300 bg-red-900/10 p-2 rounded">
 							{localError}
 						</div>
 					)}
 
-					{/* --- BASIC INFO TAB --- */}
+					{/* BASIC */}
 					{activeTab === 'basic' && (
 						<div className="space-y-5">
-							{/* Title */}
+							{/* title */}
 							<div>
 								<label className="block text-sm text-gray-400 mb-1">
 									Event Title *
 								</label>
 								<div className="relative">
-									<BookOpen className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+									<BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 									<input
-										type="text"
+										ref={firstInputRef}
 										name="title"
 										value={eventFields.title || ''}
 										onChange={handleChange}
-										className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										type="text"
+										className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 										placeholder="Enter event title"
 										required
 									/>
 								</div>
 							</div>
-							{/* Date/time + Time-only */}
+
+							{/* date / category */}
 							<div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
 										Date & Time *
 									</label>
 									<div className="relative">
-										<CalendarDays className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+										<CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 										<input
-											type="datetime-local"
 											name="date"
 											value={eventFields.date || ''}
 											onChange={handleChange}
-											className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+											type="datetime-local"
+											className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 											required
 										/>
 									</div>
+									<p className="text-xs text-gray-500 mt-1">
+										Times are sent as ISO (UTC) by parent.
+									</p>
 								</div>
+
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
 										Optional Time (HH:MM)
 									</label>
 									<div className="relative">
-										<Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+										<Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 										<input
-											type="text"
 											name="eventTime"
 											value={eventFields.eventTime || ''}
 											onChange={handleChange}
-											placeholder="e.g., 14:30"
-											className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+											type="text"
+											placeholder="14:30"
+											className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 										/>
 									</div>
 								</div>
+
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
 										Category *
 									</label>
 									<input
-										type="text"
 										name="category"
 										value={eventFields.category || ''}
 										onChange={handleChange}
-										placeholder="Workshop, Competition, Meetup..."
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										type="text"
+										placeholder="Workshop, Competition..."
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 										required
 									/>
 								</div>
 							</div>
-							{/* Location, Room, Organizer */}
+
+							{/* venue / room / organizer */}
 							<div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
-										Location *
+										Venue *
 									</label>
 									<div className="relative">
-										<MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+										<MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 										<input
-											type="text"
 											name="location"
 											value={eventFields.location || ''}
 											onChange={handleChange}
-											placeholder="Venue name or address"
-											className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+											type="text"
+											placeholder="Venue or address"
+											className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 											required
 										/>
 									</div>
 								</div>
+
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">Room</label>
 									<input
-										type="text"
 										name="room"
 										value={eventFields.room || ''}
 										onChange={handleChange}
-										placeholder="Room or hall"
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										type="text"
+										placeholder="Room / hall"
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 									/>
 								</div>
+
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
 										Organizer *
 									</label>
 									<div className="relative">
-										<Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+										<Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 										<input
-											type="text"
 											name="organizer"
 											value={eventFields.organizer || ''}
 											onChange={handleChange}
-											placeholder="Organizer or team name"
-											className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+											type="text"
+											placeholder="Organizer name"
+											className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 											required
 										/>
 									</div>
 								</div>
 							</div>
-							{/* Description */}
+
+							{/* description */}
 							<div>
 								<label className="block text-sm text-gray-400 mb-1">
 									Description *
@@ -344,70 +370,69 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 									name="description"
 									value={eventFields.description || ''}
 									onChange={handleChange}
-									rows="3"
-									className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
-									placeholder="Describe the event (min 10 characters)"
+									rows={4}
+									className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+									placeholder="Describe the event (min 10 chars)"
 									required
-								></textarea>
-							</div>
-							{/* Subcategory */}
-							<div>
-								<label className="block text-sm text-gray-400 mb-1">
-									Subcategory
-								</label>
-								<input
-									type="text"
-									name="subcategory"
-									value={eventFields.subcategory || ''}
-									onChange={handleChange}
-									placeholder="e.g., AI, Web, Sports"
-									className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
 								/>
 							</div>
-							{/* Co-organizers */}
-							<div>
-								<label className="block text-sm text-gray-400 mb-1">
-									Co-organizers
-								</label>
-								{(eventFields.coOrganizers || []).map((co, idx) => (
-									<div key={idx} className="flex gap-2 mb-2">
-										<input
-											type="text"
-											value={co}
-											onChange={(e) =>
-												handleArrayChange(
-													'coOrganizers',
-													idx,
-													null,
-													e.target.value
-												)
-											}
-											className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
-											placeholder="Co-organizer name"
-										/>
-										<button
-											type="button"
-											className="text-red-400"
-											onClick={() =>
-												handleRemoveArrayItem('coOrganizers', idx)
-											}
-										>
-											<Trash2 className="h-4 w-4" />
-										</button>
-									</div>
-								))}
-								<button
-									type="button"
-									className="mt-1 px-3 py-1 bg-blue-700/30 text-blue-300 rounded"
-									onClick={() => handleAddArrayItem('coOrganizers', '')}
-								>
-									<Plus className="h-4 w-4 inline" /> Add Co-organizer
-								</button>
+
+							{/* subcategory / co-organizers */}
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+								<div>
+									<label className="block text-sm text-gray-400 mb-1">
+										Subcategory
+									</label>
+									<input
+										name="subcategory"
+										value={eventFields.subcategory || ''}
+										onChange={handleChange}
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+									/>
+								</div>
+
+								<div>
+									<label className="block text-sm text-gray-400 mb-1">
+										Co-organizers
+									</label>
+									{(eventFields.coOrganizers || []).map((co, idx) => (
+										<div key={idx} className="flex gap-2 mb-2">
+											<input
+												value={co}
+												onChange={(e) =>
+													handleArrayChange(
+														'coOrganizers',
+														idx,
+														null,
+														e.target.value
+													)
+												}
+												className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+											/>
+											<button
+												type="button"
+												className="text-red-400"
+												onClick={() =>
+													handleRemoveArrayItem('coOrganizers', idx)
+												}
+											>
+												<Trash2 className="h-4 w-4" />
+											</button>
+										</div>
+									))}
+									<button
+										type="button"
+										className="mt-1 px-3 py-1 bg-blue-700/30 text-blue-300 rounded"
+										onClick={() => handleAddArrayItem('coOrganizers', '')}
+									>
+										<Plus className="h-4 w-4 inline" /> Add
+									</button>
+								</div>
 							</div>
 						</div>
 					)}
 
-					{/* --- REGISTRATION TAB --- */}
+					{/* REGISTRATION */}
 					{activeTab === 'registration' && (
 						<div className="space-y-5">
 							<div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -422,21 +447,21 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 											'none'
 										}
 										onChange={handleChange}
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 									>
 										<option value="none">None</option>
 										<option value="internal">Internal</option>
 										<option value="external">External</option>
 									</select>
 								</div>
+
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
 										External URL
 									</label>
 									<div className="relative">
-										<Link className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+										<Link className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 										<input
-											type="url"
 											name="externalUrl"
 											value={
 												(eventFields.registration &&
@@ -445,11 +470,13 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 												''
 											}
 											onChange={handleChange}
+											type="url"
 											placeholder="https://example.com/register"
-											className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+											className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 										/>
 									</div>
 								</div>
+
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
 										Allow Guests
@@ -462,20 +489,20 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 											'true'
 										}
 										onChange={handleChange}
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 									>
 										<option value="true">Yes</option>
 										<option value="false">No</option>
 									</select>
 								</div>
 							</div>
-							<div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
+
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
 										Registration open
 									</label>
 									<input
-										type="datetime-local"
 										name="registrationOpenDate"
 										value={eventFields.registrationOpenDate || ''}
 										onChange={(e) =>
@@ -484,7 +511,8 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 												registrationOpenDate: e.target.value,
 											}))
 										}
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										type="datetime-local"
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 									/>
 								</div>
 								<div>
@@ -492,7 +520,6 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 										Registration close
 									</label>
 									<input
-										type="datetime-local"
 										name="registrationCloseDate"
 										value={eventFields.registrationCloseDate || ''}
 										onChange={(e) =>
@@ -501,7 +528,8 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 												registrationCloseDate: e.target.value,
 											}))
 										}
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										type="datetime-local"
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 									/>
 								</div>
 								<div>
@@ -509,32 +537,32 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 										Capacity override
 									</label>
 									<input
-										type="number"
 										name="capacityOverride"
-										min="0"
 										value={
 											(eventFields.registration &&
 												eventFields.registration.capacityOverride) ??
 											''
 										}
 										onChange={handleChange}
-										placeholder="Optional"
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										type="number"
+										min="0"
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 									/>
 								</div>
 							</div>
-							<div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
+
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
 										Total Spots
 									</label>
 									<input
-										type="number"
 										name="totalSpots"
-										min="0"
 										value={eventFields.totalSpots ?? ''}
 										onChange={handleChange}
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										type="number"
+										min="0"
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 										placeholder="0 = unlimited"
 									/>
 								</div>
@@ -542,16 +570,19 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 									<label className="block text-sm text-gray-400 mb-1">
 										Ticket Price
 									</label>
-									<input
-										type="number"
-										name="ticketPrice"
-										min="0"
-										step="0.01"
-										value={eventFields.ticketPrice ?? ''}
-										onChange={handleChange}
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
-										placeholder="0 for free"
-									/>
+									<div className="relative">
+										<DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+										<input
+											name="ticketPrice"
+											value={eventFields.ticketPrice ?? ''}
+											onChange={handleChange}
+											type="number"
+											min="0"
+											step="0.01"
+											className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+											placeholder="0 for free"
+										/>
+									</div>
 								</div>
 								<div>
 									<label className="block text-sm text-gray-400 mb-1">
@@ -561,7 +592,7 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 										name="status"
 										value={eventFields.status || 'upcoming'}
 										onChange={handleChange}
-										className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 									>
 										<option value="upcoming">Upcoming</option>
 										<option value="ongoing">Ongoing</option>
@@ -574,19 +605,18 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 						</div>
 					)}
 
-					{/* --- MEDIA TAB --- */}
+					{/* MEDIA */}
 					{activeTab === 'media' && (
 						<div className="space-y-5">
-							{/* Posters */}
 							<div>
 								<label className="block text-sm text-gray-400 mb-1">
 									Event Posters {isEdit ? '(optional)' : '*'}
 								</label>
 								<div className="flex items-center gap-3">
 									<label className="w-full cursor-pointer">
-										<div className="flex items-center gap-3 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white">
+										<div className="flex items-center gap-3 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
 											<UploadCloud className="h-5 w-5 text-gray-300" />
-											<span className="text-sm">Choose image(s)</span>
+											<span className="text-sm">Choose poster images</span>
 										</div>
 										<input
 											type="file"
@@ -599,28 +629,25 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 									</label>
 								</div>
 								{eventFields.posters && eventFields.posters.length > 0 && (
-									<div className="mt-2 flex gap-2 flex-wrap">
+									<div className="mt-2 flex gap-2 flex-wrap text-xs text-gray-400">
 										{eventFields.posters.map((f, i) => (
-											<div key={i} className="text-xs text-gray-400">
-												{f.name}
-											</div>
+											<div key={i}>{f.name}</div>
 										))}
 									</div>
 								)}
 								{!isEdit && (
 									<p className="mt-2 text-xs text-gray-500">
-										At least one poster is required for new events.
+										At least 1 poster required for creation (server expects
+										'posters' files).
 									</p>
 								)}
 							</div>
-							{/* Gallery */}
+
 							<div>
-								<label className="block text-sm text-gray-400 mb-1">
-									Event Gallery
-								</label>
+								<label className="block text-sm text-gray-400 mb-1">Gallery</label>
 								<div className="flex items-center gap-3">
 									<label className="w-full cursor-pointer">
-										<div className="flex items-center gap-3 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white">
+										<div className="flex items-center gap-3 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white">
 											<UploadCloud className="h-5 w-5 text-gray-300" />
 											<span className="text-sm">Choose gallery images</span>
 										</div>
@@ -635,29 +662,27 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 									</label>
 								</div>
 								{eventFields.gallery && eventFields.gallery.length > 0 && (
-									<div className="mt-2 flex gap-2 flex-wrap">
+									<div className="mt-2 flex gap-2 flex-wrap text-xs text-gray-400">
 										{eventFields.gallery.map((f, i) => (
-											<div key={i} className="text-xs text-gray-400">
-												{f.name}
-											</div>
+											<div key={i}>{f.name}</div>
 										))}
 									</div>
 								)}
 							</div>
-							{/* Tags input */}
+
+							{/* tags */}
 							<div>
 								<label className="block text-sm text-gray-400 mb-1">Tags</label>
 								<div className="relative">
-									<Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+									<Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 									<input
-										type="text"
 										name="tags"
 										value={tagsInput}
 										onChange={(e) => setTagsInput(e.target.value)}
 										onBlur={handleTagsBlur}
 										onKeyDown={handleTagKeyDown}
-										placeholder="Comma separated tags (e.g., hackathon, workshop)"
-										className="w-full pl-10 pr-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
+										placeholder="Comma separated tags"
+										className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 									/>
 								</div>
 								{(eventFields.tags || []).length > 0 && (
@@ -665,7 +690,7 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 										{eventFields.tags.map((t, i) => (
 											<span
 												key={i}
-												className="px-2.5 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded-full"
+												className="px-2.5 py-0.5 text-xs bg-blue-600/20 text-blue-300 rounded-full"
 											>
 												{t}
 											</span>
@@ -676,19 +701,86 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 						</div>
 					)}
 
-					{/* --- ADVANCED TAB --- */}
+					{/* ADVANCED */}
 					{activeTab === 'advanced' && (
 						<div className="space-y-5">
-							{/* Prerequisites */}
+							{/* speakers */}
+							<div>
+								<label className="block text-sm text-gray-400 mb-1">Speakers</label>
+								{(eventFields.speakers || []).map((s, idx) => (
+									<div key={idx} className="flex gap-2 mb-2">
+										<input
+											value={s.name || ''}
+											onChange={(e) =>
+												handleArrayChange(
+													'speakers',
+													idx,
+													'name',
+													e.target.value
+												)
+											}
+											placeholder="Name (required)"
+											className="w-1/3 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+										/>
+										<input
+											value={s.title || ''}
+											onChange={(e) =>
+												handleArrayChange(
+													'speakers',
+													idx,
+													'title',
+													e.target.value
+												)
+											}
+											placeholder="Title"
+											className="w-1/3 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+										/>
+										<input
+											value={s.bio || ''}
+											onChange={(e) =>
+												handleArrayChange(
+													'speakers',
+													idx,
+													'bio',
+													e.target.value
+												)
+											}
+											placeholder="Short bio"
+											className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+										/>
+										<button
+											type="button"
+											className="text-red-400"
+											onClick={() => handleRemoveArrayItem('speakers', idx)}
+										>
+											<Trash2 className="h-4 w-4" />
+										</button>
+									</div>
+								))}
+								<button
+									type="button"
+									className="mt-1 px-3 py-1 bg-blue-700/30 text-blue-300 rounded"
+									onClick={() =>
+										handleAddArrayItem('speakers', {
+											name: '',
+											title: '',
+											bio: '',
+										})
+									}
+								>
+									<Plus className="h-4 w-4 inline" /> Add Speaker
+								</button>
+							</div>
+
+							{/* prerequisites & resources */}
 							<div>
 								<label className="block text-sm text-gray-400 mb-1">
 									Prerequisites
 								</label>
-								{(eventFields.prerequisites || []).map((pre, idx) => (
+								{(eventFields.prerequisites || []).map((p, idx) => (
 									<div key={idx} className="flex gap-2 mb-2">
 										<input
-											type="text"
-											value={pre}
+											value={p}
 											onChange={(e) =>
 												handleArrayChange(
 													'prerequisites',
@@ -697,8 +789,7 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 													e.target.value
 												)
 											}
-											className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
-											placeholder="Prerequisite"
+											className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 										/>
 										<button
 											type="button"
@@ -716,19 +807,18 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 									className="mt-1 px-3 py-1 bg-blue-700/30 text-blue-300 rounded"
 									onClick={() => handleAddArrayItem('prerequisites', '')}
 								>
-									<Plus className="h-4 w-4 inline" /> Add Prerequisite
+									<Plus className="h-4 w-4 inline" /> Add
 								</button>
 							</div>
-							{/* Resources */}
+
 							<div>
 								<label className="block text-sm text-gray-400 mb-1">
 									Resources
 								</label>
-								{(eventFields.resources || []).map((res, idx) => (
+								{(eventFields.resources || []).map((r, idx) => (
 									<div key={idx} className="flex gap-2 mb-2">
 										<input
-											type="text"
-											value={res.title || ''}
+											value={r.title || ''}
 											onChange={(e) =>
 												handleArrayChange(
 													'resources',
@@ -737,12 +827,11 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 													e.target.value
 												)
 											}
-											className="w-1/2 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
-											placeholder="Resource title"
+											placeholder="Title"
+											className="w-1/2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 										/>
 										<input
-											type="url"
-											value={res.url || ''}
+											value={r.url || ''}
 											onChange={(e) =>
 												handleArrayChange(
 													'resources',
@@ -751,8 +840,8 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 													e.target.value
 												)
 											}
-											className="w-1/2 px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white"
-											placeholder="Resource URL"
+											placeholder="URL"
+											className="w-1/2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 										/>
 										<button
 											type="button"
@@ -776,21 +865,22 @@ const EventModal = ({ isEdit, open, onClose, eventFields, setEventFields, onSubm
 						</div>
 					)}
 
-					{/* --- ACTIONS --- */}
+					{/* actions */}
 					<div className="flex justify-end gap-3 pt-6">
 						<button
 							type="button"
 							onClick={onClose}
-							className="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-white"
+							className="px-6 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
 						>
 							Cancel
 						</button>
 						<button
+							type="button"
 							onClick={onSubmit}
 							disabled={loading}
 							className={`px-6 py-2 rounded-lg text-white ${
 								loading
-									? 'bg-blue-500/50 cursor-not-allowed'
+									? 'bg-blue-600/50 cursor-not-allowed'
 									: 'bg-blue-600 hover:bg-blue-500'
 							}`}
 						>
