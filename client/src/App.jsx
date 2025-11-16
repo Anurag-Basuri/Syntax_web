@@ -7,7 +7,6 @@ import AppRoutes from './routes/AppRoutes.jsx';
 import Navbar from './components/Navbar.jsx';
 import Background3D from './components/Background3D.jsx';
 import './App.css';
-import './tech.css';
 
 function App() {
 	const location = useLocation();

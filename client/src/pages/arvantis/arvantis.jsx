@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-	getArvantisLandingData,
-	getFestDetails,
-	getAllFests,
+  getArvantisLandingData,
+  getFestDetails,
+  getAllFests,
 } from '../../services/arvantisServices.js';
 import EventDetailModal from '../../components/event/EventDetailModal.jsx';
 import { Calendar, Image as ImageIcon, Layers3, Users, Search, Filter, ChevronDown } from 'lucide-react';
@@ -17,6 +17,7 @@ import GalleryGrid from '../../components/Arvantis/GalleryGrid.jsx';
 import ImageLightbox from '../../components/Arvantis/ImageLightbox.jsx';
 import ErrorBlock from '../../components/Arvantis/ErrorBlock.jsx';
 import LoadingBlock from '../../components/Arvantis/LoadingBlock.jsx';
+import '../../arvantis.css';
 
 const ITEMS_IN_PAST_SECTION = 8;
 
