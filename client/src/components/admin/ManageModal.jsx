@@ -19,6 +19,7 @@ import formatApiError from '../../utils/formatApiError.js';
 const TABS = ['partners', 'speakers', 'resources', 'coOrganizers', 'posters'];
 
 const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) => {
+	// Local state (keeps UI simple)
 	const [tab, setTab] = useState('partners');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
@@ -35,7 +36,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		mountedRef.current = true;
 		return () => {
 			mountedRef.current = false;
-			// abort any in-flight request when unmounting modal
 			if (abortRef.current) {
 				abortRef.current.abort();
 				abortRef.current = null;
@@ -44,19 +44,19 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 	}, []);
 
 	useEffect(() => {
-		setError('');
-		setPartnerForm({ name: '', website: '', logo: null });
-		setSpeakerForm({ name: '', title: '', bio: '', photo: null });
-		setResourceForm({ title: '', url: '' });
-		setCoName('');
-		setPosterFile(null);
+		// reset forms when opening a new event
+		if (open) {
+			setError('');
+			setPartnerForm({ name: '', website: '', logo: null });
+			setSpeakerForm({ name: '', title: '', bio: '', photo: null });
+			setResourceForm({ title: '', url: '' });
+			setCoName('');
+			setPosterFile(null);
+		}
 	}, [event, open]);
 
-	const createAbort = () => {
-		// cancel previous if any
-		if (abortRef.current) {
-			abortRef.current.abort();
-		}
+	const createAbortSignal = () => {
+		if (abortRef.current) abortRef.current.abort();
 		abortRef.current = new AbortController();
 		return abortRef.current.signal;
 	};
@@ -68,7 +68,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		toast.error(msg);
 	};
 
-	// Defensive: ensure event exists
 	const ensureEventId = () => {
 		if (!event || !event._id) {
 			const msg = 'Event not available';
@@ -79,19 +78,34 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		return event._id;
 	};
 
+	// small helper to centralize loading / error handling
+	const run = async (fn, successMessage) => {
+		setError('');
+		if (!mountedRef.current) return;
+		setLoading(true);
+		const signal = createAbortSignal();
+		try {
+			await fn(signal);
+			if (mountedRef.current && successMessage) toast.success(successMessage);
+			onDone?.();
+			return true;
+		} catch (err) {
+			// ignore abort cancellations
+			if (err?.name === 'CanceledError' || err?.message === 'canceled') return false;
+			handleApiError(err);
+			return false;
+		} finally {
+			if (mountedRef.current) setLoading(false);
+		}
+	};
+
 	// Partners
 	const handleAddPartner = async () => {
-		if (!partnerForm.name || !partnerForm.name.trim()) {
-			return setError('Name required');
-		}
+		if (!partnerForm.name?.trim()) return setError('Partner name is required');
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) {
-			setError('');
-			setLoading(true);
-		}
-		const signal = createAbort();
-		try {
+
+		await run(async (signal) => {
 			let payload;
 			if (partnerForm.logo instanceof File) {
 				payload = new FormData();
@@ -99,58 +113,29 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 				if (partnerForm.website) payload.append('website', partnerForm.website.trim());
 				payload.append('logo', partnerForm.logo);
 			} else {
-				payload = {
-					name: partnerForm.name.trim(),
-					website: partnerForm.website?.trim(),
-				};
+				payload = { name: partnerForm.name.trim(), website: partnerForm.website?.trim() };
 			}
 			await addEventPartner(id, payload, { signal });
-			if (mountedRef.current) {
-				setPartnerForm({ name: '', website: '', logo: null });
-				toast.success('Partner added');
-				onDone && onDone();
-			}
-		} catch (err) {
-			// ignore abort errors
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+			// reset only after success
+			if (mountedRef.current) setPartnerForm({ name: '', website: '', logo: null });
+		}, 'Partner added');
 	};
 
-	const handleRemovePartner = async (ident) => {
-		if (!ident) return;
+	const handleRemovePartner = async (identifier) => {
+		if (!identifier) return;
 		if (!window.confirm('Remove partner?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) setLoading(true);
-		const signal = createAbort();
-		try {
-			await removeEventPartner(id, ident, { signal });
-			if (mountedRef.current) {
-				toast.success('Partner removed');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+		await run((signal) => removeEventPartner(id, identifier, { signal }), 'Partner removed');
 	};
 
 	// Speakers
 	const handleAddSpeaker = async () => {
-		if (!speakerForm.name || !speakerForm.name.trim()) return setError('Name required');
+		if (!speakerForm.name?.trim()) return setError('Speaker name is required');
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) {
-			setError('');
-			setLoading(true);
-		}
-		const signal = createAbort();
-		try {
+
+		await run(async (signal) => {
 			let payload;
 			if (speakerForm.photo instanceof File) {
 				payload = new FormData();
@@ -166,134 +151,61 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 				};
 			}
 			await addEventSpeaker(id, payload, { signal });
-			if (mountedRef.current) {
-				setSpeakerForm({ name: '', title: '', bio: '', photo: null });
-				toast.success('Speaker added');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+			if (mountedRef.current) setSpeakerForm({ name: '', title: '', bio: '', photo: null });
+		}, 'Speaker added');
 	};
 
 	const handleRemoveSpeaker = async (index) => {
 		if (!window.confirm('Remove speaker?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) setLoading(true);
-		const signal = createAbort();
-		try {
-			await removeEventSpeaker(id, index, { signal });
-			if (mountedRef.current) {
-				toast.success('Speaker removed');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+		await run((signal) => removeEventSpeaker(id, index, { signal }), 'Speaker removed');
 	};
 
 	// Resources
 	const handleAddResource = async () => {
-		if (!resourceForm.title || !resourceForm.url) return setError('Title and URL required');
+		if (!resourceForm.title?.trim() || !resourceForm.url?.trim())
+			return setError('Title and URL are required');
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) {
-			setError('');
-			setLoading(true);
-		}
-		const signal = createAbort();
-		try {
+
+		await run(async (signal) => {
 			await addEventResource(
 				id,
-				{
-					title: resourceForm.title.trim(),
-					url: resourceForm.url.trim(),
-				},
+				{ title: resourceForm.title.trim(), url: resourceForm.url.trim() },
 				{ signal }
 			);
-			if (mountedRef.current) {
-				setResourceForm({ title: '', url: '' });
-				toast.success('Resource added');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+			if (mountedRef.current) setResourceForm({ title: '', url: '' });
+		}, 'Resource added');
 	};
 
 	const handleRemoveResource = async (index) => {
 		if (!window.confirm('Remove resource?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) setLoading(true);
-		const signal = createAbort();
-		try {
-			await removeEventResource(id, index, { signal });
-			if (mountedRef.current) {
-				toast.success('Resource removed');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+		await run((signal) => removeEventResource(id, index, { signal }), 'Resource removed');
 	};
 
 	// Co-organizers
 	const handleAddCo = async () => {
-		if (!coName || !coName.trim()) return setError('Name required');
+		if (!coName?.trim()) return setError('Name required');
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) {
-			setError('');
-			setLoading(true);
-		}
-		const signal = createAbort();
-		try {
-			await addEventCoOrganizer(id, { name: coName.trim() }, { signal });
-			if (mountedRef.current) {
-				setCoName('');
-				toast.success('Co-organizer added');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+		await run(
+			(signal) => addEventCoOrganizer(id, { name: coName.trim() }, { signal }),
+			'Co-organizer added'
+		);
+		if (mountedRef.current) setCoName('');
 	};
 
 	const handleRemoveCoIndex = async (idx) => {
 		if (!window.confirm('Remove co-organizer?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) setLoading(true);
-		const signal = createAbort();
-		try {
-			await removeEventCoOrganizerByIndex(id, idx, { signal });
-			if (mountedRef.current) {
-				toast.success('Co-organizer removed');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+		await run(
+			(signal) => removeEventCoOrganizerByIndex(id, idx, { signal }),
+			'Co-organizer removed'
+		);
 	};
 
 	const handleRemoveCoName = async (name) => {
@@ -301,20 +213,10 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!window.confirm(`Remove co-organizer "${name}"?`)) return;
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) setLoading(true);
-		const signal = createAbort();
-		try {
-			await removeEventCoOrganizerByName(id, name, { signal });
-			if (mountedRef.current) {
-				toast.success('Co-organizer removed');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+		await run(
+			(signal) => removeEventCoOrganizerByName(id, name, { signal }),
+			'Co-organizer removed'
+		);
 	};
 
 	// Posters
@@ -322,26 +224,12 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!posterFile) return setError('Choose a file first');
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) {
-			setError('');
-			setLoading(true);
-		}
-		const signal = createAbort();
-		try {
+		await run(async (signal) => {
 			const fd = new FormData();
 			fd.append('poster', posterFile);
 			await addEventPoster(id, fd, { signal });
-			if (mountedRef.current) {
-				setPosterFile(null);
-				toast.success('Poster added');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+			if (mountedRef.current) setPosterFile(null);
+		}, 'Poster added');
 	};
 
 	const handleRemovePoster = async (publicId) => {
@@ -349,30 +237,17 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!window.confirm('Remove poster?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		if (mountedRef.current) setLoading(true);
-		const signal = createAbort();
-		try {
-			await removeEventPoster(id, publicId, { signal });
-			if (mountedRef.current) {
-				toast.success('Poster removed');
-				onDone && onDone();
-			}
-		} catch (err) {
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
-			handleApiError(err);
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
+		await run((signal) => removeEventPoster(id, publicId, { signal }), 'Poster removed');
 	};
 
 	if (!open || !event) return null;
 
-	// derive lists from event
-	const partners = event.partners || [];
-	const speakers = event.speakers || [];
-	const resources = event.resources || [];
-	const coOrganizers = event.coOrganizers || [];
-	const posters = event.posters || [];
+	// derive lists from event safely
+	const partners = Array.isArray(event.partners) ? event.partners : [];
+	const speakers = Array.isArray(event.speakers) ? event.speakers : [];
+	const resources = Array.isArray(event.resources) ? event.resources : [];
+	const coOrganizers = Array.isArray(event.coOrganizers) ? event.coOrganizers : [];
+	const posters = Array.isArray(event.posters) ? event.posters : [];
 
 	return (
 		<div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/60">
@@ -384,7 +259,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 							type="button"
 							onClick={() => onClose?.()}
 							className="px-3 py-1 rounded bg-gray-800 text-white"
-							aria-label="Close"
 						>
 							Close
 						</button>
@@ -392,7 +266,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 							type="button"
 							onClick={() => onDone?.()}
 							className="px-3 py-1 rounded bg-blue-600 text-white"
-							aria-label="Done"
 						>
 							Done
 						</button>
@@ -400,7 +273,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 				</div>
 
 				<div className="flex flex-col md:flex-row">
-					{/* Left nav for md+; horizontal tabs for small screens */}
 					<nav className="hidden md:block w-40 border-r border-gray-800">
 						{TABS.map((t) => (
 							<button
@@ -415,7 +287,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 										? 'bg-gray-800 text-white'
 										: 'text-gray-300 hover:bg-gray-800/40'
 								}`}
-								aria-pressed={tab === t}
 							>
 								{t === 'partners' && 'Partners'}
 								{t === 'speakers' && 'Speakers'}
@@ -426,7 +297,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 						))}
 					</nav>
 
-					{/* Horizontal tabs on small */}
 					<div className="md:hidden border-b border-gray-800 overflow-x-auto">
 						<div className="flex gap-1 px-2">
 							{TABS.map((t) => (
@@ -442,7 +312,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											? 'bg-gray-800 text-white'
 											: 'text-gray-300 hover:bg-gray-800/40'
 									}`}
-									aria-pressed={tab === t}
 								>
 									{t === 'partners' && 'Partners'}
 									{t === 'speakers' && 'Speakers'}
@@ -454,13 +323,11 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 						</div>
 					</div>
 
-					{/* content */}
 					<div className="flex-1 p-4 min-h-[300px] max-h-[70vh] overflow-y-auto">
 						{error && <div className="mb-3 text-sm text-red-400">{error}</div>}
 
 						{tab === 'partners' && (
 							<div className="space-y-4">
-								{/* list */}
 								<div className="space-y-2">
 									{partners.length === 0 && (
 										<div className="text-sm text-gray-400">No partners</div>
@@ -506,7 +373,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 														)
 													}
 													className="text-red-400 p-1"
-													aria-label={`Remove partner ${p.name}`}
 													disabled={loading}
 												>
 													<Trash2 className="h-4 w-4" />
@@ -516,7 +382,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 									))}
 								</div>
 
-								{/* add */}
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
 									<input
 										placeholder="Name"
@@ -525,7 +390,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											setPartnerForm((v) => ({ ...v, name: e.target.value }))
 										}
 										className="px-3 py-2 bg-gray-800 rounded w-full"
-										aria-label="Partner name"
 										disabled={loading}
 									/>
 									<input
@@ -538,7 +402,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											}))
 										}
 										className="px-3 py-2 bg-gray-800 rounded w-full"
-										aria-label="Partner website"
 										disabled={loading}
 									/>
 									<div className="flex items-center gap-2">
@@ -552,7 +415,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 												}))
 											}
 											className="text-sm"
-											aria-label="Partner logo"
 											disabled={loading}
 										/>
 										<button
@@ -560,7 +422,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											onClick={handleAddPartner}
 											disabled={loading}
 											className="px-3 py-2 bg-blue-600 rounded text-white"
-											aria-label="Add partner"
 										>
 											<Plus className="inline-block mr-2 h-4 w-4" /> Add
 										</button>
@@ -605,7 +466,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 												type="button"
 												onClick={() => handleRemoveSpeaker(idx)}
 												className="text-red-400 p-1"
-												aria-label={`Remove speaker ${s.name}`}
 												disabled={loading}
 											>
 												<Trash2 className="h-4 w-4" />
@@ -621,7 +481,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											setSpeakerForm((v) => ({ ...v, name: e.target.value }))
 										}
 										className="px-3 py-2 bg-gray-800 rounded w-full"
-										aria-label="Speaker name"
 										disabled={loading}
 									/>
 									<input
@@ -631,7 +490,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											setSpeakerForm((v) => ({ ...v, title: e.target.value }))
 										}
 										className="px-3 py-2 bg-gray-800 rounded w-full"
-										aria-label="Speaker title"
 										disabled={loading}
 									/>
 									<input
@@ -641,7 +499,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											setSpeakerForm((v) => ({ ...v, bio: e.target.value }))
 										}
 										className="px-3 py-2 bg-gray-800 rounded w-full"
-										aria-label="Speaker bio"
 										disabled={loading}
 									/>
 									<div className="flex items-center gap-2">
@@ -655,7 +512,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 												}))
 											}
 											className="text-sm"
-											aria-label="Speaker photo"
 											disabled={loading}
 										/>
 										<button
@@ -663,7 +519,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											onClick={handleAddSpeaker}
 											disabled={loading}
 											className="px-3 py-2 bg-blue-600 rounded text-white"
-											aria-label="Add speaker"
 										>
 											<Plus className="inline-block mr-2 h-4 w-4" /> Add
 										</button>
@@ -695,7 +550,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 												type="button"
 												onClick={() => handleRemoveResource(idx)}
 												className="text-red-400 p-1"
-												aria-label={`Remove resource ${r.title}`}
 												disabled={loading}
 											>
 												<Trash2 className="h-4 w-4" />
@@ -714,7 +568,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											}))
 										}
 										className="px-3 py-2 bg-gray-800 rounded w-full"
-										aria-label="Resource title"
 										disabled={loading}
 									/>
 									<input
@@ -724,7 +577,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											setResourceForm((v) => ({ ...v, url: e.target.value }))
 										}
 										className="px-3 py-2 bg-gray-800 rounded w-full"
-										aria-label="Resource url"
 										disabled={loading}
 									/>
 									<button
@@ -732,7 +584,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 										onClick={handleAddResource}
 										disabled={loading}
 										className="px-3 py-2 bg-blue-600 rounded text-white"
-										aria-label="Add resource"
 									>
 										<Plus className="inline-block mr-2 h-4 w-4" /> Add
 									</button>
@@ -756,7 +607,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 												type="button"
 												onClick={() => handleRemoveCoIndex(idx)}
 												className="text-red-400 p-1"
-												aria-label={`Remove co-organizer ${c}`}
 												disabled={loading}
 											>
 												<Trash2 className="h-4 w-4" />
@@ -765,10 +615,9 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 												type="button"
 												onClick={() => handleRemoveCoName(c)}
 												className="text-yellow-400 p-1"
-												aria-label={`Remove co-organizer by name ${c}`}
 												disabled={loading}
 											>
-												Remove by name
+												By name
 											</button>
 										</div>
 									</div>
@@ -779,7 +628,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 										value={coName}
 										onChange={(e) => setCoName(e.target.value)}
 										className="px-3 py-2 bg-gray-800 rounded flex-1"
-										aria-label="Co-organizer name"
 										disabled={loading}
 									/>
 									<button
@@ -787,7 +635,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 										onClick={handleAddCo}
 										disabled={loading}
 										className="px-3 py-2 bg-blue-600 rounded text-white"
-										aria-label="Add co-organizer"
 									>
 										<Plus className="inline-block mr-2 h-4 w-4" /> Add
 									</button>
@@ -827,7 +674,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 														)
 													}
 													className="text-red-400 p-1"
-													aria-label="Remove poster"
 													disabled={loading}
 												>
 													<Trash2 className="h-4 w-4" />
@@ -844,7 +690,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											setPosterFile(e?.target?.files?.[0] || null)
 										}
 										className="text-sm"
-										aria-label="Poster file"
 										disabled={loading}
 									/>
 									<button
@@ -852,7 +697,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 										onClick={handleAddPoster}
 										disabled={loading}
 										className="px-3 py-2 bg-blue-600 rounded text-white"
-										aria-label="Add poster"
 									>
 										<Plus className="inline-block mr-2 h-4 w-4" /> Add
 									</button>
