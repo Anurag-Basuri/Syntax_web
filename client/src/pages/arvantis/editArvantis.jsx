@@ -31,7 +31,7 @@ const FILE_TYPES_IMAGES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 
 
 const safeFilename = (s = '') => String(s).replace(/[:]/g, '-').replace(/\s+/g, '-');
 
-const ArvantisTab = ({ setDashboardError = () => {} }) => {
+const EditArvantis = ({ setDashboardError = () => {} }) => {
 	// state
 	const [fests, setFests] = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -52,7 +52,16 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 	});
 
 	const [editForm, setEditForm] = useState(null);
-	const mountedRef = useRef(true);
+	const mountedRef = useRef(false);
+
+	// avoid re-selecting first fest multiple times
+	const firstSelectDoneRef = useRef(false);
+
+	// keep a stable ref to external callback to avoid re-creating fetchFests
+	const setDashboardErrorRef = useRef(setDashboardError);
+	useEffect(() => {
+		setDashboardErrorRef.current = setDashboardError;
+	}, [setDashboardError]);
 
 	useEffect(() => {
 		mountedRef.current = true;
@@ -61,81 +70,109 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		};
 	}, []);
 
-	// load list of fests (paginated large limit)
-	const fetchFests = useCallback(async () => {
-		setLoading(true);
-		try {
-			const resp = await getAllFests({ page: 1, limit: 200 }, { admin: true });
-			const docs = resp?.docs || [];
-			if (mountedRef.current) setFests(docs);
-		} catch (err) {
-			console.error(err);
-			setDashboardError(err?.message || 'Failed to load fests');
-			toast.error(err?.message || 'Failed to load fests');
-		} finally {
-			if (mountedRef.current) setLoading(false);
-		}
-	}, [setDashboardError]);
+	// helper to extract error message
+	const getErrMsg = (err, fallback = 'Request failed') =>
+		err?.response?.data?.message || err?.response?.data?.error || err?.message || fallback;
 
-	// load events for linking
-	const fetchEvents = useCallback(async () => {
+	// load selected fest details
+	const loadFestDetails = useCallback(
+		async (identifier) => {
+			if (!identifier) {
+				if (mountedRef.current) setEditForm(null);
+				return;
+			}
+			setActionBusy(true);
+			try {
+				const data = await getFestDetails(identifier, { admin: true });
+				if (!data) {
+					if (mountedRef.current) setEditForm(null);
+					return;
+				}
+				const form = {
+					_id: data._id,
+					name: data.name,
+					year: data.year,
+					description: data.description,
+					startDate: data.startDate
+						? new Date(data.startDate).toISOString().slice(0, 16)
+						: '',
+					endDate: data.endDate ? new Date(data.endDate).toISOString().slice(0, 16) : '',
+					status: data.status,
+					location: data.location,
+					contactEmail: data.contactEmail || '',
+					partners: data.partners || [],
+					gallery: data.gallery || [],
+					poster: data.poster || null,
+					events: data.events || [],
+				};
+				if (mountedRef.current) {
+					setEditForm(form);
+					setSelectedFestId(data._id);
+				}
+			} catch (err) {
+				console.error('loadFestDetails', err);
+				toast.error(getErrMsg(err, 'Failed to load fest details'));
+			} finally {
+				if (mountedRef.current) setActionBusy(false);
+			}
+		},
+		[] // stable
+	);
+
+	// load list of fests (paginated large limit)
+	const fetchFests = useCallback(
+		async (signal) => {
+			setLoading(true);
+			try {
+				const resp = await getAllFests({ page: 1, limit: 200 }, { admin: true, signal });
+				const docs = resp?.docs || [];
+				if (mountedRef.current) {
+					setFests(docs);
+					// auto-select first fest once (deterministic)
+					if (!firstSelectDoneRef.current && docs.length > 0) {
+						firstSelectDoneRef.current = true;
+						void loadFestDetails(docs[0]._id);
+					}
+				}
+			} catch (err) {
+				// ignore aborts
+				if (err?.name === 'CanceledError' || err?.name === 'AbortError') return;
+				console.error('fetchFests', err);
+				try {
+					setDashboardErrorRef.current?.(getErrMsg(err, 'Failed to load fests'));
+				} catch (e) {
+					/* ignore */
+				}
+				toast.error(getErrMsg(err, 'Failed to load fests'));
+			} finally {
+				if (mountedRef.current) setLoading(false);
+			}
+		},
+		[loadFestDetails]
+	);
+
+	// load events for linking (with abort support)
+	const fetchEvents = useCallback(async (signal) => {
 		try {
-			const resp = await svcGetEvents({ page: 1, limit: 500 }, { signal: undefined });
+			const resp = await svcGetEvents({ page: 1, limit: 500 }, { signal });
 			const docs = resp?.docs || [];
 			if (mountedRef.current) setEvents(docs);
 		} catch (err) {
+			if (err?.name === 'CanceledError' || err?.name === 'AbortError') return;
 			console.error('fetchEvents', err);
 		}
 	}, []);
 
 	useEffect(() => {
-		fetchFests();
-		fetchEvents();
+		const ac1 = new AbortController();
+		const ac2 = new AbortController();
+		void fetchFests(ac1.signal);
+		void fetchEvents(ac2.signal);
+		return () => {
+			ac1.abort();
+			ac2.abort();
+		};
 	}, [fetchFests, fetchEvents]);
-
-	// load selected fest details
-	const loadFestDetails = useCallback(async (identifier) => {
-		if (!identifier) {
-			setEditForm(null);
-			return;
-		}
-		setActionBusy(true);
-		try {
-			const data = await getFestDetails(identifier, { admin: true });
-			const form = {
-				_id: data._id,
-				name: data.name,
-				year: data.year,
-				description: data.description,
-				startDate: data.startDate
-					? new Date(data.startDate).toISOString().slice(0, 16)
-					: '',
-				endDate: data.endDate ? new Date(data.endDate).toISOString().slice(0, 16) : '',
-				status: data.status,
-				location: data.location,
-				contactEmail: data.contactEmail || '',
-				partners: data.partners || [],
-				gallery: data.gallery || [],
-				poster: data.poster || null,
-				events: data.events || [],
-			};
-			if (mountedRef.current) {
-				setEditForm(form);
-				setSelectedFestId(data._id);
-			}
-		} catch (err) {
-			console.error('loadFestDetails', err);
-			toast.error(err?.message || 'Failed to load fest details');
-		} finally {
-			if (mountedRef.current) setActionBusy(false);
-		}
-	}, []);
-
-	useEffect(() => {
-		if (!selectedFestId && fests && fests.length > 0) {
-			loadFestDetails(fests[0]._id);
-		}
-	}, [fests]); // eslint-disable-line
 
 	// create
 	const handleCreateSubmit = async (e) => {
@@ -147,20 +184,22 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				year: Number(createForm.year),
 				name: createForm.name,
 				description: createForm.description,
-				startDate: createForm.startDate,
-				endDate: createForm.endDate,
+				startDate: createForm.startDate || null,
+				endDate: createForm.endDate || null,
 			};
 			const created = await svcCreateFest(payload);
 			toast.success('Fest created');
+			// refresh list and select created fest
 			await fetchFests();
 			setCreateOpen(false);
-			if (created?._id) loadFestDetails(created._id);
+			if (created?._id) await loadFestDetails(created._id);
 		} catch (err) {
-			console.error(err);
-			setLocalError(err?.message || 'Create failed');
-			toast.error(err?.message || 'Create failed');
+			console.error('createFest', err);
+			const msg = getErrMsg(err, 'Create failed');
+			setLocalError(msg);
+			toast.error(msg);
 		} finally {
-			setCreateLoading(false);
+			if (mountedRef.current) setCreateLoading(false);
 		}
 	};
 
@@ -171,8 +210,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		try {
 			const payload = {
 				description: editForm.description,
-				startDate: editForm.startDate,
-				endDate: editForm.endDate,
+				startDate: editForm.startDate || null,
+				endDate: editForm.endDate || null,
 				status: editForm.status,
 				location: editForm.location,
 				contactEmail: editForm.contactEmail,
@@ -182,10 +221,10 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			await fetchFests();
 			await loadFestDetails(editForm._id);
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Update failed');
+			console.error('saveEdit', err);
+			toast.error(getErrMsg(err, 'Update failed'));
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
 	};
 
@@ -196,21 +235,25 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		try {
 			await svcDeleteFest(fest._id);
 			toast.success('Fest deleted');
+			// refresh list and reset selection
 			await fetchFests();
-			setEditForm(null);
-			setSelectedFestId(null);
+			if (mountedRef.current) {
+				setEditForm(null);
+				setSelectedFestId(null);
+			}
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Delete failed');
+			console.error('removeFest', err);
+			toast.error(getErrMsg(err, 'Delete failed'));
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
 	};
 
 	// poster upload
 	const uploadPoster = async (file) => {
-		if (!file) return;
-		if (file.size > MAX_FILE_SIZE) return toast.error('File too large');
+		if (!file || !editForm || !editForm._id) return;
+		if (file.size > MAX_FILE_SIZE) return toast.error('File too large (max 10MB)');
+		if (!FILE_TYPES_IMAGES.includes(file.type)) return toast.error('Invalid image type');
 		const fd = new FormData();
 		fd.append('poster', file);
 		setActionBusy(true);
@@ -219,35 +262,42 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			toast.success('Poster uploaded');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Poster upload failed');
+			console.error('uploadPoster', err);
+			toast.error(getErrMsg(err, 'Poster upload failed'));
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
 	};
 
 	// gallery add
 	const addGallery = async (files) => {
-		if (!files || files.length === 0) return;
+		if (!files || files.length === 0 || !editForm || !editForm._id) return;
 		const fd = new FormData();
 		for (const f of files) {
+			// basic validations
+			if (f.size > MAX_FILE_SIZE) {
+				toast.error(`File ${f.name} is too large (max 10MB). Skipping.`);
+				continue;
+			}
 			fd.append('media', f);
 		}
+		// If nothing appended, skip
+		if (![...fd.keys()].length) return;
 		setActionBusy(true);
 		try {
 			await svcAddGallery(editForm._id, fd);
 			toast.success('Gallery uploaded');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Gallery upload failed');
+			console.error('addGallery', err);
+			toast.error(getErrMsg(err, 'Gallery upload failed'));
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
 	};
 
 	const removeGalleryItem = async (publicId) => {
-		if (!publicId) return;
+		if (!publicId || !editForm || !editForm._id) return;
 		if (!window.confirm('Remove gallery item?')) return;
 		setActionBusy(true);
 		try {
@@ -255,10 +305,10 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			toast.success('Gallery item removed');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Remove failed');
+			console.error('removeGalleryItem', err);
+			toast.error(getErrMsg(err, 'Remove failed'));
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
 	};
 
@@ -271,11 +321,11 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			toast.success('Partner added');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Add partner failed');
+			console.error('addNewPartner', err);
+			toast.error(getErrMsg(err, 'Add partner failed'));
 			throw err;
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
 	};
 
@@ -288,10 +338,10 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			toast.success('Partner removed');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Remove partner failed');
+			console.error('removeExistingPartner', err);
+			toast.error(getErrMsg(err, 'Remove partner failed'));
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
 	};
 
@@ -300,21 +350,17 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		if (!eventId || !editForm || !editForm._id) return;
 		setActionBusy(true);
 		try {
-			await svcLinkOrThrow(editForm._id, eventId);
+			await import('../../services/arvantisServices').then((m) =>
+				m.linkEventToFest(editForm._id, eventId)
+			);
 			toast.success('Event linked');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Link failed');
+			console.error('handleLinkEvent', err);
+			toast.error(getErrMsg(err, 'Link failed'));
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
-	};
-
-	// helper wrapper to call exported service function
-	const svcLinkOrThrow = async (identifier, eventId) => {
-		const { linkEventToFest } = await import('../../services/arvantisServices');
-		return linkEventToFest(identifier, eventId);
 	};
 
 	const handleUnlinkEvent = async (eventId) => {
@@ -322,15 +368,16 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		if (!window.confirm('Unlink event from fest?')) return;
 		setActionBusy(true);
 		try {
-			const { unlinkEventFromFest } = await import('../../services/arvantisServices');
-			await unlinkEventFromFest(editForm._id, eventId);
+			await import('../../services/arvantisServices').then((m) =>
+				m.unlinkEventFromFest(editForm._id, eventId)
+			);
 			toast.success('Event unlinked');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Unlink failed');
+			console.error('handleUnlinkEvent', err);
+			toast.error(getErrMsg(err, 'Unlink failed'));
 		} finally {
-			setActionBusy(false);
+			if (mountedRef.current) setActionBusy(false);
 		}
 	};
 
@@ -339,7 +386,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		setDownloadingCSV(true);
 		try {
 			const blob = await svcExportCSV();
-			// svcExportCSV returns a Blob (response.data)
 			const url = window.URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob]));
 			const a = document.createElement('a');
 			a.href = url;
@@ -350,10 +396,10 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			window.URL.revokeObjectURL(url);
 			toast.success('CSV downloaded');
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Export failed');
+			console.error('exportCSV', err);
+			toast.error(getErrMsg(err, 'Export failed'));
 		} finally {
-			setDownloadingCSV(false);
+			if (mountedRef.current) setDownloadingCSV(false);
 		}
 	};
 
@@ -363,8 +409,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			console.log('analytics', analytics);
 			toast.success('Analytics loaded (check console)');
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Analytics failed');
+			console.error('loadAnalytics', err);
+			toast.error(getErrMsg(err, 'Analytics failed'));
 		}
 	};
 
@@ -375,8 +421,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			console.log('report', report);
 			toast.success('Report generated (check console)');
 		} catch (err) {
-			console.error(err);
-			toast.error(err?.message || 'Report failed');
+			console.error('generateReport', err);
+			toast.error(getErrMsg(err, 'Report failed'));
 		}
 	};
 
@@ -392,7 +438,13 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 				<GlassCard className="p-4">
 					<div className="flex items-center justify-between mb-3">
 						<h3 className="font-semibold text-white">Fests</h3>
-						<button onClick={() => fetchFests()} className="text-sm text-gray-400">
+						<button
+							onClick={() => {
+								const ac = new AbortController();
+								void fetchFests(ac.signal);
+							}}
+							className="text-sm text-gray-400"
+						>
 							Refresh
 						</button>
 					</div>
@@ -415,10 +467,11 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 						{visibleFests.map((f) => (
 							<button
 								key={f._id}
-								onClick={() => loadFestDetails(f._id)}
+								onClick={() => void loadFestDetails(f._id)}
 								className={`w-full text-left p-3 rounded ${
 									selectedFestId === f._id ? 'bg-purple-800/40' : 'bg-white/3'
 								} transition`}
+								aria-pressed={selectedFestId === f._id}
 							>
 								<div className="flex items-center justify-between">
 									<div>
@@ -443,7 +496,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 							New Fest
 						</button>
 						<button
-							onClick={exportCSV}
+							onClick={() => void exportCSV()}
 							className="px-3 py-2 rounded bg-gray-800 text-white disabled:opacity-50"
 							disabled={downloadingCSV}
 						>
@@ -462,13 +515,16 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 					<h4 className="font-semibold text-white mb-2">Utilities</h4>
 					<div className="flex flex-col gap-2">
 						<button
-							onClick={loadAnalytics}
+							onClick={() => void loadAnalytics()}
 							className="py-2 rounded bg-blue-600 text-white"
 						>
 							Load Analytics
 						</button>
 						<button
-							onClick={() => fetchEvents()}
+							onClick={() => {
+								const ac = new AbortController();
+								void fetchEvents(ac.signal);
+							}}
 							className="py-2 rounded bg-gray-700 text-white"
 						>
 							Refresh Events
@@ -501,21 +557,21 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 
 							<div className="flex gap-2">
 								<button
-									onClick={saveEdit}
+									onClick={() => void saveEdit()}
 									disabled={actionBusy}
 									className="px-4 py-2 bg-emerald-600 text-white rounded"
 								>
 									Save
 								</button>
 								<button
-									onClick={() => removeFest(editForm)}
+									onClick={() => void removeFest(editForm)}
 									disabled={actionBusy}
 									className="px-4 py-2 bg-red-600 text-white rounded"
 								>
 									Delete
 								</button>
 								<button
-									onClick={generateReport}
+									onClick={() => void generateReport()}
 									disabled={actionBusy}
 									className="px-4 py-2 bg-gray-800 text-white rounded"
 								>
@@ -589,7 +645,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 							<input
 								type="file"
 								accept="image/*"
-								onChange={(e) => uploadPoster(e.target.files?.[0])}
+								onChange={(e) => void uploadPoster(e.target.files?.[0])}
 								disabled={actionBusy}
 							/>
 						</div>
@@ -610,8 +666,9 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 											/>
 										)}
 										<button
-											onClick={() => removeGalleryItem(g.publicId)}
+											onClick={() => void removeGalleryItem(g.publicId)}
 											className="absolute top-1 right-1 p-1 bg-black/50 rounded text-red-400"
+											aria-label="Remove gallery item"
 										>
 											<Trash2 className="w-4 h-4" />
 										</button>
@@ -625,7 +682,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 								type="file"
 								multiple
 								accept="image/*,video/*"
-								onChange={(e) => addGallery(Array.from(e.target.files || []))}
+								onChange={(e) => void addGallery(Array.from(e.target.files || []))}
 								disabled={actionBusy}
 							/>
 						</div>
@@ -667,7 +724,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 										</div>
 										<div>
 											<button
-												onClick={() => removeExistingPartner(p.name)}
+												onClick={() => void removeExistingPartner(p.name)}
 												className="text-red-400"
 											>
 												Remove
@@ -685,7 +742,10 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 									Linked Events ({(editForm.events || []).length})
 								</h4>
 								<select
-									onChange={(e) => handleLinkEvent(e.target.value)}
+									onChange={(e) => {
+										const val = e.target.value;
+										if (val) void handleLinkEvent(val);
+									}}
 									className="p-2 bg-white/5 rounded"
 								>
 									<option value="">Link an event</option>
@@ -712,7 +772,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 										</div>
 										<div>
 											<button
-												onClick={() => handleUnlinkEvent(ev._id)}
+												onClick={() => void handleUnlinkEvent(ev._id)}
 												className="text-red-400"
 											>
 												Unlink
@@ -799,4 +859,4 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 	);
 };
 
-export default ArvantisTab;
+export default EditArvantis;
