@@ -73,56 +73,16 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	const rightPaneRef = useRef(null);
 	const modalRootRef = useRef(null);
 
-	// --- use application theme hook (support array/object/string shapes)
+	// follow application theme via useTheme (no local toggle in modal)
 	const themeCtx = useTheme();
 	let appTheme = undefined;
-	let appSetTheme = undefined;
 	if (Array.isArray(themeCtx)) {
-		[appTheme, appSetTheme] = themeCtx;
+		appTheme = themeCtx[0];
 	} else if (themeCtx && typeof themeCtx === 'object') {
 		appTheme = themeCtx.theme ?? themeCtx[0];
-		appSetTheme = themeCtx.setTheme ?? themeCtx[1];
 	} else if (typeof themeCtx === 'string') {
 		appTheme = themeCtx;
 	}
-	// fallback local state if app theme is not ready
-	const [localTheme, setLocalTheme] = useState(() => {
-		try {
-			return (
-				appTheme ||
-				localStorage.getItem('site-theme') ||
-				(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-					? 'dark'
-					: 'light')
-			);
-		} catch {
-			return appTheme || 'light';
-		}
-	});
-	// keep local in sync with app theme
-	useEffect(() => {
-		if (appTheme && appTheme !== localTheme) setLocalTheme(appTheme);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [appTheme]);
-
-	// apply theme class to documentElement
-	useEffect(() => {
-		if (localTheme === 'dark') document.documentElement.classList.add('dark');
-		else document.documentElement.classList.remove('dark');
-		try {
-			localStorage.setItem('site-theme', localTheme);
-		} catch {}
-	}, [localTheme]);
-
-	const toggleTheme = () => {
-		const next = localTheme === 'dark' ? 'light' : 'dark';
-		try {
-			if (typeof appSetTheme === 'function') appSetTheme(next);
-		} catch {
-			/* ignore */
-		}
-		setLocalTheme(next);
-	};
 
 	const { data: event } = useQuery({
 		queryKey: ['event-full', id],
@@ -307,14 +267,6 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 							</div>
 
 							<div className="flex items-center gap-2">
-								<button
-									onClick={toggleTheme}
-									title="Toggle theme"
-									className="p-2 rounded-md bg-white/10 text-white hover:bg-white/20"
-									aria-label="Toggle theme"
-								>
-									{localTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-								</button>
 								<button
 									onClick={onClose}
 									className="p-2 rounded-md bg-white/10 text-white hover:bg-white/20"
