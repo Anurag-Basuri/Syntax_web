@@ -6,7 +6,6 @@ import { apiClient, publicClient } from './api.js';
  */
 const normalizePagination = (raw) => {
 	const payload = raw?.data ?? raw ?? {};
-	// Case: ApiResponse with data array and pagination object
 	const data = payload.data ?? payload.docs ?? payload;
 	if (Array.isArray(data)) {
 		const docs = payload.data || payload.docs || data;
@@ -23,13 +22,9 @@ const normalizePagination = (raw) => {
 			nextPage: pagination.nextPage ?? null,
 		};
 	}
-
-	// If server returned a single object in data (non-paginated)
 	if (payload.data && !Array.isArray(payload.data)) {
 		return { docs: [payload.data], totalDocs: 1, page: 1, totalPages: 1, limit: 1 };
 	}
-
-	// Fallback: top-level docs
 	if (Array.isArray(payload.docs)) {
 		return {
 			docs: payload.docs,
@@ -43,17 +38,15 @@ const normalizePagination = (raw) => {
 			nextPage: payload.nextPage ?? null,
 		};
 	}
-
 	return { docs: [], totalDocs: 0, page: 1, totalPages: 0, limit: 0 };
 };
 
 const extractError = (err, fallback = 'Request failed') =>
 	err?.response?.data?.message || err?.response?.data?.error || err?.message || fallback;
 
-// -------------------------- Public / Admin selection helper --------------------------
 const clientFor = (admin = false) => (admin ? apiClient : publicClient);
 
-// ================================ Public Arvantis Services ================================
+// ---------------- Public services ----------------
 export const getArvantisLandingData = async () => {
 	try {
 		const resp = await publicClient.get('/api/v1/arvantis/landing');
@@ -67,7 +60,6 @@ export const getAllFests = async (params = {}, options = { admin: false }) => {
 	try {
 		const client = clientFor(options.admin);
 		const resp = await client.get('/api/v1/arvantis', { params });
-		// normalize possible paginated shapes
 		return normalizePagination(resp.data ?? resp);
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to fetch fests.'));
@@ -85,15 +77,13 @@ export const getFestDetails = async (identifier, options = { admin: false }) => 
 	}
 };
 
-// ================================ Admin-only Arvantis Services ================================
+// ---------------- Admin services ----------------
 export const createFest = async (festData) => {
 	try {
 		const isForm = festData instanceof FormData;
 		const resp = isForm
 			? await apiClient.post('/api/v1/arvantis', festData)
-			: await apiClient.post('/api/v1/arvantis', festData, {
-					headers: { 'Content-Type': 'application/json' },
-			  });
+			: await apiClient.post('/api/v1/arvantis', festData);
 		return resp.data?.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to create fest.'));
@@ -103,17 +93,10 @@ export const createFest = async (festData) => {
 export const updateFestDetails = async (identifier, updateData) => {
 	if (!identifier) throw new Error('Fest identifier is required.');
 	try {
-		const isForm = updateData instanceof FormData;
-		const resp = isForm
-			? await apiClient.patch(
-					`/api/v1/arvantis/${encodeURIComponent(identifier)}/update`,
-					updateData
-			  )
-			: await apiClient.patch(
-					`/api/v1/arvantis/${encodeURIComponent(identifier)}/update`,
-					updateData,
-					{ headers: { 'Content-Type': 'application/json' } }
-			  );
+		const resp = await apiClient.patch(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/update`,
+			updateData
+		);
 		return resp.data?.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update fest details.'));
@@ -208,6 +191,7 @@ export const setVisibility = async (identifier, visibility) => {
 	}
 };
 
+// Partners
 export const addPartner = async (identifier, formData) => {
 	if (!identifier) throw new Error('Fest identifier is required.');
 	try {
@@ -264,6 +248,7 @@ export const reorderPartners = async (identifier, order) => {
 	}
 };
 
+// Events
 export const linkEventToFest = async (identifier, eventId) => {
 	if (!identifier || !eventId) throw new Error('Identifier and eventId required.');
 	try {
@@ -291,7 +276,11 @@ export const unlinkEventFromFest = async (identifier, eventId) => {
 	}
 };
 
-export const updateFestPoster = async (identifier, formData) => {
+// Media: poster / hero / gallery / bulk delete
+// Note: server route/controller names use addFestPoster / addGalleryMedia etc.
+// Client exposes clear names and keeps aliases for backward compatibility.
+
+export const addFestPoster = async (identifier, formData) => {
 	if (!identifier) throw new Error('Fest identifier is required.');
 	try {
 		const resp = await apiClient.patch(
@@ -300,14 +289,26 @@ export const updateFestPoster = async (identifier, formData) => {
 		);
 		return resp.data?.data;
 	} catch (err) {
-		throw new Error(extractError(err, 'Failed to update poster.'));
+		throw new Error(extractError(err, 'Failed to upload poster.'));
+	}
+};
+export const updateFestPoster = addFestPoster; // alias
+
+export const removeFestPoster = async (identifier) => {
+	if (!identifier) throw new Error('Identifier required.');
+	try {
+		const resp = await apiClient.delete(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/poster`
+		);
+		return resp.status === 204 ? { success: true } : resp.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to remove poster.'));
 	}
 };
 
 export const updateFestHero = async (identifier, formData) => {
 	if (!identifier) throw new Error('Fest identifier is required.');
 	try {
-		// route: PATCH /api/v1/arvantis/:identifier/hero  (controller supports hero update)
 		const resp = await apiClient.patch(
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/hero`,
 			formData
@@ -315,6 +316,19 @@ export const updateFestHero = async (identifier, formData) => {
 		return resp.data?.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update hero media.'));
+	}
+};
+export const addFestHero = updateFestHero; // alias
+
+export const removeFestHero = async (identifier) => {
+	if (!identifier) throw new Error('Identifier required.');
+	try {
+		const resp = await apiClient.delete(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/hero`
+		);
+		return resp.status === 204 ? { success: true } : resp.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to remove hero media.'));
 	}
 };
 
@@ -373,30 +387,7 @@ export const bulkDeleteMedia = async (identifier, publicIds) => {
 	}
 };
 
-export const removeFestPoster = async (identifier) => {
-	if (!identifier) throw new Error('Identifier required.');
-	try {
-		const resp = await apiClient.delete(
-			`/api/v1/arvantis/${encodeURIComponent(identifier)}/poster`
-		);
-		return resp.status === 204 ? { success: true } : resp.data;
-	} catch (err) {
-		throw new Error(extractError(err, 'Failed to remove poster.'));
-	}
-};
-
-export const removeFestHero = async (identifier) => {
-	if (!identifier) throw new Error('Identifier required.');
-	try {
-		const resp = await apiClient.delete(
-			`/api/v1/arvantis/${encodeURIComponent(identifier)}/hero`
-		);
-		return resp.status === 204 ? { success: true } : resp.data;
-	} catch (err) {
-		throw new Error(extractError(err, 'Failed to remove hero media.'));
-	}
-};
-
+// Exports, analytics, reports
 export const exportFestsCSV = async () => {
 	try {
 		const resp = await apiClient.get('/api/v1/arvantis/export/csv', { responseType: 'blob' });
@@ -436,7 +427,7 @@ export const generateFestReport = async (identifier) => {
 	}
 };
 
-/* Tracks CRUD */
+// Tracks
 export const addTrack = async (identifier, payload) => {
 	if (!identifier || !payload?.title) throw new Error('Identifier and track title required.');
 	try {
@@ -493,7 +484,7 @@ export const reorderTracks = async (identifier, order) => {
 	}
 };
 
-/* FAQs CRUD */
+// FAQs
 export const addFAQ = async (identifier, payload) => {
 	if (!identifier || !payload?.question || !payload?.answer)
 		throw new Error('Identifier, question and answer required.');
@@ -546,4 +537,3 @@ export const reorderFAQs = async (identifier, order) => {
 		throw new Error(extractError(err, 'Failed to reorder FAQs.'));
 	}
 };
-
