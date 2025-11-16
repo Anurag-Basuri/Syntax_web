@@ -5,12 +5,12 @@ import { X, Calendar, MapPin, Tag, Users, Globe, Copy, CreditCard } from 'lucide
 import { getEventById } from '../../services/eventServices.js';
 
 /*
- EventDetailModal (responsive + navbar-aware)
- - Respects --navbar-height CSS variable so modal doesn't hide behind navbar
- - Modal max-height calculates available viewport below navbar
- - Improved small-screen stacking & spacing for price, tags and partners
- - Price shows "Free" when 0 and is visually prominent
- - Partners rendered as logo tiles with responsive columns
+ EventDetailModal (refined)
+ - Removed tickets / spots UI (no tickets, no spots-left shown)
+ - Prominent price (shows "Free" when 0)
+ - Better responsive behavior: modal stacks on small screens, right pane scrolls independently
+ - Partners rendered as large logo tiles; no counts
+ - Keeps "Show raw" + copy JSON
 */
 
 const fetchEvent = async (id, signal) => {
@@ -155,7 +155,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 					animate={{ y: 0, scale: 1, opacity: 1 }}
 					exit={{ y: 18, scale: 0.99, opacity: 0 }}
 					transition={{ duration: 0.2 }}
-					className="relative z-10 w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-3 bg-white dark:bg-slate-900"
+					className="relative z-10 w-full max-w-5xl sm:max-w-6xl rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-3 bg-white dark:bg-slate-900"
 					role="dialog"
 					aria-modal="true"
 					aria-label={`Event details: ${title}`}
@@ -163,7 +163,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 				>
 					{/* left: hero poster + condensed meta */}
 					<div className="col-span-1 bg-gradient-to-br from-indigo-700 to-purple-700 text-white flex flex-col">
-						<div className="relative h-64 sm:h-72 lg:h-full w-full overflow-hidden">
+						<div className="relative h-56 sm:h-72 lg:h-full w-full overflow-hidden flex-shrink-0">
 							{poster ? (
 								<img
 									src={poster}
@@ -180,7 +180,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 							<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 						</div>
 
-						<div className="p-5 md:p-6 text-sm bg-gradient-to-t from-black/40">
+						<div className="p-5 md:p-6 text-sm bg-gradient-to-t from-black/40 flex-shrink-0">
 							<div className="space-y-3">
 								<DetailRow icon={Calendar} label="When">
 									{dateLabel}
@@ -194,7 +194,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 								</DetailRow>
 							</div>
 
-							{/* subtle meta */}
+							{/* subtle meta - tickets/spots removed */}
 							<div className="mt-5 grid grid-cols-2 gap-3 text-xs text-white/80">
 								<div>
 									<div className="text-[10px] text-white/70">Category</div>
@@ -204,13 +204,13 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 									<div className="text-[10px] text-white/70">Status</div>
 									<div className="font-medium">{payload.status || '—'}</div>
 								</div>
-								<div>
-									<div className="text-[10px] text-white/70">Tickets</div>
+								<div className="col-span-2 mt-2">
+									<div className="text-[10px] text-white/70">Registration</div>
 									<div className="font-medium">
-										{payload.ticketCount ?? payload.tickets?.length ?? 0}
+										{registrationInfo?.message || '—'}
 									</div>
 								</div>
-								<div>
+								<div className="col-span-2 mt-2">
 									<div className="text-[10px] text-white/70">Price</div>
 									<div className="font-medium">
 										{typeof price === 'number'
@@ -224,7 +224,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 						</div>
 					</div>
 
-					{/* right: full details */}
+					{/* right: full details (scrollable) */}
 					<div
 						className="col-span-2 p-6 overflow-y-auto"
 						style={{ maxHeight: modalMaxHeight }}
@@ -279,8 +279,8 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 							</div>
 						</div>
 
-						{/* registration & key stats */}
-						<div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+						{/* registration card */}
+						<div className="mt-5">
 							<div className="rounded-xl p-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
 								<div className="text-xs text-slate-500 dark:text-slate-300">
 									Registration
@@ -291,6 +291,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 											registrationInfo?.actionUrl ||
 											'No registration'}
 									</div>
+
 									{registrationInfo?.isOpen && registrationInfo?.actionUrl && (
 										<a
 											href={registrationInfo.actionUrl}
@@ -308,36 +309,6 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 										{registrationInfo.message}
 									</div>
 								)}
-							</div>
-
-							<div className="rounded-xl p-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
-								<div className="text-xs text-slate-500 dark:text-slate-300">
-									Capacity & Tickets
-								</div>
-								<div className="mt-2 text-sm text-slate-700 dark:text-slate-200">
-									<div>
-										Total spots: <strong>{payload.totalSpots ?? '—'}</strong>
-									</div>
-									<div>
-										Effective capacity:{' '}
-										<strong>{payload.effectiveCapacity ?? '—'}</strong>
-									</div>
-									<div>
-										Spots left:{' '}
-										<strong>
-											{typeof payload.spotsLeft !== 'undefined'
-												? payload.spotsLeft === Infinity
-													? 'Unlimited'
-													: payload.spotsLeft
-												: '—'}
-										</strong>
-									</div>
-									{payload.isFull && (
-										<div className="mt-2 text-red-600 font-semibold">
-											Event full
-										</div>
-									)}
-								</div>
 							</div>
 						</div>
 
@@ -393,13 +364,13 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 							</div>
 						)}
 
-						{/* partners: visually prominent tiles */}
+						{/* partners: prominent tiles */}
 						{partners.length > 0 && (
 							<div className="mt-6">
 								<h3 className="text-lg font-semibold mb-3 text-slate-900 dark:text-white">
 									Partners
 								</h3>
-								<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+								<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
 									{partners.map((p, i) => (
 										<a
 											key={i}
@@ -412,7 +383,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 												<img
 													src={p.logo.url}
 													alt={p.name}
-													className="w-full h-12 object-contain max-w-[120px]"
+													className="w-full h-12 object-contain max-w-[140px]"
 												/>
 											) : (
 												<div className="w-full h-12 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs text-slate-700 dark:text-slate-200 font-medium">
