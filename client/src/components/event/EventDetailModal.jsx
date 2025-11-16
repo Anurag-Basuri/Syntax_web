@@ -103,6 +103,17 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [appTheme]);
 
+	// toggle helper: update app-level setter when available
+	const toggleAppTheme = () => {
+		const next = theme === 'dark' ? 'light' : 'dark';
+		try {
+			if (typeof appSetTheme === 'function') appSetTheme(next);
+		} catch {
+			/* ignore */
+		}
+		setTheme(next);
+	};
+
 	const { data: event } = useQuery({
 		queryKey: ['event-full', id],
 		queryFn: ({ signal }) => fetchEvent(id, signal),
@@ -154,24 +165,31 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	// Forward wheel events to the right pane so mouse-wheel works reliably when pointer is over left / poster
 	useEffect(() => {
 		if (!isOpen) return;
-		const root = modalRootRef.current;
 		const right = rightPaneRef.current;
-		if (!root || !right) return;
+		const root = modalRootRef.current;
+		if (!right || !root) return;
 
 		const onWheel = (e) => {
 			// Only handle vertical scrolls
 			if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
 
-			const canScrollUp = right.scrollTop > 0;
-			const canScrollDown = right.scrollTop + right.clientHeight < right.scrollHeight;
-			if ((e.deltaY < 0 && canScrollUp) || (e.deltaY > 0 && canScrollDown)) {
-				right.scrollBy({ top: e.deltaY, behavior: 'auto' });
+			// Only handle events originating from inside the modal
+			const target = e.target;
+			if (!root.contains(target)) return;
+
+			// Try native scroll on the right pane
+			const before = right.scrollTop;
+			right.scrollBy({ top: e.deltaY, behavior: 'auto' });
+
+			// If the pane actually scrolled, prevent default to stop page-level handlers (Lenis etc.)
+			if (right.scrollTop !== before) {
 				e.preventDefault();
 			}
 		};
 
-		root.addEventListener('wheel', onWheel, { passive: false });
-		return () => root.removeEventListener('wheel', onWheel);
+		// Use non-passive to be able to preventDefault()
+		window.addEventListener('wheel', onWheel, { passive: false });
+		return () => window.removeEventListener('wheel', onWheel);
 	}, [isOpen]);
 
 	if (!isOpen) return null;
@@ -305,12 +323,18 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 					{/* right: full details (scrollable) */}
 					<div
 						ref={rightPaneRef}
+						tabIndex={0}
+						onWheel={(e) => {
+							// Let the pane handle its own scroll and avoid bubbling to global handlers.
+							e.stopPropagation();
+						}}
 						className="col-span-2 p-6 overflow-y-auto"
 						style={{
 							maxHeight: modalMaxHeight,
 							// enable smooth native scrolling on touch devices
 							WebkitOverflowScrolling: 'touch',
 							touchAction: 'auto',
+							overscrollBehavior: 'contain',
 						}}
 					>
 						<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
