@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Loader2, Download, Trash2 } from 'lucide-react';
+import { Download, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
 import Badge from '../../components/arvantis/Badge';
 import GlassCard from '../../components/arvantis/GlassCard';
 import EmptyState from '../../components/arvantis/EmptyState';
 import LoadingSpinner from '../../components/arvantis/LoadingSpinner';
 import PartnerQuickAdd from '../../components/arvantis/PartnerQuickAdd';
+
 import {
 	getAllFests,
-	getArvantisLandingData,
 	getFestDetails,
 	createFest as svcCreateFest,
 	updateFestDetails as svcUpdateFest,
@@ -24,15 +25,6 @@ import {
 	generateFestReport as svcGenerateReport,
 } from '../../services/arvantisServices';
 import { getAllEvents as svcGetEvents } from '../../services/eventServices';
-
-// Premium UI Components
-import Badge from '../../components/arvantis/Badge';
-import GlassCard from '../../components/arvantis/GlassCard';
-import EmptyState from '../../components/arvantis/EmptyState';
-import LoadingSpinner from '../../components/arvantis/LoadingSpinner';
-import Toast from '../../components/arvantis/Toast';
-import StatCard from '../../components/arvantis/StatCard';
-import PartnerQuickAdd from '../../components/arvantis/PartnerQuickAdd';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const FILE_TYPES_IMAGES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -74,7 +66,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		setLoading(true);
 		try {
 			const resp = await getAllFests({ page: 1, limit: 200 }, { admin: true });
-			// normalizePagination returns { docs, ... }
 			const docs = resp?.docs || [];
 			if (mountedRef.current) setFests(docs);
 		} catch (err) {
@@ -90,7 +81,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 	const fetchEvents = useCallback(async () => {
 		try {
 			const resp = await svcGetEvents({ page: 1, limit: 500 }, { signal: undefined });
-			// service returns normalized shape: { docs }
 			const docs = resp?.docs || [];
 			if (mountedRef.current) setEvents(docs);
 		} catch (err) {
@@ -112,7 +102,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		setActionBusy(true);
 		try {
 			const data = await getFestDetails(identifier, { admin: true });
-			// keep editable fields only
 			const form = {
 				_id: data._id,
 				name: data.name,
@@ -143,7 +132,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 	}, []);
 
 	useEffect(() => {
-		// auto select first fest if none selected
 		if (!selectedFestId && fests && fests.length > 0) {
 			loadFestDetails(fests[0]._id);
 		}
@@ -166,7 +154,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 			toast.success('Fest created');
 			await fetchFests();
 			setCreateOpen(false);
-			// open it
 			if (created?._id) loadFestDetails(created._id);
 		} catch (err) {
 			console.error(err);
@@ -228,7 +215,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		fd.append('poster', file);
 		setActionBusy(true);
 		try {
-			const resp = await svcUpdatePoster(editForm._id, fd);
+			await svcUpdatePoster(editForm._id, fd);
 			toast.success('Poster uploaded');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
@@ -280,7 +267,6 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		if (!editForm || !editForm._id) throw new Error('No active fest');
 		setActionBusy(true);
 		try {
-			// PartnerQuickAdd sends FormData
 			await svcAddPartner(editForm._id, formData);
 			toast.success('Partner added');
 			await loadFestDetails(editForm._id);
@@ -314,7 +300,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		if (!eventId || !editForm || !editForm._id) return;
 		setActionBusy(true);
 		try {
-			await svcLinkOrThrow(editForm._id, eventId); // helper defined below
+			await svcLinkOrThrow(editForm._id, eventId);
 			toast.success('Event linked');
 			await loadFestDetails(editForm._id);
 		} catch (err) {
@@ -325,9 +311,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		}
 	};
 
-	// helper wrapper (call service directly since name differs in services)
+	// helper wrapper to call exported service function
 	const svcLinkOrThrow = async (identifier, eventId) => {
-		// uses arvantisServices.linkEventToFest - import not included above, create direct call
 		const { linkEventToFest } = await import('../../services/arvantisServices');
 		return linkEventToFest(identifier, eventId);
 	};
@@ -354,7 +339,8 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 		setDownloadingCSV(true);
 		try {
 			const blob = await svcExportCSV();
-			const url = window.URL.createObjectURL(new Blob([blob]));
+			// svcExportCSV returns a Blob (response.data)
+			const url = window.URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob]));
 			const a = document.createElement('a');
 			a.href = url;
 			a.download = `arvantis-fests-${safeFilename(new Date().toISOString())}.csv`;
@@ -541,7 +527,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 						{/* Basic fields */}
 						<div className="grid grid-cols-2 gap-4 mb-4">
 							<input
-								value={editForm.location}
+								value={editForm.location || ''}
 								onChange={(e) =>
 									setEditForm((s) => ({ ...s, location: e.target.value }))
 								}
@@ -549,7 +535,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 								placeholder="Location"
 							/>
 							<input
-								value={editForm.contactEmail}
+								value={editForm.contactEmail || ''}
 								onChange={(e) =>
 									setEditForm((s) => ({ ...s, contactEmail: e.target.value }))
 								}
@@ -557,7 +543,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 								placeholder="Contact email"
 							/>
 							<textarea
-								value={editForm.description}
+								value={editForm.description || ''}
 								onChange={(e) =>
 									setEditForm((s) => ({ ...s, description: e.target.value }))
 								}
@@ -567,7 +553,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 							/>
 							<input
 								type="datetime-local"
-								value={editForm.startDate}
+								value={editForm.startDate || ''}
 								onChange={(e) =>
 									setEditForm((s) => ({ ...s, startDate: e.target.value }))
 								}
@@ -575,7 +561,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 							/>
 							<input
 								type="datetime-local"
-								value={editForm.endDate}
+								value={editForm.endDate || ''}
 								onChange={(e) =>
 									setEditForm((s) => ({ ...s, endDate: e.target.value }))
 								}
@@ -657,7 +643,7 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 							<div className="space-y-2">
 								{(editForm.partners || []).map((p, i) => (
 									<div
-										key={p.name + i}
+										key={`${p.name}-${i}`}
 										className="flex items-center justify-between p-3 bg-white/3 rounded"
 									>
 										<div className="flex items-center gap-3">
@@ -719,7 +705,9 @@ const ArvantisTab = ({ setDashboardError = () => {} }) => {
 										<div>
 											<div className="font-medium text-white">{ev.title}</div>
 											<div className="text-sm text-gray-400">
-												{new Date(ev.eventDate).toLocaleString()}
+												{ev.eventDate
+													? new Date(ev.eventDate).toLocaleString()
+													: 'TBD'}
 											</div>
 										</div>
 										<div>
