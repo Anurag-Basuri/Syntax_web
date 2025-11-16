@@ -7,34 +7,34 @@ import {
 	updateFestDetails,
 	deleteFest,
 	addPartner,
-	updatePartner,
 	removePartner,
-	reorderPartners,
 	linkEventToFest,
 	unlinkEventFromFest,
-	updateFestPoster,
 	addGalleryMedia,
 	removeGalleryMedia,
+	addFestPoster,
+	removeFestPoster,
+	updateFestHero,
+	removeFestHero,
+	updatePartner,
+	reorderPartners,
 	reorderGallery,
 	bulkDeleteMedia,
+	duplicateFest,
+	setFestStatus,
+	updatePresentation,
 	exportFestsCSV,
 	getFestStatistics,
 	getFestAnalytics,
 	generateFestReport,
-	updatePresentation,
 	updateSocialLinks,
 	updateThemeColors,
 	addTrack,
-	updateTrack,
 	removeTrack,
-	reorderTracks,
 	addFAQ,
-	updateFAQ,
 	removeFAQ,
 	reorderFAQs,
 	setVisibility,
-	duplicateFest,
-	setFestStatus,
 } from '../controllers/arvantis.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { uploadFile } from '../middlewares/multer.middleware.js';
@@ -245,7 +245,14 @@ router.patch(
 	},
 	uploadFile('poster', { multiple: false, maxCount: 1 }),
 	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	updateFestPoster
+	addFestPoster
+);
+
+// Delete poster
+router.delete(
+	'/:identifier/poster',
+	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
+	removeFestPoster
 );
 
 router.post(
@@ -285,7 +292,30 @@ router.post(
 	bulkDeleteMedia
 );
 
-// Tracks CRUD
+// Hero management
+router.patch(
+	'/:identifier/hero',
+	(req, res, next) => {
+		/* eslint-disable no-console */
+		console.log('[ROUTE] PATCH /:identifier/hero', {
+			identifier: req.params.identifier,
+			contentType: req.headers['content-type'],
+		});
+		/* eslint-enable no-console */
+		next();
+	},
+	uploadFile('hero', { multiple: false, maxCount: 1 }),
+	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
+	updateFestHero
+);
+
+router.delete(
+	'/:identifier/hero',
+	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
+	removeFestHero
+);
+
+// Tracks CRUD (note: update/reorder handlers not implemented in controller - only add/remove present)
 router.post(
 	'/:identifier/tracks',
 	validate([
@@ -295,22 +325,10 @@ router.post(
 	addTrack
 );
 
-router.patch(
-	'/:identifier/tracks/:trackKey',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	updateTrack
-);
-
 router.delete(
 	'/:identifier/tracks/:trackKey',
 	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
 	removeTrack
-);
-
-router.patch(
-	'/:identifier/tracks/reorder',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	reorderTracks
 );
 
 // FAQs CRUD
@@ -322,12 +340,6 @@ router.post(
 		body('answer').notEmpty().withMessage('Answer is required'),
 	]),
 	addFAQ
-);
-
-router.patch(
-	'/:identifier/faqs/:faqId',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	updateFAQ
 );
 
 router.delete(
