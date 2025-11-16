@@ -233,86 +233,37 @@ router.delete(
 
 // Media management
 router.patch(
-	'/:identifier/poster',
+	'/:identifier/posters',
 	(req, res, next) => {
 		/* eslint-disable no-console */
-		console.log('[ROUTE] PATCH /:identifier/poster', {
+		console.log('[ROUTE] PATCH /:identifier/posters', {
 			identifier: req.params.identifier,
 			contentType: req.headers['content-type'],
 		});
 		/* eslint-enable no-console */
 		next();
 	},
-	uploadFile('poster', { multiple: false, maxCount: 1 }),
+	// accept multiple poster uploads now
+	uploadFile('posters', { multiple: true, maxCount: 20 }),
 	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
 	addFestPoster
 );
 
-// Delete poster
+// Delete poster (legacy body-based)
 router.delete(
 	'/:identifier/poster',
 	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
 	removeFestPoster
 );
 
-router.post(
-	'/:identifier/gallery',
-	(req, res, next) => {
-		/* eslint-disable no-console */
-		console.log('[ROUTE] POST /:identifier/gallery', {
-			identifier: req.params.identifier,
-			contentType: req.headers['content-type'],
-		});
-		/* eslint-enable no-console */
-		next();
-	},
-	uploadFile('media', { multiple: true, maxCount: 20 }),
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	addGalleryMedia
-);
-
+// Delete poster by publicId (recommended)
 router.delete(
-	'/:identifier/gallery/:publicId',
+	'/:identifier/posters/:publicId',
 	validate([
 		param('identifier').notEmpty().withMessage('Fest identifier is required'),
-		param('publicId').notEmpty().withMessage('Media public ID is required'),
+		param('publicId').notEmpty().withMessage('Poster public ID is required'),
 	]),
-	removeGalleryMedia
-);
-
-router.patch(
-	'/:identifier/gallery/reorder',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	reorderGallery
-);
-
-router.post(
-	'/:identifier/media/bulk-delete',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	bulkDeleteMedia
-);
-
-// Hero management
-router.patch(
-	'/:identifier/hero',
-	(req, res, next) => {
-		/* eslint-disable no-console */
-		console.log('[ROUTE] PATCH /:identifier/hero', {
-			identifier: req.params.identifier,
-			contentType: req.headers['content-type'],
-		});
-		/* eslint-enable no-console */
-		next();
-	},
-	uploadFile('hero', { multiple: false, maxCount: 1 }),
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	updateFestHero
-);
-
-router.delete(
-	'/:identifier/hero',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	removeFestHero
+	removeFestPoster
 );
 
 // Tracks CRUD (note: update/reorder handlers not implemented in controller - only add/remove present)
