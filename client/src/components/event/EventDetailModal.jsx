@@ -59,37 +59,37 @@ const generateICS = (ev = {}) => {
 };
 
 /**
- * Full-screen Event detail modal rendered into body via portal.
- * - Uses existing useEvent hook (no changes).
- * - Modal overlay uses very high zIndex to ensure it is above navbar and other components.
- * - When open, document.body scroll is disabled to keep focus on modal.
- * - Content area can scroll internally so all details can be displayed.
+ * EventDetailModal
+ * - UI-focused: improved speakers, partners, co-organizers presentation
+ * - No meta/registrations displayed
+ * - Poster image fixed to reliably cover the visual area
+ * - Uses existing useEvent hook; no changes to services/hooks
  */
 const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	const [imgIndex, setImgIndex] = useState(0);
 	const closeRef = useRef(null);
 	const id = initialEvent?._id ?? null;
 
-	// call hook if open (useEvent is unchanged)
+	// existing hook (unchanged)
 	const { data: fetched, isLoading, isError, refetch } = useEvent(isOpen ? id : null);
 
-	// prefer fetched details when available
+	// prefer fetched data
 	const event = fetched || initialEvent;
 
-	// compute countdown even if event undefined
+	// countdown computed safely
 	const countdown = useMemo(() => timeUntil(event?.eventDate || event?.date), [event]);
 
-	// Disable body scroll while modal open and restore on close/unmount
+	// disable background scroll while open
 	useEffect(() => {
 		if (!isOpen) return;
-		const prevOverflow = document.body.style.overflow;
+		const prev = document.body.style.overflow;
 		document.body.style.overflow = 'hidden';
 		return () => {
-			document.body.style.overflow = prevOverflow || '';
+			document.body.style.overflow = prev || '';
 		};
 	}, [isOpen]);
 
-	// focus close button and listen Escape
+	// focus, escape handling
 	useEffect(() => {
 		if (!isOpen) return;
 		closeRef.current?.focus();
@@ -100,12 +100,11 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		return () => window.removeEventListener('keydown', onKey);
 	}, [isOpen, onClose]);
 
-	// defensive lists
+	// defensive arrays
 	const speakers = Array.isArray(event?.speakers) ? event.speakers : event?.speakers ? [event.speakers] : [];
 	const partners = Array.isArray(event?.partners) ? event.partners : event?.partners ? [event.partners] : [];
-	const resources = Array.isArray(event?.resources) ? event.resources : event?.resources ? [event.resources] : [];
 	const coOrganizers = Array.isArray(event?.coOrganizers) ? event.coOrganizers : event?.coOrganizers ? [event.coOrganizers] : [];
-	const registrations = Array.isArray(event?.registrations) ? event.registrations : [];
+	const resources = Array.isArray(event?.resources) ? event.resources : event?.resources ? [event.resources] : [];
 
 	if (!isOpen || !event) return null;
 
@@ -125,9 +124,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		ev.stopPropagation();
 		try {
 			localStorage.setItem(`remind_${event._id}`, Date.now());
-		} catch (e) {
-			/* ignore */
-		}
+		} catch (_) {}
 		alert('Reminder saved locally.');
 	};
 
@@ -160,21 +157,124 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		setImgIndex((p) => (p - 1 + event.posters.length) % event.posters.length);
 	};
 
-	// render the modal into document.body so it floats above the whole app
+	// fallback poster src (cover the area reliably and show a gradient if image fails)
+	const posterUrl = event?.posters?.[imgIndex]?.url || null;
+
+	// Helper: avatar (photo or initials)
+	const Avatar = ({ src, name, size = 48 }) => {
+		const initials = (name || '').split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase();
+		return src ? (
+			<img
+				src={src}
+				alt={name || 'avatar'}
+				className="rounded-full object-cover"
+				style={{ width: size, height: size }}
+				loading="lazy"
+			/>
+		) : (
+			<div
+				className="rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-white"
+				style={{ width: size, height: size }}
+				aria-hidden
+			>
+				<span className="font-semibold">{initials || '–'}</span>
+			</div>
+		);
+	};
+
+	// Present speakers as cards with name, role, short bio and social links
+	const SpeakerCard = ({ sp }) => {
+		const bio = sp.bio || sp.description || '';
+		const short = bio.length > 160 ? bio.slice(0, 157).trim() + '…' : bio;
+		return (
+			<div className="flex gap-3 items-start p-3 bg-white/3 rounded-md">
+				<Avatar src={sp.photo} name={sp.name} size={56} />
+				<div className="min-w-0">
+					<div className="flex items-center justify-between gap-2">
+						<div className="font-medium text-white truncate">{sp.name || sp.title || 'Speaker'}</div>
+						{sp.company && <div className="text-xs text-gray-300">{sp.company}</div>}
+					</div>
+					{sp.title && <div className="text-xs text-gray-400 truncate">{sp.title}</div>}
+					{bio && <div className="text-sm text-gray-300 mt-2">{short}</div>}
+					{/* social links */}
+					{(sp.links || sp.social || sp.website) && (
+						<div className="mt-2 flex gap-2 items-center">
+							{sp.links?.twitter && (
+								<a href={sp.links.twitter} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-300">
+									Twitter
+								</a>
+							)}
+							{sp.links?.linkedin && (
+								<a href={sp.links.linkedin} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-300">
+									LinkedIn
+								</a>
+							)}
+							{sp.website && (
+								<a href={sp.website} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-300">
+									Website
+								</a>
+							)}
+						</div>
+					)}
+				</div>
+			</div>
+		);
+	};
+
+	// Partners grid: logo + name + optional tier badge
+	const PartnerTile = ({ p }) => {
+		return (
+			<a
+				href={p.website || '#'}
+				onClick={(e) => e.stopPropagation()}
+				target="_blank"
+				rel="noreferrer"
+				className="flex items-center gap-3 p-3 bg-white/3 rounded hover:scale-[1.02] transition-transform"
+			>
+				<div className="flex-shrink-0 w-12 h-12 bg-white/5 rounded flex items-center justify-center overflow-hidden">
+					{p.logo ? (
+						<img src={p.logo} alt={p.name || 'partner'} className="w-full h-full object-contain" loading="lazy" />
+					) : (
+						<div className="text-sm text-gray-200">{(p.name || '').slice(0, 1)}</div>
+					)}
+				</div>
+				<div className="min-w-0">
+					<div className="font-medium text-white truncate">{p.name || 'Partner'}</div>
+					{p.tier && <div className="text-xs text-gray-400 mt-0.5">{p.tier}</div>}
+				</div>
+			</a>
+		);
+	};
+
+	// Co-organizers chips
+	const CoOrganizerChip = ({ c }) => (
+		<div className="flex items-center gap-2 bg-white/4 rounded-full px-3 py-1">
+			<div className="w-7 h-7 rounded-full overflow-hidden">
+				{c.logo ? (
+					<img src={c.logo} alt={c.name || 'co-organizer'} className="w-full h-full object-cover" loading="lazy" />
+				) : (
+					<div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white">
+						{(c.name || '').slice(0, 1)}
+					</div>
+				)}
+			</div>
+			<div className="text-xs text-white">{c.name || c}</div>
+		</div>
+	);
+
 	return createPortal(
 		<AnimatePresence>
 			<Motion.div
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
-				// very high zIndex to out-prioritize navbar and dropdowns
 				style={{ zIndex: 99999 }}
 				className="fixed inset-0 flex items-center justify-center"
 				aria-modal="true"
 				role="dialog"
 				onClick={onClose}
 			>
-				{/* dim backdrop */}
+				{/* backdrop */}
 				<Motion.div
 					className="absolute inset-0 bg-black/75"
 					initial={{ opacity: 0 }}
@@ -183,58 +283,59 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 					onClick={onClose}
 				/>
 
-				{/* Modal box: full-screen feel, but constrained max-size and internal scroll for details */}
+				{/* modal */}
 				<Motion.div
 					initial={{ scale: 0.98, opacity: 0 }}
 					animate={{ scale: 1, opacity: 1 }}
 					exit={{ scale: 0.98, opacity: 0 }}
 					onClick={(e) => e.stopPropagation()}
-					className="relative w-[96vw] max-w-[1200px] h-[92vh] bg-gradient-to-br from-gray-900/95 to-black rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
+					className="relative w-[96vw] max-w-[1200px] h-[92vh] bg-gradient-to-br from-gray-900/95 to-black rounded-2xl overflow-hidden shadow-2xl grid md:grid-cols-3"
 					aria-labelledby="event-modal-title"
 				>
-					{/* left column: visual / meta strip */}
-					<div className="w-full md:w-1/3 bg-black flex-shrink-0 relative flex items-center justify-center">
-						{event.posters?.length ? (
-							<>
-								<img
-									src={event.posters[imgIndex]?.url}
-									alt={event.posters[imgIndex]?.caption || event.title || 'poster'}
-									className="w-full h-full object-cover"
-									loading="lazy"
-								/>
-								{event.posters.length > 1 && (
-									<>
-										<button
-											onClick={prevImg}
-											aria-label="Previous image"
-											className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 p-2 rounded-full"
-										>
-											<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-											</svg>
-										</button>
-										<button
-											onClick={nextImg}
-											aria-label="Next image"
-											className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 p-2 rounded-full"
-										>
-											<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-											</svg>
-										</button>
-									</>
-								)}
-							</>
+					{/* Visual column (left): use explicit container to ensure full image coverage */}
+					<div className="md:col-span-1 w-full h-full bg-black relative flex items-stretch">
+						{posterUrl ? (
+							<div
+								className="w-full h-full bg-center bg-no-repeat bg-cover"
+								style={{ backgroundImage: `url("${posterUrl}")` }}
+								aria-hidden
+							/>
 						) : (
-							<div className="text-7xl opacity-10">🎭</div>
+							<div className="w-full h-full flex items-center justify-center text-7xl opacity-10">🎭</div>
 						)}
 
-						{/* left meta overlay */}
-						<div className="absolute left-3 bottom-3 text-xs text-gray-300 bg-black/50 px-3 py-1 rounded">
-							{event.posters?.[imgIndex]?.caption ?? ''}
-						</div>
+						{/* small caption overlay */}
+						{event.posters?.[imgIndex]?.caption && (
+							<div className="absolute left-4 bottom-4 px-3 py-1 bg-black/50 text-xs rounded text-gray-200">
+								{event.posters[imgIndex].caption}
+							</div>
+						)}
 
-						{/* close button top-right of the modal (on visual side) */}
+						{/* image navigation */}
+						{event.posters?.length > 1 && (
+							<>
+								<button
+									onClick={prevImg}
+									className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 p-2 rounded-full"
+									aria-label="Previous image"
+								>
+									<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+									</svg>
+								</button>
+								<button
+									onClick={nextImg}
+									className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 p-2 rounded-full"
+									aria-label="Next image"
+								>
+									<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+									</svg>
+								</button>
+							</>
+						)}
+
+						{/* close */}
 						<button
 							ref={closeRef}
 							onClick={onClose}
@@ -247,18 +348,26 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 						</button>
 					</div>
 
-					{/* right column: full details in an internal scroll area */}
-					<div className="w-full md:w-2/3 p-5 md:p-6 overflow-auto">
-						<header className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+					{/* Details column (middle + right) - scrollable */}
+					<div className="md:col-span-2 p-6 overflow-auto flex flex-col gap-4">
+						{/* header */}
+						<div className="flex items-start justify-between gap-4">
 							<div className="min-w-0">
-								<h2 id="event-modal-title" className="text-xl md:text-2xl font-bold leading-tight">
+								<h2 id="event-modal-title" className="text-2xl font-bold text-white leading-tight">
 									{event.title}
 								</h2>
-								<p className="text-sm text-gray-400 mt-1">{event.organizer || event.host || ''}</p>
+								<div className="text-sm text-gray-400 mt-1">{event.organizer || event.host || ''}</div>
+								<div className="mt-2 flex flex-wrap gap-2">
+									{Array.isArray(event.tags) &&
+										event.tags.map((t) => (
+											<span key={t} className="text-xs bg-white/5 px-2 py-0.5 rounded">
+												{t}
+											</span>
+										))}
+								</div>
 							</div>
 
-							{/* right actions */}
-							<div className="flex items-center gap-2 md:flex-col md:items-end">
+							<div className="flex-shrink-0 flex flex-col items-end gap-2">
 								{registrationLink ? (
 									<button onClick={onRegister} className="px-3 py-1 bg-emerald-500 text-white rounded">
 										Register
@@ -280,150 +389,69 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 								) : (
 									<div className="text-xs text-gray-400">{event.status || 'TBD'}</div>
 								)}
-
-								{/* Add to calendar / misc */}
-								<div className="flex gap-2">
-									<button onClick={downloadICS} className="px-2 py-1 border rounded text-sm">
-										Add to calendar
-									</button>
-								</div>
+								<button onClick={downloadICS} className="text-xs px-3 py-1 border rounded mt-1">
+									Add to calendar
+								</button>
 							</div>
-						</header>
-
-						{/* primary meta row */}
-						<div className="mt-4 flex flex-wrap gap-3 items-center text-sm text-gray-300">
-							<span className="flex items-center gap-2">
-								<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-								{safeFormatDate(event.eventDate)}
-							</span>
-
-							{event.venue && (
-								<span className="flex items-center gap-2">
-									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-									</svg>
-									{event.venue}
-								</span>
-							)}
-
-							{Array.isArray(event.tags) &&
-								event.tags.map((t) => (
-									<span key={t} className="text-xs bg-white/5 px-2 py-0.5 rounded">
-										{t}
-									</span>
-								))}
 						</div>
 
-						{/* full description */}
-						<section className="mt-4 text-sm text-gray-300 leading-relaxed">
+						{/* description */}
+						<section>
 							<h3 className="text-sm font-semibold text-gray-200 mb-2">Description</h3>
-							<div className="whitespace-pre-wrap">{event.description || 'No description provided.'}</div>
+							<div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{event.description || 'No description available.'}</div>
 						</section>
 
-						{/* Speakers / Partners / Resources */}
-						<section className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-							{speakers.length > 0 && (
-								<div className="p-3 bg-white/3 rounded">
-									<div className="font-semibold mb-2">Speakers</div>
-									<div className="space-y-2">
-										{speakers.map((sp, i) => (
-											<div key={sp._id || sp.name || i} className="flex items-center gap-3">
-												{sp.photo ? (
-													<img src={sp.photo} alt={sp.name || 'speaker'} className="w-9 h-9 rounded-full object-cover" />
-												) : (
-													<div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-xs">{(sp.name || '').slice(0,1)}</div>
-												)}
-												<div className="min-w-0">
-													<div className="font-medium truncate">{sp.name || sp.title || 'Speaker'}</div>
-													<div className="text-xs text-gray-400 truncate">{sp.title || sp.role || ''}</div>
-												</div>
-											</div>
-										))}
-									</div>
+						{/* Speakers — improved presentation */}
+						{speakers.length > 0 && (
+							<section>
+								<h3 className="text-sm font-semibold text-gray-200 mb-3">Speakers</h3>
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+									{speakers.map((sp, i) => (
+										<SpeakerCard key={sp._id || sp.name || i} sp={sp} />
+									))}
 								</div>
-							)}
+							</section>
+						)}
 
-							{partners.length > 0 && (
-								<div className="p-3 bg-white/3 rounded">
-									<div className="font-semibold mb-2">Partners</div>
-									<div className="flex flex-wrap gap-2 items-center">
-										{partners.map((p, i) => (
-											<div key={p._id || p.name || i} className="flex items-center gap-2">
-												{p.logo ? <img src={p.logo} alt={p.name || 'partner'} className="w-8 h-8 object-contain" /> : null}
-												<span className="text-xs text-gray-200">{p.name || p}</span>
-											</div>
-										))}
-									</div>
+						{/* Partners — logos grid */}
+						{partners.length > 0 && (
+							<section>
+								<h3 className="text-sm font-semibold text-gray-200 mb-3">Partners</h3>
+								<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+									{partners.map((p, i) => (
+										<PartnerTile key={p._id || p.name || i} p={p} />
+									))}
 								</div>
-							)}
+							</section>
+						)}
 
-							{resources.length > 0 && (
-								<div className="p-3 bg-white/3 rounded md:col-span-2">
-									<div className="font-semibold mb-2">Resources</div>
-									<ul className="space-y-1">
-										{resources.map((r, i) => (
-											<li key={r.title || r.url || i}>
-												<a href={r.url || '#'} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-blue-300">
-													{r.title || r.url}
-												</a>
-											</li>
-										))}
-									</ul>
+						{/* Co-organizers */}
+						{coOrganizers.length > 0 && (
+							<section>
+								<h3 className="text-sm font-semibold text-gray-200 mb-3">Co-organizers</h3>
+								<div className="flex flex-wrap gap-2">
+									{coOrganizers.map((c, i) => (
+										<CoOrganizerChip key={c._id || c.name || i} c={c} />
+									))}
 								</div>
-							)}
-						</section>
+							</section>
+						)}
 
-						{/* co-organizers / registrations / misc */}
-						<section className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-							{coOrganizers.length > 0 && (
-								<div className="p-3 bg-white/3 rounded">
-									<div className="font-semibold mb-2">Co-organizers</div>
-									<div className="text-xs space-y-1">
-										{coOrganizers.map((c, i) => (
-											<div key={c.name || i}>{c.name || c}</div>
-										))}
-									</div>
-								</div>
-							)}
-
-							<div className="p-3 bg-white/3 rounded">
-								<div className="font-semibold mb-2">Registrations</div>
-								<div className="text-xs text-gray-300">
-									{registrations.length > 0 ? `${registrations.length} registered` : 'No registrations yet'}
-								</div>
-								{event.capacity ? <div className="text-xs text-gray-400 mt-1">Capacity: {event.capacity}</div> : null}
-							</div>
-
-							<div className="p-3 bg-white/3 rounded">
-								<div className="font-semibold mb-2">Meta</div>
-								<div className="text-xs text-gray-300">ID: {event._id}</div>
-								<div className="text-xs text-gray-300">Created: {event.createdAt ? new Date(event.createdAt).toLocaleString() : '-'}</div>
-								<div className="text-xs text-gray-300">Last updated: {event.updatedAt ? new Date(event.updatedAt).toLocaleString() : '-'}</div>
-							</div>
-						</section>
-
-						{/* contact / location actions */}
-						<section className="mt-4 flex flex-wrap items-center justify-between gap-3">
-							<div className="flex gap-2 items-center">
-								{event.contactEmail && (
-									<a href={`mailto:${event.contactEmail}`} onClick={(e) => e.stopPropagation()} className="text-sm px-3 py-1 border rounded">
-										Contact
-									</a>
-								)}
-								{event.venue && event.mapLink && (
-									<a href={event.mapLink} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-sm px-3 py-1 border rounded">
-										View on map
-									</a>
-								)}
-							</div>
-
-							<div className="flex gap-2">
-								{registrationLink && <button onClick={onRegister} className="px-3 py-1 bg-emerald-500 text-white rounded">Register</button>}
-								<button onClick={downloadICS} className="px-3 py-1 border rounded">Add to calendar</button>
-							</div>
-						</section>
+						{/* Resources */}
+						{resources.length > 0 && (
+							<section>
+								<h3 className="text-sm font-semibold text-gray-200 mb-3">Resources</h3>
+								<ul className="list-disc list-inside text-sm text-blue-300 space-y-1">
+									{resources.map((r, i) => (
+										<li key={r.title || r.url || i}>
+											<a href={r.url || '#'} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer">
+												{r.title || r.url}
+											</a>
+										</li>
+									))}
+								</ul>
+							</section>
+						)}
 					</div>
 				</Motion.div>
 			</Motion.div>
