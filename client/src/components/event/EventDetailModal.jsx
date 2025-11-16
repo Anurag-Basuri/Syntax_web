@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { X, Calendar, MapPin, Tag, Users, Globe, Copy, CreditCard } from 'lucide-react';
+import { X, Calendar, MapPin, Tag, Users, Globe, Copy, CreditCard, Sun, Moon } from 'lucide-react';
 import { getEventById } from '../../services/eventServices.js';
 
 /*
@@ -39,6 +39,10 @@ const prettyDate = (d) => {
 
 const PricePill = ({ price }) => {
 	const isFree = typeof price === 'number' ? price === 0 : !price;
+	const formatted =
+		typeof price === 'number'
+			? new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(price)
+			: null;
 	return (
 		<div
 			className={`inline-flex items-baseline gap-2 px-4 py-2 rounded-xl font-semibold shadow-sm
@@ -55,7 +59,7 @@ const PricePill = ({ price }) => {
 				<>
 					<CreditCard size={16} />
 					<span className="text-sm opacity-80">₹</span>
-					<span className="text-lg tracking-wider">{price}</span>
+					<span className="text-lg tracking-wider">{formatted}</span>
 				</>
 			)}
 		</div>
@@ -65,6 +69,31 @@ const PricePill = ({ price }) => {
 const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	const id = initialEvent?._id || initialEvent?.id;
 	const [showRaw, setShowRaw] = useState(false);
+	const rightPaneRef = useRef(null);
+	const modalRootRef = useRef(null);
+
+	// theme state persisted
+	const [theme, setTheme] = useState(() => {
+		try {
+			return (
+				localStorage.getItem('site-theme') ||
+				(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+					? 'dark'
+					: 'light')
+			);
+		} catch {
+			return 'light';
+		}
+	});
+
+	useEffect(() => {
+		// apply theme on mount/update
+		if (theme === 'dark') document.documentElement.classList.add('dark');
+		else document.documentElement.classList.remove('dark');
+		try {
+			localStorage.setItem('site-theme', theme);
+		} catch {}
+	}, [theme]);
 
 	const { data: event } = useQuery({
 		queryKey: ['event-full', id],
@@ -83,6 +112,23 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 			return String(payload);
 		}
 	}, [payload]);
+
+	// lock background scroll while modal open
+	useEffect(() => {
+		if (!isOpen) return;
+		const prev = {
+			overflow: document.body.style.overflow,
+			paddingRight: document.body.style.paddingRight,
+		};
+		// reserve scrollbar width to avoid layout jump
+		const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+		document.body.style.overflow = 'hidden';
+		if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+		return () => {
+			document.body.style.overflow = prev.overflow || '';
+			document.body.style.paddingRight = prev.paddingRight || '';
+		};
+	}, [isOpen]);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -128,6 +174,26 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	// Respect navbar height variable and keep modal below nav on all viewports
 	const modalMaxHeight = 'calc(100vh - var(--navbar-height, 4.5rem) - 2rem)';
 
+	// Forward wheel events to right pane so scrolling works reliably even when pointer is on left
+	useEffect(() => {
+		const root = modalRootRef.current;
+		const right = rightPaneRef.current;
+		if (!root || !right) return;
+
+		const onWheel = (e) => {
+			// prefer letting the right pane handle it if it can scroll in that direction
+			const canScrollUp = right.scrollTop > 0;
+			const canScrollDown = right.scrollTop + right.clientHeight < right.scrollHeight;
+			if ((e.deltaY < 0 && canScrollUp) || (e.deltaY > 0 && canScrollDown)) {
+				right.scrollBy({ top: e.deltaY, behavior: 'auto' });
+				e.preventDefault();
+			}
+		};
+
+		root.addEventListener('wheel', onWheel, { passive: false });
+		return () => root.removeEventListener('wheel', onWheel);
+	}, [isOpen]);
+
 	return (
 		<AnimatePresence>
 			<motion.div
@@ -151,6 +217,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 
 				{/* modal */}
 				<motion.div
+					ref={modalRootRef}
 					initial={{ y: 18, scale: 0.99, opacity: 0 }}
 					animate={{ y: 0, scale: 1, opacity: 1 }}
 					exit={{ y: 18, scale: 0.99, opacity: 0 }}
@@ -194,7 +261,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 								</DetailRow>
 							</div>
 
-							{/* subtle meta - tickets/spots removed */}
+							{/* subtle meta - tickets/spots intentionally omitted */}
 							<div className="mt-5 grid grid-cols-2 gap-3 text-xs text-white/80">
 								<div>
 									<div className="text-[10px] text-white/70">Category</div>
@@ -216,7 +283,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 										{typeof price === 'number'
 											? price === 0
 												? 'Free'
-												: `₹${price}`
+												: `₹${new Intl.NumberFormat().format(price)}`
 											: '—'}
 									</div>
 								</div>
@@ -226,8 +293,14 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 
 					{/* right: full details (scrollable) */}
 					<div
+						ref={rightPaneRef}
 						className="col-span-2 p-6 overflow-y-auto"
-						style={{ maxHeight: modalMaxHeight }}
+						style={{
+							maxHeight: modalMaxHeight,
+							// enable smooth native scrolling on touch devices
+							WebkitOverflowScrolling: 'touch',
+							touchAction: 'auto',
+						}}
 					>
 						<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 							<div className="min-w-0">
@@ -256,6 +329,18 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 							</div>
 
 							<div className="flex items-center gap-2">
+								{/* theme toggle */}
+								<button
+									onClick={() =>
+										setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+									}
+									title="Toggle theme"
+									className="p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+									aria-label="Toggle theme"
+								>
+									{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+								</button>
+
 								<button
 									onClick={copyRaw}
 									title="Copy full JSON"
