@@ -174,26 +174,6 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	// Respect navbar height variable and keep modal below nav on all viewports
 	const modalMaxHeight = 'calc(100vh - var(--navbar-height, 4.5rem) - 2rem)';
 
-	// Forward wheel events to right pane so scrolling works reliably even when pointer is on left
-	useEffect(() => {
-		const root = modalRootRef.current;
-		const right = rightPaneRef.current;
-		if (!root || !right) return;
-
-		const onWheel = (e) => {
-			// prefer letting the right pane handle it if it can scroll in that direction
-			const canScrollUp = right.scrollTop > 0;
-			const canScrollDown = right.scrollTop + right.clientHeight < right.scrollHeight;
-			if ((e.deltaY < 0 && canScrollUp) || (e.deltaY > 0 && canScrollDown)) {
-				right.scrollBy({ top: e.deltaY, behavior: 'auto' });
-				e.preventDefault();
-			}
-		};
-
-		root.addEventListener('wheel', onWheel, { passive: false });
-		return () => root.removeEventListener('wheel', onWheel);
-	}, [isOpen]);
-
 	return (
 		<AnimatePresence>
 			<motion.div
