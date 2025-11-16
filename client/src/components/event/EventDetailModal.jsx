@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { X, Calendar, MapPin, Tag, Users, Globe, Copy, CreditCard, Sun, Moon } from 'lucide-react';
 import { getEventById } from '../../services/eventServices.js';
-import useTheme from '../../hooks/useTheme.js';
+import { useTheme } from '../../hooks/useTheme.js';
 
 /*
  EventDetailModal (refined)
@@ -73,17 +73,20 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	const rightPaneRef = useRef(null);
 	const modalRootRef = useRef(null);
 
-	// Prefer application theme (via hook); fall back to local persisted value if hook missing.
-	const appThemeCtx = useTheme?.();
-	// appThemeCtx may be: string, { theme, setTheme }, or [theme, setTheme]
-	const appTheme =
-		typeof appThemeCtx === 'string'
-			? appThemeCtx
-			: appThemeCtx?.theme ?? (Array.isArray(appThemeCtx) ? appThemeCtx[0] : undefined);
-	const appSetTheme =
-		appThemeCtx?.setTheme ?? (Array.isArray(appThemeCtx) ? appThemeCtx[1] : undefined);
-
-	const [theme, setTheme] = useState(() => {
+	// --- use application theme hook (support array/object/string shapes)
+	const themeCtx = useTheme();
+	let appTheme = undefined;
+	let appSetTheme = undefined;
+	if (Array.isArray(themeCtx)) {
+		[appTheme, appSetTheme] = themeCtx;
+	} else if (themeCtx && typeof themeCtx === 'object') {
+		appTheme = themeCtx.theme ?? themeCtx[0];
+		appSetTheme = themeCtx.setTheme ?? themeCtx[1];
+	} else if (typeof themeCtx === 'string') {
+		appTheme = themeCtx;
+	}
+	// fallback local state if app theme is not ready
+	const [localTheme, setLocalTheme] = useState(() => {
 		try {
 			return (
 				appTheme ||
@@ -96,22 +99,29 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 			return appTheme || 'light';
 		}
 	});
-
-	// keep local theme in sync if the app theme changes externally
+	// keep local in sync with app theme
 	useEffect(() => {
-		if (appTheme && appTheme !== theme) setTheme(appTheme);
+		if (appTheme && appTheme !== localTheme) setLocalTheme(appTheme);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [appTheme]);
 
-	// toggle helper: update app-level setter when available
-	const toggleAppTheme = () => {
-		const next = theme === 'dark' ? 'light' : 'dark';
+	// apply theme class to documentElement
+	useEffect(() => {
+		if (localTheme === 'dark') document.documentElement.classList.add('dark');
+		else document.documentElement.classList.remove('dark');
+		try {
+			localStorage.setItem('site-theme', localTheme);
+		} catch {}
+	}, [localTheme]);
+
+	const toggleTheme = () => {
+		const next = localTheme === 'dark' ? 'light' : 'dark';
 		try {
 			if (typeof appSetTheme === 'function') appSetTheme(next);
 		} catch {
 			/* ignore */
 		}
-		setTheme(next);
+		setLocalTheme(next);
 	};
 
 	const { data: event } = useQuery({
@@ -122,7 +132,6 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		refetchOnWindowFocus: false,
 	});
 
-	// stable derived data
 	const payload = event || initialEvent || {};
 	const rawJson = useMemo(() => {
 		try {
@@ -139,7 +148,6 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 			overflow: document.body.style.overflow,
 			paddingRight: document.body.style.paddingRight,
 		};
-		// reserve scrollbar width to avoid layout jump
 		const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 		document.body.style.overflow = 'hidden';
 		if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
@@ -162,34 +170,54 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		if (!isOpen) setShowRaw(false);
 	}, [isOpen]);
 
-	// Forward wheel events to the right pane so mouse-wheel works reliably when pointer is over left / poster
+	// Robust wheel & touch handling:
+	// - listen on window in capture phase, non-passive, so we can prevent other global handlers (Lenis)
+	// - only act for events that originate inside the modal
+	// - forward vertical deltas to right pane and prevent default when the pane consumed scroll
 	useEffect(() => {
 		if (!isOpen) return;
-		const right = rightPaneRef.current;
 		const root = modalRootRef.current;
-		if (!right || !root) return;
+		const right = rightPaneRef.current;
+		if (!root || !right) return;
 
-		const onWheel = (e) => {
-			// Only handle vertical scrolls
+		const forwardWheel = (e) => {
+			// Only vertical scrolls
 			if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
-
-			// Only handle events originating from inside the modal
-			const target = e.target;
-			if (!root.contains(target)) return;
-
-			// Try native scroll on the right pane
+			// Only events that start inside modal
+			if (!root.contains(e.target)) return;
+			// Attempt to scroll the right pane
 			const before = right.scrollTop;
 			right.scrollBy({ top: e.deltaY, behavior: 'auto' });
-
-			// If the pane actually scrolled, prevent default to stop page-level handlers (Lenis etc.)
 			if (right.scrollTop !== before) {
+				// stop other listeners (capture gives us earlier execution) and prevent default
+				e.stopImmediatePropagation();
 				e.preventDefault();
+			} else {
+				// If pane can't scroll in that direction, let default happen (bubbling out)
 			}
 		};
 
-		// Use non-passive to be able to preventDefault()
-		window.addEventListener('wheel', onWheel, { passive: false });
-		return () => window.removeEventListener('wheel', onWheel);
+		const forwardTouch = (e) => {
+			// For touchmove we don't have deltaY, but we can prevent global handlers when the touch is inside
+			if (!root.contains(e.target)) return;
+			// If right pane is scrollable, prevent global smooth scrollers from hijacking
+			const canScroll =
+				right.scrollHeight > right.clientHeight &&
+				(right.scrollTop > 0 || right.scrollTop + right.clientHeight < right.scrollHeight);
+			if (canScroll) {
+				e.stopImmediatePropagation();
+				// do not preventDefault to allow native scrolling on touch devices
+			}
+		};
+
+		// capture: true ensures our handler runs before others; passive:false needed to preventDefault
+		window.addEventListener('wheel', forwardWheel, { passive: false, capture: true });
+		window.addEventListener('touchmove', forwardTouch, { passive: false, capture: true });
+
+		return () => {
+			window.removeEventListener('wheel', forwardWheel, { capture: true });
+			window.removeEventListener('touchmove', forwardTouch, { capture: true });
+		};
 	}, [isOpen]);
 
 	if (!isOpen) return null;
@@ -254,7 +282,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 					className="relative z-10 w-full max-w-5xl sm:max-w-6xl rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-3 bg-white dark:bg-slate-900"
 					role="dialog"
 					aria-modal="true"
-					aria-label={`Event details: ${title}`}
+					aria-label={`Event details: ${payload.title || 'Event'}`}
 					style={{ maxHeight: modalMaxHeight }}
 				>
 					{/* left: hero poster + condensed meta */}
@@ -324,23 +352,21 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 					<div
 						ref={rightPaneRef}
 						tabIndex={0}
-						onWheel={(e) => {
-							// Let the pane handle its own scroll and avoid bubbling to global handlers.
-							e.stopPropagation();
-						}}
 						className="col-span-2 p-6 overflow-y-auto"
 						style={{
 							maxHeight: modalMaxHeight,
 							// enable smooth native scrolling on touch devices
 							WebkitOverflowScrolling: 'touch',
-							touchAction: 'auto',
+							touchAction: 'pan-y',
 							overscrollBehavior: 'contain',
 						}}
 					>
+						{/* header row */}
 						<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+							{/* left title/tags */}
 							<div className="min-w-0">
 								<h2 className="text-2xl font-extrabold leading-tight text-slate-900 dark:text-white">
-									{title}
+									{payload.title || 'Untitled Event'}
 								</h2>
 
 								{/* tags + price row: stack on small screens */}
@@ -363,15 +389,15 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 								</div>
 							</div>
 
+							{/* actions */}
 							<div className="flex items-center gap-2">
-								{/* theme toggle */}
 								<button
-									onClick={toggleAppTheme}
+									onClick={toggleTheme}
 									title="Toggle theme"
 									className="p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
 									aria-label="Toggle theme"
 								>
-									{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+									{localTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
 								</button>
 
 								<button
