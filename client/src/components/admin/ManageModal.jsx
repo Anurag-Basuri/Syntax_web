@@ -15,11 +15,12 @@ import {
 	removeEventCoOrganizerByName,
 } from '../../services/eventServices.js';
 import formatApiError from '../../utils/formatApiError.js';
+import { useEvent } from '../../hooks/useEvents.js';
+import { useQueryClient } from '@tanstack/react-query';
 
 const TABS = ['partners', 'speakers', 'resources', 'coOrganizers', 'posters'];
 
 const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) => {
-	// Local state (keeps UI simple)
 	const [tab, setTab] = useState('partners');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
@@ -29,22 +30,26 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 	const [coName, setCoName] = useState('');
 	const [posterFile, setPosterFile] = useState(null);
 
-	const abortRef = useRef(null);
 	const mountedRef = useRef(true);
-
 	useEffect(() => {
 		mountedRef.current = true;
 		return () => {
 			mountedRef.current = false;
-			if (abortRef.current) {
-				abortRef.current.abort();
-				abortRef.current = null;
-			}
 		};
 	}, []);
 
+	// Use hook to fetch full event details (avoids relying on list endpoint's lightweight projections)
+	const eventId = event?._id ?? null;
+	const {
+		data: fullEvent,
+		refetch: refetchEvent,
+		isFetching: eventFetching,
+	} = useEvent(open ? eventId : null) || {};
+
+	const queryClient = useQueryClient();
+
 	useEffect(() => {
-		// reset forms when opening a new event
+		// reset forms when modal opens
 		if (open) {
 			setError('');
 			setPartnerForm({ name: '', website: '', logo: null });
@@ -53,13 +58,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 			setCoName('');
 			setPosterFile(null);
 		}
-	}, [event, open]);
-
-	const createAbortSignal = () => {
-		if (abortRef.current) abortRef.current.abort();
-		abortRef.current = new AbortController();
-		return abortRef.current.signal;
-	};
+	}, [open, eventId]);
 
 	const handleApiError = (err) => {
 		const msg = formatApiError(err);
@@ -69,29 +68,38 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 	};
 
 	const ensureEventId = () => {
-		if (!event || !event._id) {
+		if (!eventId) {
 			const msg = 'Event not available';
 			if (mountedRef.current) setError(msg);
 			toast.error(msg);
 			return null;
 		}
-		return event._id;
+		return eventId;
 	};
 
-	// small helper to centralize loading / error handling
-	const run = async (fn, successMessage) => {
-		setError('');
-		if (!mountedRef.current) return;
-		setLoading(true);
-		const signal = createAbortSignal();
+	// helpers to refresh data after successful change
+	const refreshAfter = async () => {
 		try {
-			await fn(signal);
-			if (mountedRef.current && successMessage) toast.success(successMessage);
+			if (refetchEvent) await refetchEvent();
+			// also refresh list so admin overview updates
+			await queryClient.invalidateQueries({ queryKey: ['events'] });
 			onDone?.();
+		} catch {
+			// ignore
+		}
+	};
+
+	// simple wrapper for actions
+	const doAction = async (fn, successMessage) => {
+		setError('');
+		if (!mountedRef.current) return false;
+		setLoading(true);
+		try {
+			await fn();
+			if (mountedRef.current && successMessage) toast.success(successMessage);
+			await refreshAfter();
 			return true;
 		} catch (err) {
-			// ignore abort cancellations
-			if (err?.name === 'CanceledError' || err?.message === 'canceled') return false;
 			handleApiError(err);
 			return false;
 		} finally {
@@ -105,7 +113,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		const id = ensureEventId();
 		if (!id) return;
 
-		await run(async (signal) => {
+		await doAction(async () => {
 			let payload;
 			if (partnerForm.logo instanceof File) {
 				payload = new FormData();
@@ -115,8 +123,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 			} else {
 				payload = { name: partnerForm.name.trim(), website: partnerForm.website?.trim() };
 			}
-			await addEventPartner(id, payload, { signal });
-			// reset only after success
+			await addEventPartner(id, payload);
 			if (mountedRef.current) setPartnerForm({ name: '', website: '', logo: null });
 		}, 'Partner added');
 	};
@@ -126,7 +133,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!window.confirm('Remove partner?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		await run((signal) => removeEventPartner(id, identifier, { signal }), 'Partner removed');
+		await doAction(() => removeEventPartner(id, identifier), 'Partner removed');
 	};
 
 	// Speakers
@@ -135,7 +142,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		const id = ensureEventId();
 		if (!id) return;
 
-		await run(async (signal) => {
+		await doAction(async () => {
 			let payload;
 			if (speakerForm.photo instanceof File) {
 				payload = new FormData();
@@ -150,7 +157,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 					bio: speakerForm.bio?.trim(),
 				};
 			}
-			await addEventSpeaker(id, payload, { signal });
+			await addEventSpeaker(id, payload);
 			if (mountedRef.current) setSpeakerForm({ name: '', title: '', bio: '', photo: null });
 		}, 'Speaker added');
 	};
@@ -159,7 +166,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!window.confirm('Remove speaker?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		await run((signal) => removeEventSpeaker(id, index, { signal }), 'Speaker removed');
+		await doAction(() => removeEventSpeaker(id, index), 'Speaker removed');
 	};
 
 	// Resources
@@ -169,12 +176,11 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		const id = ensureEventId();
 		if (!id) return;
 
-		await run(async (signal) => {
-			await addEventResource(
-				id,
-				{ title: resourceForm.title.trim(), url: resourceForm.url.trim() },
-				{ signal }
-			);
+		await doAction(async () => {
+			await addEventResource(id, {
+				title: resourceForm.title.trim(),
+				url: resourceForm.url.trim(),
+			});
 			if (mountedRef.current) setResourceForm({ title: '', url: '' });
 		}, 'Resource added');
 	};
@@ -183,7 +189,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!window.confirm('Remove resource?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		await run((signal) => removeEventResource(id, index, { signal }), 'Resource removed');
+		await doAction(() => removeEventResource(id, index), 'Resource removed');
 	};
 
 	// Co-organizers
@@ -191,8 +197,8 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!coName?.trim()) return setError('Name required');
 		const id = ensureEventId();
 		if (!id) return;
-		await run(
-			(signal) => addEventCoOrganizer(id, { name: coName.trim() }, { signal }),
+		await doAction(
+			() => addEventCoOrganizer(id, { name: coName.trim() }),
 			'Co-organizer added'
 		);
 		if (mountedRef.current) setCoName('');
@@ -202,10 +208,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!window.confirm('Remove co-organizer?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		await run(
-			(signal) => removeEventCoOrganizerByIndex(id, idx, { signal }),
-			'Co-organizer removed'
-		);
+		await doAction(() => removeEventCoOrganizerByIndex(id, idx), 'Co-organizer removed');
 	};
 
 	const handleRemoveCoName = async (name) => {
@@ -213,10 +216,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!window.confirm(`Remove co-organizer "${name}"?`)) return;
 		const id = ensureEventId();
 		if (!id) return;
-		await run(
-			(signal) => removeEventCoOrganizerByName(id, name, { signal }),
-			'Co-organizer removed'
-		);
+		await doAction(() => removeEventCoOrganizerByName(id, name), 'Co-organizer removed');
 	};
 
 	// Posters
@@ -224,10 +224,10 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!posterFile) return setError('Choose a file first');
 		const id = ensureEventId();
 		if (!id) return;
-		await run(async (signal) => {
+		await doAction(async () => {
 			const fd = new FormData();
 			fd.append('poster', posterFile);
-			await addEventPoster(id, fd, { signal });
+			await addEventPoster(id, fd);
 			if (mountedRef.current) setPosterFile(null);
 		}, 'Poster added');
 	};
@@ -237,23 +237,24 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		if (!window.confirm('Remove poster?')) return;
 		const id = ensureEventId();
 		if (!id) return;
-		await run((signal) => removeEventPoster(id, publicId, { signal }), 'Poster removed');
+		await doAction(() => removeEventPoster(id, publicId), 'Poster removed');
 	};
 
 	if (!open || !event) return null;
 
-	// derive lists from event safely
-	const partners = Array.isArray(event.partners) ? event.partners : [];
-	const speakers = Array.isArray(event.speakers) ? event.speakers : [];
-	const resources = Array.isArray(event.resources) ? event.resources : [];
-	const coOrganizers = Array.isArray(event.coOrganizers) ? event.coOrganizers : [];
-	const posters = Array.isArray(event.posters) ? event.posters : [];
+	// derive lists from fetched fullEvent first, fallback to shallow event prop
+	const src = fullEvent || event;
+	const partners = Array.isArray(src.partners) ? src.partners : [];
+	const speakers = Array.isArray(src.speakers) ? src.speakers : [];
+	const resources = Array.isArray(src.resources) ? src.resources : [];
+	const coOrganizers = Array.isArray(src.coOrganizers) ? src.coOrganizers : [];
+	const posters = Array.isArray(src.posters) ? src.posters : [];
 
 	return (
 		<div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/60">
 			<div className="w-full max-w-3xl sm:rounded-lg bg-gray-900 rounded-lg overflow-hidden border border-gray-800 shadow-xl">
 				<div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-					<h3 className="text-lg font-semibold truncate">Manage: {event.title || '—'}</h3>
+					<h3 className="text-lg font-semibold truncate">Manage: {src.title || '—'}</h3>
 					<div className="flex items-center gap-2">
 						<button
 							type="button"
@@ -264,7 +265,11 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 						</button>
 						<button
 							type="button"
-							onClick={() => onDone?.()}
+							onClick={() => {
+								onDone?.();
+								// ensure parent list refreshed
+								queryClient.invalidateQueries({ queryKey: ['events'] });
+							}}
 							className="px-3 py-1 rounded bg-blue-600 text-white"
 						>
 							Done
@@ -324,10 +329,14 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 					</div>
 
 					<div className="flex-1 p-4 min-h-[300px] max-h-[70vh] overflow-y-auto">
+						{eventFetching && !fullEvent && (
+							<div className="text-sm text-gray-400 mb-3">Loading details...</div>
+						)}
 						{error && <div className="mb-3 text-sm text-red-400">{error}</div>}
 
 						{tab === 'partners' && (
 							<div className="space-y-4">
+								{/* list */}
 								<div className="space-y-2">
 									{partners.length === 0 && (
 										<div className="text-sm text-gray-400">No partners</div>
@@ -382,6 +391,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 									))}
 								</div>
 
+								{/* add */}
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
 									<input
 										placeholder="Name"
