@@ -26,36 +26,24 @@ import { body, param } from 'express-validator';
 const router = Router();
 const { protect, authorize } = authMiddleware;
 
-//================================================================================
-// --- Public Routes ---
-// Accessible by anyone.
-//================================================================================
-
-// Get data for the main landing page (current fest or last completed one)
+// ----------------------------- Public Routes -----------------------------
+// Landing / summary list / public detail (public)
 router.get('/landing', getLandingPageData);
 
-// Get a paginated list of all fests (summary view)
 router.get('/', getAllFests);
 
-// ---------------------------------------------------------------------------------
-// Public detail route (must be registered BEFORE admin auth middleware)
-// Registering here ensures anyone can fetch fest details without auth.
-// ---------------------------------------------------------------------------------
+// Public detail route - must be before admin-only middleware so it's accessible without auth
 router.get(
 	'/:identifier',
 	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
 	getFestDetails
 );
 
-//================================================================================
-// --- Admin-Only Routes ---
-// All subsequent routes are protected and require admin privileges.
-//================================================================================
-
+// ----------------------------- Admin Routes ------------------------------
 // Protect everything below
 router.use(protect, authorize('admin'));
 
-// --- Admin Analytics & Reports ---
+// Admin exports / analytics / reports
 router.get('/export/csv', exportFestsCSV);
 router.get('/analytics/overview', getFestAnalytics);
 router.get('/statistics/overview', getFestStatistics);
@@ -65,7 +53,7 @@ router.get(
 	generateFestReport
 );
 
-// --- Core Fest Management ---
+// Core fest management
 router.post(
 	'/',
 	validate([
@@ -100,24 +88,23 @@ router.delete(
 	deleteFest
 );
 
-// --- Partner Management ---
-
-// Add a new partner (sponsor or collaborator) to a fest
+// Partner management
 router.post(
 	'/:identifier/partners',
-	// lightweight debug middleware for uploads
 	(req, res, next) => {
+		// debug log useful for diagnosing upload/content-type issues
+		/* eslint-disable no-console */
 		console.log('[ROUTE] POST /:identifier/partners', {
 			identifier: req.params.identifier,
 			contentType: req.headers['content-type'],
 		});
+		/* eslint-enable no-console */
 		next();
 	},
 	uploadFile('logo', { multiple: false, maxCount: 1 }),
 	validate([
 		param('identifier').notEmpty().withMessage('Fest identifier is required'),
 		body('name').notEmpty().trim().withMessage('Partner name is required'),
-		// allow either `type` or `tier` from the client; validate if supplied
 		body('type')
 			.optional()
 			.isIn(['sponsor', 'collaborator'])
@@ -140,7 +127,7 @@ router.delete(
 	removePartner
 );
 
-// --- Event Linking ---
+// Event linking
 router.post(
 	'/:identifier/events',
 	validate([
@@ -159,17 +146,19 @@ router.delete(
 	unlinkEventFromFest
 );
 
-// --- Media Management ---
+// Media management
 router.patch(
 	'/:identifier/poster',
 	(req, res, next) => {
+		/* eslint-disable no-console */
 		console.log('[ROUTE] PATCH /:identifier/poster', {
 			identifier: req.params.identifier,
 			contentType: req.headers['content-type'],
 		});
+		/* eslint-enable no-console */
 		next();
 	},
-	uploadFile('poster', { multiple: false, maxCount: 1 }), // single poster file
+	uploadFile('poster', { multiple: false, maxCount: 1 }),
 	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
 	updateFestPoster
 );
@@ -177,13 +166,15 @@ router.patch(
 router.post(
 	'/:identifier/gallery',
 	(req, res, next) => {
+		/* eslint-disable no-console */
 		console.log('[ROUTE] POST /:identifier/gallery', {
 			identifier: req.params.identifier,
 			contentType: req.headers['content-type'],
 		});
+		/* eslint-enable no-console */
 		next();
 	},
-	uploadFile('media', { multiple: true, maxCount: 10 }), // allow multiple gallery items
+	uploadFile('media', { multiple: true, maxCount: 10 }),
 	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
 	addGalleryMedia
 );
@@ -195,15 +186,6 @@ router.delete(
 		param('publicId').notEmpty().withMessage('Media public ID is required'),
 	]),
 	removeGalleryMedia
-);
-
-// ---------------------------------------------------------------------------------
-// Register the public detail route last so it won't shadow more specific routes.
-// ---------------------------------------------------------------------------------
-router.get(
-	'/:identifier',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
-	getFestDetails
 );
 
 export default router;
