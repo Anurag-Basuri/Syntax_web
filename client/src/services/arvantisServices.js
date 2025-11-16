@@ -440,6 +440,50 @@ export const generateFestReport = async (identifier) => {
 	}
 };
 
+// --- new: fetch & download helpers for analytics/statistics/report ---
+const downloadJSON = (obj, filename) => {
+	const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+	const url = window.URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = filename;
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+	window.URL.revokeObjectURL(url);
+};
+
+export const downloadFestAnalytics = async () => {
+	try {
+		const data = await getFestAnalytics();
+		downloadJSON(data ?? {}, `arvantis-analytics-${new Date().toISOString()}.json`);
+		return data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to download analytics.'));
+	}
+};
+
+export const downloadFestStatistics = async () => {
+	try {
+		const data = await getFestStatistics();
+		downloadJSON(data ?? {}, `arvantis-statistics-${new Date().toISOString()}.json`);
+		return data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to download statistics.'));
+	}
+};
+
+export const downloadFestReport = async (identifier) => {
+	if (!identifier) throw new Error('Identifier required for report download.');
+	try {
+		const data = await generateFestReport(identifier);
+		downloadJSON(data ?? {}, `arvantis-report-${identifier}-${new Date().toISOString()}.json`);
+		return data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to download report.'));
+	}
+};
+
 // Tracks
 export const addTrack = async (identifier, payload) => {
 	if (!identifier || !payload?.title) throw new Error('Identifier and track title required.');
