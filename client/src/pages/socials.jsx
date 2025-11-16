@@ -22,6 +22,7 @@ import {
 	Image as ImageIcon,
 	Clock,
 	User,
+	Copy,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import { createPost, deletePost } from '../services/socialsServices.js';
@@ -29,14 +30,12 @@ import useSocials from '../hooks/useSocials.js';
 import toast from 'react-hot-toast';
 
 /**
- * Socials feed page (improved)
+ * Socials feed page
  *
- * - Keeps existing hooks/services untouched.
- * - Cleaner, faster PostCard with memoization.
- * - Inline QuickComposer + CreatePostModal (supports text-only posts).
- * - Better media placeholders, full-screen viewer, responsive layout.
- *
- * Note: This file replaces the previous socials.jsx. Keep a backup if needed.
+ * - Only admins can create/delete posts (UI enforces this; backend already enforces).
+ * - Viewers (non-admins) can view & share posts only.
+ * - Admins see Create, Delete and additional actions.
+ * - Added: client-side search, robust share (Web Share API + clipboard fallback), accessibility improvements.
  */
 
 /* ----------------------
@@ -61,6 +60,7 @@ const transformPost = (post) => {
 		url: item.url,
 		type: item.resource_type === 'video' || (item.url || '').match(/\.(mp4|webm|ogg)$/) ? 'video' : 'image',
 		publicId: item.publicId,
+		resource_type: item.resource_type,
 	}));
 
 	return {
@@ -69,7 +69,7 @@ const transformPost = (post) => {
 			id: post.author?._id || post.author?.id,
 			name: post.author?.fullname || post.author?.name || 'Unknown',
 			fullname: post.author?.fullname || post.author?.name || 'Unknown',
-			role: post.author?.role || 'member',
+			role: post.author?.role || 'admin', // server authors are admins
 			avatar: post.author?.profilePicture?.url || post.author?.avatar || '',
 			verified: !!post.author?.verified,
 		},
@@ -82,6 +82,7 @@ const transformPost = (post) => {
 		comments: post.comments || 0,
 		createdAt: post.createdAt,
 		updatedAt: post.updatedAt,
+		status: post.status,
 	};
 };
 
@@ -91,12 +92,13 @@ const transformPost = (post) => {
 
 const PostCard = React.memo(({ post, currentUser, onDelete }) => {
 	const [showOptions, setShowOptions] = useState(false);
-	const [isLiked, setIsLiked] = useState(false);
 	const [expandedMedia, setExpandedMedia] = useState(null);
 	const videoRefs = useRef({});
 	const optionsRef = useRef(null);
 
+	// Only admins can delete (server enforces, this is UI guard)
 	const canDelete = currentUser?.role === 'admin' || currentUser?.id === post.user?.id;
+	const isViewer = currentUser?.role !== 'admin';
 
 	useEffect(() => {
 		const handle = (e) => {
@@ -115,12 +117,6 @@ const PostCard = React.memo(({ post, currentUser, onDelete }) => {
 		else v.pause();
 	}, []);
 
-	const toggleMute = useCallback((id) => {
-		const v = videoRefs.current[id];
-		if (!v) return;
-		v.muted = !v.muted;
-	}, []);
-
 	const initials = (
 		post.user?.name
 			?.split(' ')
@@ -129,6 +125,35 @@ const PostCard = React.memo(({ post, currentUser, onDelete }) => {
 			.substring(0, 2)
 			.toUpperCase() || '??'
 	);
+
+	const handleShare = async (e) => {
+		e.stopPropagation();
+		const url = `${window.location.origin}/socials/${post._id}`;
+		const text = post.title || (post.content && post.content.slice(0, 120));
+		// Use Web Share API if available
+		if (navigator.share) {
+			try {
+				await navigator.share({
+					title: post.title || 'Organization Update',
+					text: text || '',
+					url,
+				});
+				toast.success('Shared');
+				return;
+			} catch (err) {
+				// user cancelled or failed — fall back to clipboard
+			}
+		}
+		// Fallback: copy link
+		try {
+			await navigator.clipboard.writeText(url);
+			toast.success('Link copied to clipboard');
+		} catch (err) {
+			// Last fallback: open share window
+			window.open(url, '_blank', 'noopener,noreferrer');
+			toast('Opened link');
+		}
+	};
 
 	return (
 		<motion.article
@@ -145,7 +170,7 @@ const PostCard = React.memo(({ post, currentUser, onDelete }) => {
 						{post.user?.avatar ? (
 							<img
 								src={post.user.avatar}
-								alt={post.user.name}
+								alt={`${post.user.name} avatar`}
 								className="w-12 h-12 rounded-full object-cover"
 								loading="lazy"
 							/>
@@ -248,6 +273,7 @@ const PostCard = React.memo(({ post, currentUser, onDelete }) => {
 										<button
 											onClick={() => toggleVideo(post.media[0].id)}
 											className="p-3 bg-black/60 text-white rounded-full"
+											aria-label="Play/Pause video"
 										>
 											{videoRefs.current[post.media[0].id] && !videoRefs.current[post.media[0].id].paused ? (
 												<Pause />
@@ -271,6 +297,7 @@ const PostCard = React.memo(({ post, currentUser, onDelete }) => {
 											<button
 												onClick={() => toggleVideo(m.id)}
 												className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-black/50 flex items-center justify-center text-white"
+												aria-label="Play/Pause video"
 											>
 												{videoRefs.current[m.id] && !videoRefs.current[m.id].paused ? <Pause /> : <Play />}
 											</button>
@@ -288,21 +315,22 @@ const PostCard = React.memo(({ post, currentUser, onDelete }) => {
 
 			{/* Actions */}
 			<div className="px-4 sm:px-6 py-3 border-t border-[var(--glass-border)] flex items-center gap-4">
-				<button
-					onClick={() => setIsLiked((s) => !s)}
-					className={`flex items-center gap-2 text-sm ${isLiked ? 'text-red-500' : 'text-[var(--text-muted)]'}`}
-					aria-label="Like"
-				>
-					<Heart className="w-5 h-5" />
-					<span>{(post.likes || 0) + (isLiked ? 1 : 0)}</span>
-				</button>
+				{/* Likes & comments are intentionally shown only to admins (post management & preview). Viewers can only share. */}
+				{!isViewer && (
+					<>
+						<button className="flex items-center gap-2 text-sm text-[var(--text-muted)]" aria-label="Like (admin preview)">
+							<Heart className="w-5 h-5" />
+							<span>{post.likes || 0}</span>
+						</button>
 
-				<button className="flex items-center gap-2 text-sm text-[var(--text-muted)]" aria-label="Comments">
-					<MessageCircle className="w-5 h-5" />
-					<span>{post.comments || 0}</span>
-				</button>
+						<button className="flex items-center gap-2 text-sm text-[var(--text-muted)]" aria-label="Comments (admin preview)">
+							<MessageCircle className="w-5 h-5" />
+							<span>{post.comments || 0}</span>
+						</button>
+					</>
+				)}
 
-				<button className="flex items-center gap-2 text-sm text-[var(--text-muted)]" aria-label="Share">
+				<button onClick={handleShare} className="flex items-center gap-2 text-sm text-[var(--text-muted)]" aria-label="Share">
 					<Share2 className="w-5 h-5" />
 					<span className="hidden sm:inline">Share</span>
 				</button>
@@ -422,7 +450,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 			<motion.form onSubmit={handleSubmit} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} onClick={(e) => e.stopPropagation()} className="relative bg-[var(--glass-bg)] rounded-2xl shadow-[var(--shadow-xl)] max-w-2xl w-full p-4 sm:p-6 border border-[var(--glass-border)]">
 				<div className="flex items-center justify-between mb-3">
 					<h3 className="text-lg font-semibold text-[var(--text-primary)]">Create post</h3>
-					<button type="button" onClick={handleClose} className="p-2 rounded-full hover:bg-[var(--glass-hover)]">
+					<button type="button" onClick={handleClose} className="p-2 rounded-full hover:bg-[var(--glass-hover)]" aria-label="Close create post">
 						<X className="w-5 h-5 text-[var(--accent-1)]" />
 					</button>
 				</div>
@@ -431,7 +459,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 
 				<div className="mb-3">
 					<label className="block text-sm text-[var(--text-secondary)] mb-1">Title</label>
-					<input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg" placeholder="Title (optional)" />
+					<input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg" placeholder="Title (required)" required />
 				</div>
 
 				<div className="mb-3">
@@ -444,7 +472,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 						{selectedFiles.map((f) => (
 							<div key={f.id} className="relative rounded-lg overflow-hidden border border-[var(--glass-border)]">
 								{f.type === 'image' ? <img src={f.url} alt="" className="w-full h-28 object-cover" /> : <div className="w-full h-28 flex items-center justify-center bg-[var(--bg-soft)]"><VideoIcon className="w-6 h-6 text-[var(--accent-1)]" /></div>}
-								<button type="button" onClick={() => removeFile(f.id)} className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full"><X className="w-3 h-3" /></button>
+								<button type="button" onClick={() => removeFile(f.id)} className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full" aria-label="Remove file"><X className="w-3 h-3" /></button>
 							</div>
 						))}
 					</div>
@@ -453,14 +481,14 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 				<div className="flex items-center justify-between gap-3">
 					<input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileSelect} />
 					<div className="flex items-center gap-3">
-						<button type="button" onClick={() => fileInputRef.current?.click()} className="px-3 py-2 bg-[var(--button-secondary-bg)] border border-[var(--button-secondary-border)] rounded-lg text-[var(--accent-1)]">
+						<button type="button" onClick={() => fileInputRef.current?.click()} className="px-3 py-2 bg-[var(--button-secondary-bg)] border border-[var(--button-secondary-border)] rounded-lg text-[var(--accent-1)]" aria-label="Add media">
 							<Upload className="w-4 h-4 inline-block" /> <span className="ml-2 hidden sm:inline">Add media</span>
 						</button>
 					</div>
 
 					<div className="flex items-center gap-2">
 						<button type="button" onClick={handleClose} className="px-3 py-2 rounded-lg border border-[var(--glass-border)]">Cancel</button>
-						<button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-[var(--button-primary-bg)] text-white rounded-lg">
+						<button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-[var(--button-primary-bg)] text-white rounded-lg" aria-label="Post">
 							{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin inline-block" /> : 'Post'}
 						</button>
 					</div>
@@ -479,10 +507,10 @@ const QuickComposer = ({ canCreate, onOpenModal, currentUser }) => {
 	return (
 		<div className="bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-4 mb-6 flex gap-4 items-start">
 			<div className="flex-shrink-0">
-				{currentUser?.avatar ? <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent-1)] to-[var(--accent-2)] flex items-center justify-center text-white">{(currentUser?.name || 'U').slice(0,1)}</div>}
+				{currentUser?.avatar ? <img src={currentUser.avatar} alt={`${currentUser.name} avatar`} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent-1)] to-[var(--accent-2)] flex items-center justify-center text-white">{(currentUser?.name || 'U').slice(0,1)}</div>}
 			</div>
-			<button onClick={onOpenModal} className="flex-1 text-left p-3 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[var(--input-text)]">Share an update, photo or video...</button>
-			<button onClick={onOpenModal} className="p-2 rounded-full bg-[var(--button-primary-bg)] text-white"><Plus className="w-4 h-4" /></button>
+			<button onClick={onOpenModal} className="flex-1 text-left p-3 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[var(--input-text)]" aria-label="Open composer">Share an update, photo or video...</button>
+			<button onClick={onOpenModal} className="p-2 rounded-full bg-[var(--button-primary-bg)] text-white" aria-label="Open composer"><Plus className="w-4 h-4" /></button>
 		</div>
 	);
 };
@@ -496,12 +524,13 @@ const SocialsFeedPage = () => {
 	const { socials, loading, error, refetch } = useSocials();
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [showScrollTop, setShowScrollTop] = useState(false);
+	const [searchQuery, setSearchQuery] = useState('');
 
 	const posts = useMemo(() => (Array.isArray(socials) ? socials.map(transformPost) : []), [socials]);
 
 	const currentUser = useMemo(() => {
-		if (!isAuthenticated || !user) return { id: 'guest', name: 'Guest', role: 'guest', avatar: '' };
-		return { id: user._id || user.id, name: user.fullname || user.name, role: user.role || 'member', avatar: user.profilePicture?.url || user.avatar || '' };
+		if (!isAuthenticated || !user) return { id: 'guest', name: 'Guest', role: 'viewer', avatar: '' };
+		return { id: user._id || user.id, name: user.fullname || user.name, role: user.role || 'viewer', avatar: user.profilePicture?.url || user.avatar || '' };
 	}, [isAuthenticated, user]);
 
 	useEffect(() => {
@@ -525,7 +554,15 @@ const SocialsFeedPage = () => {
 
 	const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-	const canCreate = isAuthenticated && (user?.role === 'admin' || user?.role === 'member');
+	// Only admins can create posts
+	const canCreate = isAuthenticated && user?.role === 'admin';
+
+	// Client-side search / filter (simple)
+	const filteredPosts = useMemo(() => {
+		const q = (searchQuery || '').trim().toLowerCase();
+		if (!q) return posts;
+		return posts.filter((p) => (p.title || '').toLowerCase().includes(q) || (p.content || '').toLowerCase().includes(q));
+	}, [posts, searchQuery]);
 
 	return (
 		<div className="relative min-h-screen bg-transparent overflow-x-hidden">
@@ -538,16 +575,29 @@ const SocialsFeedPage = () => {
 								<Sparkles className="w-6 h-6 text-white" />
 							</div>
 							<div>
-								<h1 className="text-xl font-bold brand-text">Vibrant Community</h1>
-								<p className="text-xs text-[var(--text-secondary)]">Updates & highlights from club activities</p>
+								<h1 className="text-xl font-bold brand-text">Organization Updates</h1>
+								<p className="text-xs text-[var(--text-secondary)]">Official updates, event recaps and announcements</p>
 							</div>
 						</div>
 
-						{canCreate && (
-							<button onClick={() => setShowCreateModal(true)} className="btn btn-primary flex items-center gap-2">
-								<Plus className="w-4 h-4" /> Create Post
-							</button>
-						)}
+						<div className="flex items-center gap-3">
+							{/* Search */}
+							<div className="hidden sm:flex items-center gap-2 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-full px-3 py-1">
+								<input
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
+									placeholder="Search updates..."
+									className="bg-transparent outline-none text-sm text-[var(--text-secondary)] w-56"
+									aria-label="Search posts"
+								/>
+							</div>
+
+							{canCreate && (
+								<button onClick={() => setShowCreateModal(true)} className="btn btn-primary flex items-center gap-2">
+									<Plus className="w-4 h-4" /> Create Post
+								</button>
+							)}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -557,19 +607,24 @@ const SocialsFeedPage = () => {
 				<div className="bg-[var(--glass-bg)] rounded-2xl border border-[var(--glass-border)] p-3 flex items-center justify-between gap-3">
 					<div className="flex items-center gap-3">
 						<Lightbulb className="w-5 h-5 text-[var(--accent-1)]" />
-						<div className="text-sm text-[var(--text-secondary)]">Share updates, event recaps, or highlight members. Tag posts with #TechForGood to get featured.</div>
+						<div className="text-sm text-[var(--text-secondary)]">This feed is for official updates — only admins post here. Viewers may share posts externally.</div>
 					</div>
 					<div className="flex gap-2">
-						<button className="px-2 py-1 text-xs rounded-full bg-[var(--glass-hover)]">#ImpactCoding</button>
-						<button className="px-2 py-1 text-xs rounded-full bg-[var(--glass-hover)]">#TechForGood</button>
+						<button className="px-2 py-1 text-xs rounded-full bg-[var(--glass-hover)]">#Updates</button>
+						<button className="px-2 py-1 text-xs rounded-full bg-[var(--glass-hover)]">#Events</button>
 					</div>
 				</div>
 			</div>
 
 			{/* Feed container */}
 			<div className="page-container py-6">
-				{/* Quick composer */}
+				{/* Quick composer (admin only) */}
 				<QuickComposer canCreate={canCreate} onOpenModal={() => setShowCreateModal(true)} currentUser={currentUser} />
+
+				{/* Search for small screens */}
+				<div className="sm:hidden mb-4">
+					<input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search updates..." className="w-full p-3 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)]" />
+				</div>
 
 				{/* Error */}
 				{error && <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded">{error}</div>}
@@ -577,17 +632,17 @@ const SocialsFeedPage = () => {
 				{/* Posts */}
 				<div>
 					<AnimatePresence>
-						{!loading && posts.length === 0 && (
+						{!loading && filteredPosts.length === 0 && (
 							<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 text-center text-[var(--text-secondary)]">
 								<div className="mx-auto w-20 h-20 bg-[var(--glass-bg)] rounded-full flex items-center justify-center mb-4">
 									<Sparkles className="w-8 h-8 text-[var(--accent-1)]" />
 								</div>
-								<h3 className="text-lg font-semibold text-[var(--text-primary)]">No posts yet</h3>
-								<p className="text-sm">Be the first to share an update.</p>
+								<h3 className="text-lg font-semibold text-[var(--text-primary)]">No updates found</h3>
+								<p className="text-sm">Check back later for official announcements and event recaps.</p>
 							</motion.div>
 						)}
 
-						{posts.map((p) => (
+						{filteredPosts.map((p) => (
 							<PostCard key={p._id} post={p} currentUser={currentUser} onDelete={handleDeletePost} />
 						))}
 					</AnimatePresence>
@@ -598,12 +653,14 @@ const SocialsFeedPage = () => {
 						</div>
 					)}
 				</div>
+
+				{/* TODO: Pagination or "Load more" button here (backend supports pagination). */}
 			</div>
 
 			{/* Scroll to top */}
 			<AnimatePresence>
 				{showScrollTop && (
-					<motion.button initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} onClick={scrollToTop} className="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-[var(--button-primary-bg)] text-white shadow-[var(--shadow-lg)]">
+					<motion.button initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} onClick={scrollToTop} className="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-[var(--button-primary-bg)] text-white shadow-[var(--shadow-lg)]" aria-label="Scroll to top">
 						<ChevronUp className="w-5 h-5" />
 					</motion.button>
 				)}
