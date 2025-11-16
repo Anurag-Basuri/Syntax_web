@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { useEvent } from '../../hooks/useEvents.js'; // existing hook, unchanged
+import { useEvent } from '../../hooks/useEvents.js';
+import SpeakerDetailModal from './SpeakerDetailModal.jsx';
 
 // Friendly date/time formatter
 const safeFormatDate = (dateInput) => {
@@ -60,10 +61,10 @@ const generateICS = (ev = {}) => {
 
 /**
  * EventDetailModal
- * - Theme-aware: uses CSS variables where appropriate for bright/dark parity.
- * - Image handling is robust (preloads & fallback).
- * - Improved presentation of speakers, partners, co-organizers (cards / grid / chips).
- * - No hooks/services were changed (still uses existing useEvent).
+ * - Adds micro-interactions (hover-lift, subtle icon transform)
+ * - Speaker click opens SpeakerDetailModal slide-over
+ * - Partner carousel on small screens (smooth scroll)
+ * - Keeps theme-awareness via CSS variables from the app
  */
 const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	const [imgIndex, setImgIndex] = useState(0);
@@ -71,14 +72,19 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	const closeRef = useRef(null);
 	const id = initialEvent?._id ?? null;
 
-	// Use existing hook; pass id only when open. The hook itself manages enabled: !!id
+	// fetch full event details when open (useEvent hook unchanged)
 	const { data: fetched } = useEvent(isOpen ? id : null);
-
 	const event = fetched || initialEvent;
+
+	// Speaker detail modal state
+	const [selectedSpeaker, setSelectedSpeaker] = useState(null);
+
+	// partner carousel ref
+	const partnersRef = useRef(null);
 
 	const countdown = useMemo(() => timeUntil(event?.eventDate || event?.date), [event]);
 
-	// Determine theme: prefer explicit data-theme, fallback to system preference
+	// determine theme quickly (uses data-theme or prefers-color-scheme)
 	const isDark = (() => {
 		try {
 			const dt = document.documentElement?.getAttribute?.('data-theme');
@@ -89,7 +95,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		}
 	})();
 
-	// compute posterUrl and pre-validate it so we can gracefully fallback if it 404s
+	// preload poster to detect failure
 	const posterUrl = event?.posters?.[imgIndex]?.url ?? null;
 	useEffect(() => {
 		let mounted = true;
@@ -106,7 +112,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		};
 	}, [posterUrl]);
 
-	// disable body scroll while modal is open
+	// prevent body scroll while modal open
 	useEffect(() => {
 		if (!isOpen) return;
 		const prev = document.body.style.overflow;
@@ -116,7 +122,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		};
 	}, [isOpen]);
 
-	// focus management + escape to close
+	// focus + esc
 	useEffect(() => {
 		if (!isOpen) return;
 		closeRef.current?.focus();
@@ -127,7 +133,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		return () => window.removeEventListener('keydown', onKey);
 	}, [isOpen, onClose]);
 
-	// Defensive arrays
+	// defensive arrays
 	const speakers = Array.isArray(event?.speakers) ? event.speakers : event?.speakers ? [event.speakers] : [];
 	const partners = Array.isArray(event?.partners) ? event.partners : event?.partners ? [event.partners] : [];
 	const coOrganizers = Array.isArray(event?.coOrganizers) ? event.coOrganizers : event?.coOrganizers ? [event.coOrganizers] : [];
@@ -184,7 +190,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		setImgIndex((p) => (p - 1 + event.posters.length) % event.posters.length);
 	};
 
-	// UI helpers: Avatar, SpeakerCard, PartnerTile, CoOrganizerChip
+	// UI components for internal use
 	const Avatar = ({ src, name, size = 56 }) => {
 		const initials = (name || '').split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase() || '–';
 		return src ? (
@@ -208,44 +214,55 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 
 	const SpeakerCard = ({ sp }) => {
 		const bio = sp.bio || sp.description || '';
-		const short = bio.length > 220 ? bio.slice(0, 217).trim() + '…' : bio;
+		const short = bio.length > 200 ? bio.slice(0, 197).trim() + '…' : bio;
 		return (
-			<div
-				className="p-3 rounded-md flex gap-3 items-start"
-				style={{
-					background: 'var(--glass-bg)',
-					border: '1px solid var(--glass-border)',
+			<button
+				onClick={(e) => {
+					e.stopPropagation();
+					setSelectedSpeaker(sp);
 				}}
+				className="group text-left p-3 rounded-md hover-lift transition-shadow duration-200 flex gap-3 items-start"
+				style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}
+				aria-label={`Open details for ${sp.name || 'speaker'}`}
 			>
 				<Avatar src={sp.photo} name={sp.name} size={56} />
 				<div className="min-w-0">
-					<div className="flex items-center justify-between gap-3">
+					<div className="flex items-center gap-2">
 						<div className="font-medium text-[var(--text-primary)] truncate">{sp.name || sp.title || 'Speaker'}</div>
 						{sp.company && <div className="text-xs text-[var(--text-muted)]">{sp.company}</div>}
 					</div>
 					{sp.title && <div className="text-xs text-[var(--text-muted)] truncate">{sp.title}</div>}
 					{bio && <div className="text-sm text-[var(--text-secondary)] mt-2">{short}</div>}
-					{(sp.links || sp.social || sp.website) && (
-						<div className="mt-2 flex gap-3 items-center">
-							{sp.links?.twitter && (
-								<a href={sp.links.twitter} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-500">
-									Twitter
-								</a>
-							)}
-							{sp.links?.linkedin && (
-								<a href={sp.links.linkedin} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-500">
-									LinkedIn
-								</a>
-							)}
-							{sp.website && (
-								<a href={sp.website} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-500">
-									Website
-								</a>
-							)}
-						</div>
-					)}
+					{/* subtle icon animation */}
+					<div className="mt-2 flex gap-2 items-center">
+						{sp.links?.twitter && (
+							<a
+								href={sp.links.twitter}
+								onClick={(e) => e.stopPropagation()}
+								target="_blank"
+								rel="noreferrer"
+								className="text-xs text-blue-500 inline-flex items-center gap-1 transform transition-transform duration-200 group-hover:translate-x-1"
+							>
+								<svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+									<path d="M22 5.92c-.7.31-1.46.52-2.26.61.81-.49 1.43-1.27 1.72-2.2-.76.45-1.6.78-2.5.96A3.59 3.59 0 0015.5 4c-1.97 0-3.57 1.6-3.57 3.57 0 .28.03.55.09.81-2.97-.15-5.6-1.57-7.36-3.73-.31.54-.49 1.17-.49 1.84 0 1.27.65 2.39 1.63 3.05-.6-.02-1.17-.18-1.66-.46v.05c0 1.77 1.26 3.24 2.94 3.57-.31.08-.64.12-.98.12-.24 0-.47-.02-.69-.06.47 1.48 1.82 2.55 3.43 2.58A7.2 7.2 0 013 19.53a10.2 10.2 0 005.5 1.61c6.59 0 10.2-5.46 10.2-10.2v-.46c.7-.5 1.3-1.13 1.78-1.85-.65.29-1.36.48-2.09.56.75-.45 1.32-1.17 1.6-2.03z" />
+								</svg>
+								Twitter
+							</a>
+						)}
+						{sp.links?.linkedin && (
+							<a
+								href={sp.links.linkedin}
+								onClick={(e) => e.stopPropagation()}
+								target="_blank"
+								rel="noreferrer"
+								className="text-xs text-blue-500 inline-flex items-center gap-1 transform transition-transform duration-200 group-hover:translate-x-1"
+							>
+								LinkedIn
+							</a>
+						)}
+					</div>
 				</div>
-			</div>
+			</button>
 		);
 	};
 
@@ -256,11 +273,8 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 				onClick={(e) => e.stopPropagation()}
 				target="_blank"
 				rel="noreferrer"
-				className="flex items-center gap-3 p-3 rounded-md hover:shadow-md transition-shadow"
-				style={{
-					background: 'var(--glass-bg)',
-					border: '1px solid var(--glass-border)',
-				}}
+				className="group flex items-center gap-3 p-3 rounded-md hover-lift transition-transform duration-200"
+				style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}
 			>
 				<div className="flex-shrink-0 w-12 h-12 rounded-md bg-white/5 overflow-hidden flex items-center justify-center">
 					{p.logo ? (
@@ -273,15 +287,17 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 					<div className="font-medium text-[var(--text-primary)] truncate">{p.name || 'Partner'}</div>
 					{p.tier && <div className="text-xs text-[var(--text-muted)] mt-0.5">{p.tier}</div>}
 				</div>
+				{/* subtle chevron that nudges on hover */}
+				<div className="ml-auto text-xs text-[var(--text-muted)] transform transition-transform duration-200 group-hover:translate-x-1">→</div>
 			</a>
 		);
 	};
 
 	const CoOrganizerChip = ({ c }) => (
 		<div
-			className="flex items-center gap-2 rounded-full px-3 py-1"
+			className="group flex items-center gap-2 rounded-full px-3 py-1 hover-lift transition-transform"
 			style={{
-				background: 'rgba(255,255,255,0.03)',
+				background: 'rgba(255,255,255,0.02)',
 				border: '1px solid var(--glass-border)',
 			}}
 		>
@@ -298,6 +314,14 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		</div>
 	);
 
+	// partners carousel helpers
+	const scrollPartners = (dir = 1) => {
+		const el = partnersRef.current;
+		if (!el) return;
+		const offset = el.clientWidth * 0.7 * dir; // scroll 70% viewport
+		el.scrollBy({ left: offset, behavior: 'smooth' });
+	};
+
 	return createPortal(
 		<AnimatePresence>
 			<Motion.div
@@ -310,7 +334,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 				role="dialog"
 				onClick={onClose}
 			>
-				{/* overlay adapts to theme: darker overlay in dark, lighter in bright */}
+				{/* theme-adaptive overlay */}
 				<Motion.div
 					className="absolute inset-0"
 					style={{
@@ -337,7 +361,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 					}}
 					aria-labelledby="event-modal-title"
 				>
-					{/* Left visual column */}
+					{/* left visual column */}
 					<div className="md:col-span-1 w-full h-full relative flex items-stretch">
 						{posterValid && posterUrl ? (
 							<div
@@ -349,68 +373,38 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 							<div
 								className="w-full h-full flex items-center justify-center"
 								style={{
-									background: isDark
-										? 'linear-gradient(180deg,#08121a,#041021)'
-										: 'linear-gradient(180deg,#f7fbfc,#eef7f8)',
+									background: isDark ? 'linear-gradient(180deg,#08121a,#041021)' : 'linear-gradient(180deg,#f7fbfc,#eef7f8)',
 								}}
 							>
 								<div className="text-7xl opacity-20">🎭</div>
 							</div>
 						)}
 
-						{/* caption */}
 						{event.posters?.[imgIndex]?.caption && (
-							<div
-								className="absolute left-4 bottom-4 rounded px-3 py-1 text-xs"
-								style={{
-									background: 'rgba(0,0,0,0.45)',
-									color: 'var(--text-primary)',
-								}}
-							>
+							<div className="absolute left-4 bottom-4 rounded px-3 py-1 text-xs" style={{ background: 'rgba(0,0,0,0.45)', color: 'var(--text-primary)' }}>
 								{event.posters[imgIndex].caption}
 							</div>
 						)}
 
-						{/* image nav */}
 						{(event.posters?.length ?? 0) > 1 && (
 							<>
-								<button
-									onClick={prevImg}
-									className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 p-2 rounded-full text-white"
-									aria-label="Previous"
-								>
-									<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-									</svg>
+								<button onClick={prevImg} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 p-2 rounded-full text-white" aria-label="Previous">
+									<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
 								</button>
-								<button
-									onClick={nextImg}
-									className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 p-2 rounded-full text-white"
-									aria-label="Next"
-								>
-									<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-									</svg>
+								<button onClick={nextImg} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 p-2 rounded-full text-white" aria-label="Next">
+									<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
 								</button>
 							</>
 						)}
 
-						{/* close */}
-						<button
-							ref={closeRef}
-							onClick={onClose}
-							aria-label="Close"
-							className="absolute top-3 right-3 bg-red-600/90 text-white p-2 rounded-full"
-						>
-							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-							</svg>
+						<button ref={closeRef} onClick={onClose} aria-label="Close" className="absolute top-3 right-3 bg-red-600/90 text-white p-2 rounded-full">
+							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
 						</button>
 					</div>
 
-					{/* Right columns: content scroll area */}
+					{/* right: details */}
 					<div className="md:col-span-2 p-6 overflow-auto flex flex-col gap-4">
-						{/* Header */}
+						{/* header */}
 						<div className="flex items-start justify-between gap-4">
 							<div className="min-w-0">
 								<h2 id="event-modal-title" className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
@@ -422,11 +416,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 								<div className="mt-2 flex flex-wrap gap-2">
 									{Array.isArray(event.tags) &&
 										event.tags.map((t) => (
-											<span
-												key={t}
-												className="text-xs px-2 py-0.5 rounded"
-												style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)' }}
-											>
+											<span key={t} className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)' }}>
 												{t}
 											</span>
 										))}
@@ -435,112 +425,88 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 
 							<div className="flex-shrink-0 flex flex-col items-end gap-2">
 								{registrationLink ? (
-									<button onClick={onRegister} className="px-3 py-1 bg-emerald-500 text-white rounded">
-										Register
-									</button>
+									<button onClick={onRegister} className="px-3 py-1 bg-emerald-500 text-white rounded">Register</button>
 								) : countdown ? (
 									<div className="text-right">
-										<div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-											Starts in
-										</div>
+										<div className="text-xs" style={{ color: 'var(--text-muted)' }}>Starts in</div>
 										<div className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-											{countdown.days > 0
-												? `${countdown.days}d ${countdown.hours}h`
-												: countdown.hours > 0
-												? `${countdown.hours}h ${countdown.mins}m`
-												: `${countdown.mins}m`}
+											{countdown.days > 0 ? `${countdown.days}d ${countdown.hours}h` : countdown.hours > 0 ? `${countdown.hours}h ${countdown.mins}m` : `${countdown.mins}m`}
 										</div>
-										<button onClick={onRemind} className="mt-1 text-xs px-2 py-0.5 rounded bg-blue-600 text-white">
-											Remind
-										</button>
+										<button onClick={onRemind} className="mt-1 text-xs px-2 py-0.5 rounded bg-blue-600 text-white">Remind</button>
 									</div>
 								) : (
-									<div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-										{event.status || 'TBD'}
-									</div>
+									<div className="text-xs" style={{ color: 'var(--text-muted)' }}>{event.status || 'TBD'}</div>
 								)}
-								<button onClick={downloadICS} className="text-xs px-3 py-1 border rounded" style={{ borderColor: 'var(--glass-border)' }}>
-									Add to calendar
-								</button>
+								<button onClick={downloadICS} className="text-xs px-3 py-1 border rounded" style={{ borderColor: 'var(--glass-border)' }}>Add to calendar</button>
 							</div>
 						</div>
 
-						{/* Date & venue */}
+						{/* date & venue */}
 						<div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-							<div className="flex items-center gap-2">
-								<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-								{safeFormatDate(event.eventDate)}
-							</div>
-							{event.venue && (
-								<div className="flex items-center gap-2">
-									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-									</svg>
-									{event.venue}
-								</div>
-							)}
+							<div className="flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{safeFormatDate(event.eventDate)}</div>
+							{event.venue && (<div className="flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>{event.venue}</div>)}
 						</div>
 
-						{/* Description */}
+						{/* description */}
 						<section>
-							<h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-								Description
-							</h3>
-							<div className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
-								{event.description || 'No description available.'}
-							</div>
+							<h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Description</h3>
+							<div className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{event.description || 'No description available.'}</div>
 						</section>
 
-						{/* Speakers */}
+						{/* speakers */}
 						{speakers.length > 0 && (
 							<section>
-								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-									Speakers
-								</h3>
+								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Speakers</h3>
 								<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-									{speakers.map((sp, i) => (
-										<SpeakerCard key={sp._id || sp.name || i} sp={sp} />
-									))}
+									{speakers.map((sp, i) => (<SpeakerCard key={sp._id || sp.name || i} sp={sp} />))}
 								</div>
 							</section>
 						)}
 
-						{/* Partners */}
+						{/* partners (with carousel on small screens) */}
 						{partners.length > 0 && (
 							<section>
-								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-									Partners
-								</h3>
-								<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-									{partners.map((p, i) => (
-										<PartnerTile key={p._id || p.name || i} p={p} />
-									))}
+								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Partners</h3>
+
+								{/* Desktop grid */}
+								<div className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+									{partners.map((p, i) => (<PartnerTile key={p._id || p.name || i} p={p} />))}
+								</div>
+
+								{/* Mobile carousel */}
+								<div className="md:hidden relative">
+									<div ref={partnersRef} className="flex gap-3 overflow-x-auto snap-x snap-mandatory py-2 scroll-smooth">
+										{partners.map((p, i) => (
+											<div key={p._id || p.name || i} className="snap-start min-w-[70%]">
+												<PartnerTile p={p} />
+											</div>
+										))}
+									</div>
+									{/* carousel controls */}
+									<div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+										<button onClick={(e) => { e.stopPropagation(); scrollPartners(-1); }} className="p-2 rounded-full bg-white/6">
+											<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+										</button>
+										<button onClick={(e) => { e.stopPropagation(); scrollPartners(1); }} className="p-2 rounded-full bg-white/6">
+											<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+										</button>
+									</div>
 								</div>
 							</section>
 						)}
 
-						{/* Co-organizers */}
+						{/* co-organizers */}
 						{coOrganizers.length > 0 && (
 							<section>
-								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-									Co-organizers
-								</h3>
-								<div className="flex flex-wrap gap-2">
-									{coOrganizers.map((c, i) => (
-										<CoOrganizerChip key={c._id || c.name || i} c={c} />
-									))}
-								</div>
+								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Co-organizers</h3>
+								<div className="flex flex-wrap gap-2">{coOrganizers.map((c, i) => <CoOrganizerChip key={c._id || c.name || i} c={c} />)}</div>
 							</section>
 						)}
 
-						{/* Resources */}
+						{/* resources */}
 						{resources.length > 0 && (
 							<section>
-								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-									Resources
-								</h3>
+								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Resources</h3>
 								<ul className="list-disc list-inside text-sm" style={{ color: 'var(--text-secondary)' }}>
 									{resources.map((r, i) => (
 										<li key={r.title || r.url || i}>
@@ -554,6 +520,11 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 						)}
 					</div>
 				</Motion.div>
+
+				{/* speaker detail slide-over */}
+				{selectedSpeaker && (
+					<SpeakerDetailModal speaker={selectedSpeaker} onClose={() => setSelectedSpeaker(null)} />
+				)}
 			</Motion.div>
 		</AnimatePresence>,
 		document.body
