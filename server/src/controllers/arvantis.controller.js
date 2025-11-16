@@ -7,11 +7,15 @@ import { uploadFile, deleteFile, deleteFiles } from '../utils/cloudinary.js';
 import mongoose from 'mongoose';
 import { Parser } from 'json2csv';
 
-/**
- * Helper: resolve fest by id / slug / year
- *
- * - Returns a mongoose document (not .lean()) so callers can modify & save.
- */
+/* helpers */
+const slugify = (str = '') =>
+	String(str)
+		.toLowerCase()
+		.trim()
+		.replace(/\s+/g, '-')
+		.replace(/[^\w-]+/g, '')
+		.replace(/--+/g, '-');
+
 const findFestBySlugOrYear = async (identifier, populate = false) => {
 	if (!identifier) throw new ApiError.BadRequest('Fest identifier is required');
 
@@ -37,14 +41,91 @@ const findFestBySlugOrYear = async (identifier, populate = false) => {
 	return fest;
 };
 
-// Get the latest fest (by year)
+/* --- Landing / Latest fest improved --- */
+// Get latest fest (ongoing/upcoming preferred, else latest completed, else most recent)
 const getLatestFest = asyncHandler(async (req, res) => {
-	const fest = await Arvantis.findOne().sort({ year: -1 }).populate({ path: 'events', select: 'title eventDate category slug' }).exec();
-	if (!fest) throw new ApiError.NotFound('No fest found.');
-	return ApiResponse.success(res, fest, 'Latest fest retrieved successfully');
+	const currentYear = new Date().getFullYear();
+
+	// Prefer current year's upcoming/ongoing; fallback to latest completed; finally most recent by year
+	let fest =
+		(await Arvantis.findOne({
+			year: currentYear,
+			status: { $in: ['upcoming', 'ongoing'] },
+		})
+			.populate({ path: 'events', select: 'title eventDate category slug description' })
+			.exec()) ||
+		(await Arvantis.findOne({ status: 'completed' })
+			.sort({ year: -1 })
+			.populate({ path: 'events', select: 'title eventDate category slug description' })
+			.exec()) ||
+		(await Arvantis.findOne()
+			.sort({ year: -1 })
+			.populate({ path: 'events', select: 'title eventDate category slug description' })
+			.exec());
+
+	if (!fest) return ApiResponse.success(res, null, 'No fest data available.');
+
+	// build rich payload (ensure no sensitive/large fields are leaked)
+	const obj = fest.toObject ? fest.toObject() : fest;
+	const hero =
+		(obj.hero && { ...obj.hero }) ||
+		(obj.poster && { ...obj.poster }) ||
+		(obj.gallery && obj.gallery.length ? obj.gallery[0] : null);
+
+	const durationDays =
+		obj.startDate && obj.endDate
+			? Math.round(
+					(new Date(obj.endDate) - new Date(obj.startDate)) / (1000 * 60 * 60 * 24)
+				) + 1
+			: null;
+
+	const analytics = {
+		totalPartners: Array.isArray(obj.partners) ? obj.partners.length : 0,
+		totalEvents: Array.isArray(obj.events) ? obj.events.length : 0,
+		upcomingEventsCount: Array.isArray(obj.events)
+			? obj.events.filter((e) => e.eventDate && new Date(e.eventDate) >= new Date()).length
+			: 0,
+	};
+
+	const payload = {
+		fest: {
+			_id: obj._id,
+			name: obj.name,
+			year: obj.year,
+			slug: obj.slug,
+			tagline: obj.tagline || null,
+			description: obj.description || null,
+			startDate: obj.startDate || null,
+			endDate: obj.endDate || null,
+			status: obj.status,
+			location: obj.location || null,
+			contactEmail: obj.contactEmail || null,
+			themeColors: obj.themeColors || {},
+			socialLinks: obj.socialLinks || {},
+			visibility: obj.visibility || 'public',
+			tracks: obj.tracks || [],
+			faqs: obj.faqs || [],
+		},
+		hero,
+		events: obj.events || [],
+		partners: (obj.partners || []).map((p) => ({
+			name: p.name,
+			tier: p.tier,
+			website: p.website,
+			logo: p.logo ? { url: p.logo.url, caption: p.logo.caption } : undefined,
+		})),
+		computed: {
+			durationDays,
+			computedStatus: fest.computedStatus || obj.status,
+			...analytics,
+		},
+	};
+
+	return ApiResponse.success(res, payload, 'Latest fest retrieved successfully');
 });
 
-// Create a new fest
+/* --- Existing CRUD controllers (create/get/update/delete etc) --- */
+/* Create a new fest */
 const createFest = asyncHandler(async (req, res) => {
 	const { year, description, startDate, endDate, status, name, location } = req.body;
 
@@ -72,7 +153,7 @@ const createFest = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, fest, 'Fest created successfully', 201);
 });
 
-// Get paginated fests
+/* Get paginated fests */
 const getAllFests = asyncHandler(async (req, res) => {
 	const { page = 1, limit = 10, sortBy = 'year', sortOrder = 'desc' } = req.query;
 	const options = {
@@ -102,13 +183,13 @@ const getAllFests = asyncHandler(async (req, res) => {
 	return ApiResponse.paginated(res, result.docs, result, 'Fests retrieved successfully');
 });
 
-// Get fest details
+/* Get fest details */
 const getFestDetails = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier, true);
 	return ApiResponse.success(res, fest, 'Fest details retrieved successfully');
 });
 
-// Update fest details (admin)
+/* Update fest details (admin) */
 const updateFestDetails = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 
@@ -122,7 +203,7 @@ const updateFestDetails = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, fest, 'Fest details updated successfully');
 });
 
-// Delete fest and associated media
+/* Delete fest and associated media */
 const deleteFest = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 
@@ -161,10 +242,7 @@ const deleteFest = asyncHandler(async (req, res) => {
 		try {
 			await deleteFiles(mediaToDelete);
 		} catch (err) {
-			// log and continue - deletion should not block fest deletion
-			/* eslint-disable no-console */
 			console.warn('Cloudinary bulk delete warning:', err.message || err);
-			/* eslint-enable no-console */
 		}
 	}
 
@@ -173,19 +251,15 @@ const deleteFest = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Fest and associated media deleted successfully', 204);
 });
 
-// Add partner (expects multer middleware to provide req.file as "logo")
+/* Add partner (expects multer middleware to provide req.file as "logo") */
 const addPartner = asyncHandler(async (req, res) => {
 	const identifier = req.params.identifier;
 	const fest = await findFestBySlugOrYear(identifier);
 
-	// validate presence of name
 	const name = req.body.name || req.body.partnerName;
 	if (!name) throw new ApiError.BadRequest('Partner name is required.');
-
-	// multer should provide req.file
 	if (!req.file) throw new ApiError.BadRequest('Partner logo file is required (field "logo").');
 
-	// upload logo
 	const uploaded = await uploadFile(req.file, { folder: `arvantis/${fest.year}/partners` });
 
 	const partner = {
@@ -203,12 +277,11 @@ const addPartner = asyncHandler(async (req, res) => {
 
 	fest.partners.push(partner);
 	await fest.save();
-	// return the newly added partner (last element)
 	const added = fest.partners[fest.partners.length - 1];
 	return ApiResponse.success(res, added, 'Partner added successfully', 201);
 });
 
-// Remove partner by partnerName (encoded in URL)
+/* Remove partner */
 const removePartner = asyncHandler(async (req, res) => {
 	const { identifier, partnerName } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -225,17 +298,14 @@ const removePartner = asyncHandler(async (req, res) => {
 				resource_type: removed.logo.resource_type || 'image',
 			});
 		} catch (err) {
-			// log and continue
-			/* eslint-disable no-console */
 			console.warn('Failed to delete partner logo from Cloudinary:', err.message || err);
-			/* eslint-enable no-console */
 		}
 	}
 	await fest.save();
 	return ApiResponse.success(res, null, 'Partner removed successfully');
 });
 
-// Link an event to the fest
+/* Link / Unlink events */
 const linkEventToFest = asyncHandler(async (req, res) => {
 	const { eventId } = req.body;
 	const fest = await findFestBySlugOrYear(req.params.identifier);
@@ -245,7 +315,6 @@ const linkEventToFest = asyncHandler(async (req, res) => {
 	const eventExists = await Event.findById(eventId).lean().exec();
 	if (!eventExists) throw new ApiError.NotFound('Event not found with the provided ID.');
 
-	// avoid duplicates
 	if ((fest.events || []).some((e) => String(e) === String(eventId))) {
 		throw new ApiError.Conflict('This event is already linked to the fest.');
 	}
@@ -254,7 +323,6 @@ const linkEventToFest = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, fest.events, 'Event linked successfully');
 });
 
-// Unlink an event from fest
 const unlinkEventFromFest = asyncHandler(async (req, res) => {
 	const { identifier, eventId } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -266,7 +334,8 @@ const unlinkEventFromFest = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, fest.events, 'Event unlinked successfully');
 });
 
-// Add gallery media (expects req.files)
+// --- Media management controllers --- //
+// Gallery management
 const addGalleryMedia = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -290,7 +359,7 @@ const addGalleryMedia = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, items, 'Gallery media added successfully', 201);
 });
 
-// Remove gallery media by publicId
+// Remove gallery media item
 const removeGalleryMedia = asyncHandler(async (req, res) => {
 	const { identifier, publicId } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -305,15 +374,13 @@ const removeGalleryMedia = asyncHandler(async (req, res) => {
 			resource_type: removed.resource_type || 'image',
 		});
 	} catch (err) {
-		/* eslint-disable no-console */
 		console.warn('Failed to delete gallery item from Cloudinary:', err.message || err);
-		/* eslint-enable no-console */
 	}
 	await fest.save();
 	return ApiResponse.success(res, null, 'Gallery media removed successfully');
 });
 
-// Add fest poster (legacy name kept - adds media to gallery)
+// Fest poster management
 const addFestPoster = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -337,7 +404,7 @@ const addFestPoster = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, items, 'Gallery media added successfully', 201);
 });
 
-// Remove fest poster (explicit poster removal)
+// Remove fest poster
 const removeFestPoster = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -352,9 +419,7 @@ const removeFestPoster = asyncHandler(async (req, res) => {
 			resource_type: fest.poster.resource_type || 'image',
 		});
 	} catch (err) {
-		/* eslint-disable no-console */
 		console.warn('Failed to delete poster from Cloudinary:', err.message || err);
-		/* eslint-enable no-console */
 	}
 
 	fest.poster = undefined;
@@ -362,7 +427,7 @@ const removeFestPoster = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Fest poster removed successfully');
 });
 
-// Update hero media (single file)
+// Fest hero management
 const updateFestHero = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -378,9 +443,7 @@ const updateFestHero = asyncHandler(async (req, res) => {
 				resource_type: fest.heroMedia.resource_type || 'image',
 			});
 		} catch (err) {
-			/* eslint-disable no-console */
 			console.warn('Failed to delete previous hero media:', err.message || err);
-			/* eslint-enable no-console */
 		}
 	}
 
@@ -394,7 +457,7 @@ const updateFestHero = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, fest.heroMedia, 'Hero media updated successfully', 200);
 });
 
-// Remove hero media
+// Remove fest hero
 const removeFestHero = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -408,9 +471,7 @@ const removeFestHero = asyncHandler(async (req, res) => {
 			resource_type: fest.heroMedia.resource_type || 'image',
 		});
 	} catch (err) {
-		/* eslint-disable no-console */
 		console.warn('Failed to delete hero media from Cloudinary:', err.message || err);
-		/* eslint-enable no-console */
 	}
 
 	fest.heroMedia = undefined;
@@ -418,7 +479,7 @@ const removeFestHero = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Fest hero media removed successfully');
 });
 
-// Update a partner (by name param) - supports optional new logo upload
+// Update partner details (with optional logo update)
 const updatePartner = asyncHandler(async (req, res) => {
 	const { identifier, partnerName } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -429,10 +490,8 @@ const updatePartner = asyncHandler(async (req, res) => {
 
 	const partner = fest.partners[idx];
 
-	// If a new logo is uploaded, replace it
 	if (req.file) {
 		const uploaded = await uploadFile(req.file, { folder: `arvantis/${fest.year}/partners` });
-		// delete old logo if exists
 		if (partner.logo?.publicId) {
 			try {
 				await deleteFile({
@@ -440,9 +499,7 @@ const updatePartner = asyncHandler(async (req, res) => {
 					resource_type: partner.logo.resource_type || 'image',
 				});
 			} catch (err) {
-				/* eslint-disable no-console */
 				console.warn('Failed to delete previous partner logo:', err.message || err);
-				/* eslint-enable no-console */
 			}
 		}
 		partner.logo = {
@@ -453,7 +510,6 @@ const updatePartner = asyncHandler(async (req, res) => {
 		};
 	}
 
-	// Update other fields
 	if (req.body.name) partner.name = String(req.body.name).trim();
 	if (req.body.website) partner.website = String(req.body.website).trim();
 	if (req.body.tier) partner.tier = req.body.tier;
@@ -464,7 +520,7 @@ const updatePartner = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, partner, 'Partner updated successfully', 200);
 });
 
-// Reorder partners - expects body.order = [name1, name2, ...] (best-effort)
+// Reorder partners
 const reorderPartners = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const { order } = req.body;
@@ -480,7 +536,6 @@ const reorderPartners = asyncHandler(async (req, res) => {
 			map.delete(n);
 		}
 	});
-	// append remaining
 	for (const p of map.values()) newArr.push(p);
 
 	fest.partners = newArr;
@@ -488,7 +543,7 @@ const reorderPartners = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, fest.partners, 'Partners reordered successfully', 200);
 });
 
-// Reorder gallery - expects body.order = [publicId1, publicId2, ...]
+// Reorder gallery media
 const reorderGallery = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const { order } = req.body;
@@ -504,7 +559,6 @@ const reorderGallery = asyncHandler(async (req, res) => {
 			map.delete(id);
 		}
 	});
-	// append remaining
 	for (const g of map.values()) newArr.push(g);
 
 	fest.gallery = newArr;
@@ -512,7 +566,7 @@ const reorderGallery = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, fest.gallery, 'Gallery reordered successfully', 200);
 });
 
-// Bulk delete media by publicIds (returns removed count)
+// Bulk delete media items (gallery, partner logos, poster, hero)
 const bulkDeleteMedia = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const { publicIds } = req.body;
@@ -522,7 +576,6 @@ const bulkDeleteMedia = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(identifier);
 	const toDelete = [];
 
-	// remove from gallery
 	fest.gallery = (fest.gallery || []).filter((g) => {
 		if (publicIds.includes(g.publicId)) {
 			toDelete.push({ public_id: g.publicId, resource_type: g.resource_type || 'image' });
@@ -531,7 +584,6 @@ const bulkDeleteMedia = asyncHandler(async (req, res) => {
 		return true;
 	});
 
-	// remove partner logos if included
 	fest.partners = (fest.partners || []).map((p) => {
 		if (p.logo?.publicId && publicIds.includes(p.logo.publicId)) {
 			toDelete.push({
@@ -543,7 +595,6 @@ const bulkDeleteMedia = asyncHandler(async (req, res) => {
 		return p;
 	});
 
-	// remove poster/hero if included
 	if (fest.poster?.publicId && publicIds.includes(fest.poster.publicId)) {
 		toDelete.push({
 			public_id: fest.poster.publicId,
@@ -559,14 +610,11 @@ const bulkDeleteMedia = asyncHandler(async (req, res) => {
 		fest.heroMedia = undefined;
 	}
 
-	// perform deletion on cloudinary (best-effort)
 	if (toDelete.length > 0) {
 		try {
 			await deleteFiles(toDelete);
 		} catch (err) {
-			/* eslint-disable no-console */
 			console.warn('bulkDeleteMedia: deleteFiles failed', err.message || err);
-			/* eslint-enable no-console */
 		}
 	}
 
@@ -579,7 +627,7 @@ const bulkDeleteMedia = asyncHandler(async (req, res) => {
 	);
 });
 
-// Duplicate a fest into a new year (does not copy media to avoid duplicate storage)
+// Duplicate fest (without media/events)
 const duplicateFest = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const { year } = req.body;
@@ -587,13 +635,11 @@ const duplicateFest = asyncHandler(async (req, res) => {
 	const y = parseInt(year, 10);
 	if (Number.isNaN(y)) throw new ApiError.BadRequest('Invalid year value');
 
-	// check destination availability
 	const exists = await Arvantis.findOne({ year: y }).lean().exec();
 	if (exists) throw new ApiError.Conflict(`A fest for the year ${y} already exists.`);
 
 	const fest = await findFestBySlugOrYear(identifier, false);
 	const data = fest.toObject ? fest.toObject() : fest;
-	// create shallow copy - do not copy media, events; keep partners metadata (without logos)
 	const copy = {
 		...data,
 		_id: undefined,
@@ -610,7 +656,6 @@ const duplicateFest = asyncHandler(async (req, res) => {
 			website: p.website,
 			tier: p.tier,
 			description: p.description,
-			// no logo copied
 		})),
 	};
 
@@ -618,7 +663,7 @@ const duplicateFest = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, created, 'Fest duplicated (media/events not copied)', 201);
 });
 
-// Toggle or set status
+// Set fest status
 const setFestStatus = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const { status } = req.body;
@@ -632,7 +677,7 @@ const setFestStatus = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, fest, 'Fest status updated', 200);
 });
 
-// Update theme colors / social links
+// Update fest presentation (theme colors, social links)
 const updatePresentation = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
@@ -653,7 +698,7 @@ const updatePresentation = asyncHandler(async (req, res) => {
 	);
 });
 
-// Export fests as CSV
+// Export fests data as CSV
 const exportFestsCSV = asyncHandler(async (req, res) => {
 	const fests = await Arvantis.find().sort({ year: -1 }).lean().exec();
 	if (!fests || fests.length === 0) throw new ApiError.NotFound('No fest data to export.');
@@ -682,7 +727,7 @@ const exportFestsCSV = asyncHandler(async (req, res) => {
 	res.send(csv);
 });
 
-// High level statistics
+// Fest statistics and analytics
 const getFestStatistics = asyncHandler(async (req, res) => {
 	const stats = await Arvantis.aggregate([
 		{
@@ -722,7 +767,7 @@ const getFestStatistics = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, formatted, 'Fest statistics retrieved successfully');
 });
 
-// Analytics over years
+// Fest yearly analytics
 const getFestAnalytics = asyncHandler(async (req, res) => {
 	const analytics = await Arvantis.aggregate([
 		{ $sort: { year: 1 } },
@@ -757,7 +802,7 @@ const getFestAnalytics = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, analytics, 'Fest analytics retrieved successfully');
 });
 
-// Generate single fest report
+// Generate fest report
 const generateFestReport = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier, true);
 	const report = {
@@ -779,8 +824,142 @@ const generateFestReport = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, report, 'Fest report generated successfully');
 });
 
+// Update social links
+const updateSocialLinks = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	const incoming = req.body.socialLinks || req.body;
+	if (!incoming || typeof incoming !== 'object')
+		throw new ApiError.BadRequest('socialLinks object required.');
+	const allowed = ['website', 'twitter', 'instagram', 'facebook', 'linkedin'];
+	Object.keys(incoming).forEach((k) => {
+		if (!allowed.includes(k)) delete incoming[k];
+	});
+	fest.socialLinks = { ...fest.socialLinks, ...incoming };
+	await fest.save();
+	return ApiResponse.success(res, fest.socialLinks, 'Social links updated', 200);
+});
 
+// Update theme colors
+const updateThemeColors = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	const incoming = req.body.themeColors || req.body;
+	if (!incoming || typeof incoming !== 'object')
+		throw new ApiError.BadRequest('themeColors object required.');
+	const allowed = ['primary', 'accent', 'bg'];
+	Object.keys(incoming).forEach((k) => {
+		if (!allowed.includes(k)) delete incoming[k];
+	});
+	fest.themeColors = { ...fest.themeColors, ...incoming };
+	await fest.save();
+	return ApiResponse.success(res, fest.themeColors, 'Theme colors updated', 200);
+});
+
+/* Tracks CRUD */
+// Add track
+const addTrack = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const { title, description, color, key } = req.body;
+	if (!title) throw new ApiError.BadRequest('Track title is required.');
+	const fest = await findFestBySlugOrYear(identifier);
+	const newKey = key ? String(key).trim() : slugify(title);
+	// ensure unique key
+	let candidate = newKey;
+	let i = 0;
+	while ((fest.tracks || []).some((t) => t.key === candidate)) {
+		i += 1;
+		candidate = `${newKey}-${i}`;
+	}
+	const track = {
+		key: candidate,
+		title: String(title).trim(),
+		description: description || '',
+		color: color || '',
+	};
+	fest.tracks.push(track);
+	await fest.save();
+	return ApiResponse.success(res, track, 'Track added', 201);
+});
+
+// Update track
+const removeTrack = asyncHandler(async (req, res) => {
+	const { identifier, trackKey } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	const before = (fest.tracks || []).length;
+	fest.tracks = (fest.tracks || []).filter((t) => t.key !== trackKey);
+	if (fest.tracks.length === before) throw new ApiError.NotFound('Track not found.');
+	await fest.save();
+	return ApiResponse.success(res, null, 'Track removed', 200);
+});
+
+/* FAQs CRUD */
+// Add FAQ
+const addFAQ = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const { question, answer } = req.body;
+	if (!question || !answer) throw new ApiError.BadRequest('question and answer are required.');
+	const fest = await findFestBySlugOrYear(identifier);
+	// push will create subdoc with _id
+	fest.faqs.push({ question: String(question).trim(), answer: String(answer).trim() });
+	await fest.save();
+	const added = fest.faqs[fest.faqs.length - 1];
+	return ApiResponse.success(res, added, 'FAQ added', 201);
+});
+
+// Remove FAQ
+const removeFAQ = asyncHandler(async (req, res) => {
+	const { identifier, faqId } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	const before = (fest.faqs || []).length;
+	// use id removal if available
+	if (fest.faqs.id) {
+		const sub = fest.faqs.id(faqId);
+		if (!sub) throw new ApiError.NotFound('FAQ not found.');
+		sub.remove();
+	} else {
+		fest.faqs = (fest.faqs || []).filter((f) => String(f._id) !== String(faqId));
+	}
+	if ((fest.faqs || []).length === before) throw new ApiError.NotFound('FAQ not found.');
+	await fest.save();
+	return ApiResponse.success(res, null, 'FAQ removed', 200);
+});
+
+// Reorder FAQs
+const reorderFAQs = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const { order } = req.body;
+	if (!Array.isArray(order)) throw new ApiError.BadRequest('order must be array of faq ids.');
+	const fest = await findFestBySlugOrYear(identifier);
+	const map = new Map((fest.faqs || []).map((f) => [String(f._id), f]));
+	const newArr = [];
+	order.forEach((id) => {
+		if (map.has(String(id))) {
+			newArr.push(map.get(String(id)));
+			map.delete(String(id));
+		}
+	});
+	for (const f of map.values()) newArr.push(f);
+	fest.faqs = newArr;
+	await fest.save();
+	return ApiResponse.success(res, fest.faqs, 'FAQs reordered', 200);
+});
+
+/* Visibility */
+const setVisibility = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const { visibility } = req.body;
+	if (!['public', 'private', 'unlisted'].includes(visibility))
+		throw new ApiError.BadRequest('Invalid visibility.');
+	const fest = await findFestBySlugOrYear(identifier);
+	fest.visibility = visibility;
+	await fest.save();
+	return ApiResponse.success(res, { visibility: fest.visibility }, 'Visibility updated', 200);
+});
+
+/* export */
 export {
+	getLatestFest,
 	createFest,
 	getAllFests,
 	getFestDetails,
@@ -807,4 +986,12 @@ export {
 	getFestStatistics,
 	getFestAnalytics,
 	generateFestReport,
+	updateSocialLinks,
+	updateThemeColors,
+	addTrack,
+	removeTrack,
+	addFAQ,
+	removeFAQ,
+	reorderFAQs,
+	setVisibility,
 };

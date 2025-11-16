@@ -243,11 +243,6 @@ const arvantisSchema = new mongoose.Schema(
             ],
             default: [],
         },
-        seo: {
-            title: String,
-            description: String,
-            ogImage: mediaSchema,
-        },
         visibility: { 
 			type: String, enum: ['public', 'private', 'unlisted'], 
 			default: 'public'
