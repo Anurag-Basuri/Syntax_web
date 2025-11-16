@@ -74,10 +74,6 @@ const partnerSchema = new mongoose.Schema(
 		website: {
 			type: String,
 			trim: true,
-			validate: {
-				validator: (v) => !v || urlRegex.test(v),
-				message: (props) => `${props.value} is not a valid website URL`,
-			},
 			set: (v) => {
 				if (!v) return v;
 				if (!/^https?:\/\//i.test(v)) return `https://${v}`;
@@ -89,12 +85,11 @@ const partnerSchema = new mongoose.Schema(
 			trim: true,
 			maxlength: 40,
 		},
-		booth: {
+		description: {
 			type: String,
 			trim: true,
-			maxlength: 40,
+			maxlength: 500
 		},
-		description: { type: String, trim: true, maxlength: 500 },
 	},
 	{ _id: false }
 );

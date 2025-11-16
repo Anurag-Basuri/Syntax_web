@@ -20,12 +20,42 @@ import { useQueryClient } from '@tanstack/react-query';
 
 const TABS = ['partners', 'speakers', 'resources', 'coOrganizers', 'posters'];
 
+/**
+ * ManageModal
+ * - Mirrors backend event.model fields for partners/speakers/resources/coOrganizers/posters.
+ * - Simpler flow: useEvent to load full event, doAction wrapper for mutations, minimal local state.
+ * - Partners: name, website, tier, booth, description, logo
+ * - Speakers: name, title, bio, links (twitter/linkedin/website), photo
+ * - Resources: title, url
+ * - Co-organizers: string array
+ * - Posters: file upload (server accepts file only)
+ */
 const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) => {
 	const [tab, setTab] = useState('partners');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
-	const [partnerForm, setPartnerForm] = useState({ name: '', website: '', logo: null });
-	const [speakerForm, setSpeakerForm] = useState({ name: '', title: '', bio: '', photo: null });
+
+	// partner fields matching server partnerSchema
+	const [partnerForm, setPartnerForm] = useState({
+		name: '',
+		website: '',
+		tier: '',
+		booth: '',
+		description: '',
+		logo: null,
+	});
+
+	// speaker fields matching speakerSchema (links object)
+	const [speakerForm, setSpeakerForm] = useState({
+		name: '',
+		title: '',
+		bio: '',
+		twitter: '',
+		linkedin: '',
+		website: '',
+		photo: null,
+	});
+
 	const [resourceForm, setResourceForm] = useState({ title: '', url: '' });
 	const [coName, setCoName] = useState('');
 	const [posterFile, setPosterFile] = useState(null);
@@ -38,7 +68,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		};
 	}, []);
 
-	// Use hook to fetch full event details (avoids relying on list endpoint's lightweight projections)
+	// full event details
 	const eventId = event?._id ?? null;
 	const {
 		data: fullEvent,
@@ -49,11 +79,26 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 	const queryClient = useQueryClient();
 
 	useEffect(() => {
-		// reset forms when modal opens
+		// reset on open/new event
 		if (open) {
 			setError('');
-			setPartnerForm({ name: '', website: '', logo: null });
-			setSpeakerForm({ name: '', title: '', bio: '', photo: null });
+			setPartnerForm({
+				name: '',
+				website: '',
+				tier: '',
+				booth: '',
+				description: '',
+				logo: null,
+			});
+			setSpeakerForm({
+				name: '',
+				title: '',
+				bio: '',
+				twitter: '',
+				linkedin: '',
+				website: '',
+				photo: null,
+			});
 			setResourceForm({ title: '', url: '' });
 			setCoName('');
 			setPosterFile(null);
@@ -77,11 +122,9 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		return eventId;
 	};
 
-	// helpers to refresh data after successful change
 	const refreshAfter = async () => {
 		try {
 			if (refetchEvent) await refetchEvent();
-			// also refresh list so admin overview updates
 			await queryClient.invalidateQueries({ queryKey: ['events'] });
 			onDone?.();
 		} catch {
@@ -89,7 +132,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		}
 	};
 
-	// simple wrapper for actions
 	const doAction = async (fn, successMessage) => {
 		setError('');
 		if (!mountedRef.current) return false;
@@ -107,24 +149,46 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		}
 	};
 
-	// Partners
+	// Partners (name required)
 	const handleAddPartner = async () => {
 		if (!partnerForm.name?.trim()) return setError('Partner name is required');
 		const id = ensureEventId();
 		if (!id) return;
 
 		await doAction(async () => {
-			let payload;
-			if (partnerForm.logo instanceof File) {
-				payload = new FormData();
-				payload.append('name', partnerForm.name.trim());
-				if (partnerForm.website) payload.append('website', partnerForm.website.trim());
-				payload.append('logo', partnerForm.logo);
+			const hasFile = partnerForm.logo instanceof File;
+			if (hasFile) {
+				const fd = new FormData();
+				fd.append('name', partnerForm.name.trim());
+				if (partnerForm.website) fd.append('website', partnerForm.website.trim());
+				if (partnerForm.tier) fd.append('tier', partnerForm.tier.trim());
+				if (partnerForm.booth) fd.append('booth', partnerForm.booth.trim());
+				if (partnerForm.description)
+					fd.append('description', partnerForm.description.trim());
+				fd.append('logo', partnerForm.logo);
+				await addEventPartner(id, fd);
 			} else {
-				payload = { name: partnerForm.name.trim(), website: partnerForm.website?.trim() };
+				await addEventPartner(
+					id,
+					{
+						name: partnerForm.name.trim(),
+						website: partnerForm.website?.trim(),
+						tier: partnerForm.tier?.trim(),
+						booth: partnerForm.booth?.trim(),
+						description: partnerForm.description?.trim(),
+					},
+					{}
+				);
 			}
-			await addEventPartner(id, payload);
-			if (mountedRef.current) setPartnerForm({ name: '', website: '', logo: null });
+			if (mountedRef.current)
+				setPartnerForm({
+					name: '',
+					website: '',
+					tier: '',
+					booth: '',
+					description: '',
+					logo: null,
+				});
 		}, 'Partner added');
 	};
 
@@ -136,29 +200,49 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		await doAction(() => removeEventPartner(id, identifier), 'Partner removed');
 	};
 
-	// Speakers
+	// Speakers (name required)
 	const handleAddSpeaker = async () => {
 		if (!speakerForm.name?.trim()) return setError('Speaker name is required');
 		const id = ensureEventId();
 		if (!id) return;
-
 		await doAction(async () => {
-			let payload;
-			if (speakerForm.photo instanceof File) {
-				payload = new FormData();
-				payload.append('name', speakerForm.name.trim());
-				if (speakerForm.title) payload.append('title', speakerForm.title.trim());
-				if (speakerForm.bio) payload.append('bio', speakerForm.bio.trim());
-				payload.append('photo', speakerForm.photo);
+			const links = {
+				twitter: speakerForm.twitter?.trim() || undefined,
+				linkedin: speakerForm.linkedin?.trim() || undefined,
+				website: speakerForm.website?.trim() || undefined,
+			};
+			const hasFile = speakerForm.photo instanceof File;
+			if (hasFile) {
+				const fd = new FormData();
+				fd.append('name', speakerForm.name.trim());
+				if (speakerForm.title) fd.append('title', speakerForm.title.trim());
+				if (speakerForm.bio) fd.append('bio', speakerForm.bio.trim());
+				// send links as JSON string (server will parse)
+				fd.append('links', JSON.stringify(links));
+				fd.append('photo', speakerForm.photo);
+				await addEventSpeaker(id, fd);
 			} else {
-				payload = {
-					name: speakerForm.name.trim(),
-					title: speakerForm.title?.trim(),
-					bio: speakerForm.bio?.trim(),
-				};
+				await addEventSpeaker(
+					id,
+					{
+						name: speakerForm.name.trim(),
+						title: speakerForm.title?.trim(),
+						bio: speakerForm.bio?.trim(),
+						links,
+					},
+					{}
+				);
 			}
-			await addEventSpeaker(id, payload);
-			if (mountedRef.current) setSpeakerForm({ name: '', title: '', bio: '', photo: null });
+			if (mountedRef.current)
+				setSpeakerForm({
+					name: '',
+					title: '',
+					bio: '',
+					twitter: '',
+					linkedin: '',
+					website: '',
+					photo: null,
+				});
 		}, 'Speaker added');
 	};
 
@@ -175,14 +259,15 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 			return setError('Title and URL are required');
 		const id = ensureEventId();
 		if (!id) return;
-
-		await doAction(async () => {
-			await addEventResource(id, {
-				title: resourceForm.title.trim(),
-				url: resourceForm.url.trim(),
-			});
-			if (mountedRef.current) setResourceForm({ title: '', url: '' });
-		}, 'Resource added');
+		await doAction(
+			() =>
+				addEventResource(id, {
+					title: resourceForm.title.trim(),
+					url: resourceForm.url.trim(),
+				}),
+			'Resource added'
+		);
+		if (mountedRef.current) setResourceForm({ title: '', url: '' });
 	};
 
 	const handleRemoveResource = async (index) => {
@@ -219,7 +304,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 		await doAction(() => removeEventCoOrganizerByName(id, name), 'Co-organizer removed');
 	};
 
-	// Posters
+	// Posters (server accepts file only)
 	const handleAddPoster = async () => {
 		if (!posterFile) return setError('Choose a file first');
 		const id = ensureEventId();
@@ -242,7 +327,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 
 	if (!open || !event) return null;
 
-	// derive lists from fetched fullEvent first, fallback to shallow event prop
+	// prefer fullEvent (populated) then fallback to shallow prop
 	const src = fullEvent || event;
 	const partners = Array.isArray(src.partners) ? src.partners : [];
 	const speakers = Array.isArray(src.speakers) ? src.speakers : [];
@@ -251,8 +336,8 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 	const posters = Array.isArray(src.posters) ? src.posters : [];
 
 	return (
-		<div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/60">
-			<div className="w-full max-w-3xl sm:rounded-lg bg-gray-900 rounded-lg overflow-hidden border border-gray-800 shadow-xl">
+		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+			<div className="w-full max-w-3xl bg-gray-900 rounded-lg overflow-hidden border border-gray-800 shadow-xl">
 				<div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
 					<h3 className="text-lg font-semibold truncate">Manage: {src.title || '—'}</h3>
 					<div className="flex items-center gap-2">
@@ -267,7 +352,6 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 							type="button"
 							onClick={() => {
 								onDone?.();
-								// ensure parent list refreshed
 								queryClient.invalidateQueries({ queryKey: ['events'] });
 							}}
 							className="px-3 py-1 rounded bg-blue-600 text-white"
@@ -278,7 +362,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 				</div>
 
 				<div className="flex flex-col md:flex-row">
-					<nav className="hidden md:block w-40 border-r border-gray-800">
+					<nav className="hidden md:block w-44 border-r border-gray-800">
 						{TABS.map((t) => (
 							<button
 								key={t}
@@ -328,7 +412,7 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 						</div>
 					</div>
 
-					<div className="flex-1 p-4 min-h-[300px] max-h-[70vh] overflow-y-auto">
+					<div className="flex-1 p-4 min-h-[320px] max-h-[70vh] overflow-y-auto">
 						{eventFetching && !fullEvent && (
 							<div className="text-sm text-gray-400 mb-3">Loading details...</div>
 						)}
@@ -338,60 +422,66 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 							<div className="space-y-4">
 								{/* list */}
 								<div className="space-y-2">
-									{partners.length === 0 && (
+									{partners.length === 0 ? (
 										<div className="text-sm text-gray-400">No partners</div>
+									) : (
+										partners.map((p, i) => (
+											<div
+												key={p._id || p.name || i}
+												className="flex items-center justify-between bg-gray-800 rounded p-2"
+											>
+												<div className="flex items-center gap-3">
+													<div className="w-10 h-10 bg-gray-700 rounded overflow-hidden flex items-center justify-center">
+														{p.logo?.url ? (
+															<img
+																src={p.logo.url}
+																alt={p.name || 'partner logo'}
+																className="object-cover w-full h-full"
+															/>
+														) : (
+															<span className="text-xs text-gray-300">
+																{(p.name || '')
+																	.slice(0, 2)
+																	.toUpperCase()}
+															</span>
+														)}
+													</div>
+													<div className="min-w-0">
+														<div className="font-medium text-white truncate">
+															{p.name}
+														</div>
+														<div className="text-xs text-gray-400 truncate">
+															{p.website || p.tier || ''}
+														</div>
+														{p.description && (
+															<div className="text-xs text-gray-500 truncate">
+																{p.description}
+															</div>
+														)}
+													</div>
+												</div>
+												<div className="flex items-center gap-2">
+													<button
+														type="button"
+														onClick={() =>
+															handleRemovePartner(
+																p.logo?.publicId ||
+																	p.logo?.public_id ||
+																	p.name
+															)
+														}
+														className="text-red-400 p-1"
+														disabled={loading}
+													>
+														<Trash2 className="h-4 w-4" />
+													</button>
+												</div>
+											</div>
+										))
 									)}
-									{partners.map((p, i) => (
-										<div
-											key={p._id || p.name || i}
-											className="flex items-center justify-between bg-gray-800 rounded p-2"
-										>
-											<div className="flex items-center gap-3">
-												<div className="w-10 h-10 bg-gray-700 rounded overflow-hidden flex items-center justify-center">
-													{p.logo?.url ? (
-														<img
-															src={p.logo.url}
-															alt={p.name || 'partner logo'}
-															className="object-cover w-full h-full"
-														/>
-													) : (
-														<span className="text-xs text-gray-300">
-															{(p.name || '')
-																.slice(0, 2)
-																.toUpperCase()}
-														</span>
-													)}
-												</div>
-												<div className="min-w-0">
-													<div className="font-medium text-white truncate">
-														{p.name}
-													</div>
-													<div className="text-xs text-gray-400 truncate">
-														{p.website || p.tier || ''}
-													</div>
-												</div>
-											</div>
-											<div className="flex items-center gap-2">
-												<button
-													type="button"
-													onClick={() =>
-														handleRemovePartner(
-															p.logo?.publicId ||
-																p.logo?.public_id ||
-																p.name
-														)
-													}
-													className="text-red-400 p-1"
-													disabled={loading}
-												>
-													<Trash2 className="h-4 w-4" />
-												</button>
-											</div>
-										</div>
-									))}
 								</div>
 
-								{/* add */}
+								{/* add partner */}
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
 									<input
 										placeholder="Name"
@@ -412,6 +502,36 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											}))
 										}
 										className="px-3 py-2 bg-gray-800 rounded w-full"
+										disabled={loading}
+									/>
+									<input
+										placeholder="Tier (e.g. Gold)"
+										value={partnerForm.tier}
+										onChange={(e) =>
+											setPartnerForm((v) => ({ ...v, tier: e.target.value }))
+										}
+										className="px-3 py-2 bg-gray-800 rounded w-full"
+										disabled={loading}
+									/>
+									<input
+										placeholder="Booth"
+										value={partnerForm.booth}
+										onChange={(e) =>
+											setPartnerForm((v) => ({ ...v, booth: e.target.value }))
+										}
+										className="px-3 py-2 bg-gray-800 rounded w-full"
+										disabled={loading}
+									/>
+									<input
+										placeholder="Short description"
+										value={partnerForm.description}
+										onChange={(e) =>
+											setPartnerForm((v) => ({
+												...v,
+												description: e.target.value,
+											}))
+										}
+										className="px-3 py-2 bg-gray-800 rounded w-full md:col-span-2"
 										disabled={loading}
 									/>
 									<div className="flex items-center gap-2">
@@ -442,47 +562,53 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 
 						{tab === 'speakers' && (
 							<div className="space-y-4">
-								{speakers.length === 0 && (
+								{speakers.length === 0 ? (
 									<div className="text-sm text-gray-400">No speakers</div>
+								) : (
+									speakers.map((s, idx) => (
+										<div
+											key={s._id || s.name || idx}
+											className="flex items-center justify-between bg-gray-800 rounded p-2"
+										>
+											<div className="flex items-center gap-3">
+												<div className="w-10 h-10 bg-gray-700 rounded overflow-hidden flex items-center justify-center">
+													{s.photo?.url ? (
+														<img
+															src={s.photo.url}
+															className="object-cover w-full h-full"
+															alt={s.name || 'speaker photo'}
+														/>
+													) : (
+														<User className="h-4 w-4 text-gray-300" />
+													)}
+												</div>
+												<div className="min-w-0">
+													<div className="font-medium text-white truncate">
+														{s.name}
+													</div>
+													<div className="text-xs text-gray-400 truncate">
+														{s.title}
+													</div>
+													{s.bio && (
+														<div className="text-xs text-gray-500 truncate">
+															{s.bio}
+														</div>
+													)}
+												</div>
+											</div>
+											<div>
+												<button
+													type="button"
+													onClick={() => handleRemoveSpeaker(idx)}
+													className="text-red-400 p-1"
+													disabled={loading}
+												>
+													<Trash2 className="h-4 w-4" />
+												</button>
+											</div>
+										</div>
+									))
 								)}
-								{speakers.map((s, idx) => (
-									<div
-										key={s._id || s.name || idx}
-										className="flex items-center justify-between bg-gray-800 rounded p-2"
-									>
-										<div className="flex items-center gap-3">
-											<div className="w-10 h-10 bg-gray-700 rounded overflow-hidden flex items-center justify-center">
-												{s.photo?.url ? (
-													<img
-														src={s.photo.url}
-														className="object-cover w-full h-full"
-														alt={s.name || 'speaker photo'}
-													/>
-												) : (
-													<User className="h-4 w-4 text-gray-300" />
-												)}
-											</div>
-											<div className="min-w-0">
-												<div className="font-medium text-white truncate">
-													{s.name}
-												</div>
-												<div className="text-xs text-gray-400 truncate">
-													{s.title}
-												</div>
-											</div>
-										</div>
-										<div>
-											<button
-												type="button"
-												onClick={() => handleRemoveSpeaker(idx)}
-												className="text-red-400 p-1"
-												disabled={loading}
-											>
-												<Trash2 className="h-4 w-4" />
-											</button>
-										</div>
-									</div>
-								))}
 								<div className="grid grid-cols-1 md:grid-cols-4 gap-2">
 									<input
 										placeholder="Name"
@@ -533,40 +659,79 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 											<Plus className="inline-block mr-2 h-4 w-4" /> Add
 										</button>
 									</div>
+
+									{/* links row */}
+									<input
+										placeholder="Twitter"
+										value={speakerForm.twitter}
+										onChange={(e) =>
+											setSpeakerForm((v) => ({
+												...v,
+												twitter: e.target.value,
+											}))
+										}
+										className="px-3 py-2 bg-gray-800 rounded w-full md:col-span-1"
+										disabled={loading}
+									/>
+									<input
+										placeholder="LinkedIn"
+										value={speakerForm.linkedin}
+										onChange={(e) =>
+											setSpeakerForm((v) => ({
+												...v,
+												linkedin: e.target.value,
+											}))
+										}
+										className="px-3 py-2 bg-gray-800 rounded w-full md:col-span-1"
+										disabled={loading}
+									/>
+									<input
+										placeholder="Website"
+										value={speakerForm.website}
+										onChange={(e) =>
+											setSpeakerForm((v) => ({
+												...v,
+												website: e.target.value,
+											}))
+										}
+										className="px-3 py-2 bg-gray-800 rounded w-full md:col-span-2"
+										disabled={loading}
+									/>
 								</div>
 							</div>
 						)}
 
 						{tab === 'resources' && (
 							<div className="space-y-4">
-								{resources.length === 0 && (
+								{resources.length === 0 ? (
 									<div className="text-sm text-gray-400">No resources</div>
+								) : (
+									resources.map((r, idx) => (
+										<div
+											key={r.title || r.url || idx}
+											className="flex items-center justify-between bg-gray-800 rounded p-2"
+										>
+											<div className="min-w-0">
+												<div className="font-medium text-white truncate">
+													{r.title}
+												</div>
+												<div className="text-xs text-gray-400 truncate">
+													{r.url}
+												</div>
+											</div>
+											<div>
+												<button
+													type="button"
+													onClick={() => handleRemoveResource(idx)}
+													className="text-red-400 p-1"
+													disabled={loading}
+												>
+													<Trash2 className="h-4 w-4" />
+												</button>
+											</div>
+										</div>
+									))
 								)}
-								{resources.map((r, idx) => (
-									<div
-										key={r.title || r.url || idx}
-										className="flex items-center justify-between bg-gray-800 rounded p-2"
-									>
-										<div className="min-w-0">
-											<div className="font-medium text-white truncate">
-												{r.title}
-											</div>
-											<div className="text-xs text-gray-400 truncate">
-												{r.url}
-											</div>
-										</div>
-										<div>
-											<button
-												type="button"
-												onClick={() => handleRemoveResource(idx)}
-												className="text-red-400 p-1"
-												disabled={loading}
-											>
-												<Trash2 className="h-4 w-4" />
-											</button>
-										</div>
-									</div>
-								))}
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-2">
 									<input
 										placeholder="Title"
@@ -603,35 +768,36 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 
 						{tab === 'coOrganizers' && (
 							<div className="space-y-4">
-								{coOrganizers.length === 0 && (
+								{coOrganizers.length === 0 ? (
 									<div className="text-sm text-gray-400">No co-organizers</div>
-								)}
-								{coOrganizers.map((c, idx) => (
-									<div
-										key={`${c}-${idx}`}
-										className="flex items-center justify-between bg-gray-800 rounded p-2"
-									>
-										<div className="text-white truncate">{c}</div>
-										<div className="flex gap-2">
-											<button
-												type="button"
-												onClick={() => handleRemoveCoIndex(idx)}
-												className="text-red-400 p-1"
-												disabled={loading}
-											>
-												<Trash2 className="h-4 w-4" />
-											</button>
-											<button
-												type="button"
-												onClick={() => handleRemoveCoName(c)}
-												className="text-yellow-400 p-1"
-												disabled={loading}
-											>
-												By name
-											</button>
+								) : (
+									coOrganizers.map((c, idx) => (
+										<div
+											key={`${c}-${idx}`}
+											className="flex items-center justify-between bg-gray-800 rounded p-2"
+										>
+											<div className="text-white truncate">{c}</div>
+											<div className="flex gap-2">
+												<button
+													type="button"
+													onClick={() => handleRemoveCoIndex(idx)}
+													className="text-red-400 p-1"
+													disabled={loading}
+												>
+													<Trash2 className="h-4 w-4" />
+												</button>
+												<button
+													type="button"
+													onClick={() => handleRemoveCoName(c)}
+													className="text-yellow-400 p-1"
+													disabled={loading}
+												>
+													By name
+												</button>
+											</div>
 										</div>
-									</div>
-								))}
+									))
+								)}
 								<div className="flex gap-2">
 									<input
 										placeholder="Name"
@@ -654,44 +820,45 @@ const ManageModal = ({ open = true, event, onClose, onDone, setParentError }) =>
 
 						{tab === 'posters' && (
 							<div className="space-y-4">
-								{posters.length === 0 && (
+								{posters.length === 0 ? (
 									<div className="text-sm text-gray-400">No posters</div>
-								)}
-								<div className="flex gap-2 flex-wrap">
-									{posters.map((p, idx) => (
-										<div
-											key={p.publicId || p.public_id || idx}
-											className="w-32 bg-gray-800 rounded overflow-hidden p-1"
-										>
-											{p.url ? (
-												<img
-													src={p.url}
-													alt={p.caption || 'poster'}
-													className="object-cover w-full h-20"
-												/>
-											) : (
-												<div className="h-20 bg-gray-700" />
-											)}
-											<div className="flex items-center justify-between mt-1">
-												<div className="text-xs text-gray-300 truncate">
-													{p.caption || ''}
+								) : (
+									<div className="flex gap-2 flex-wrap">
+										{posters.map((p, idx) => (
+											<div
+												key={p.publicId || p.public_id || idx}
+												className="w-32 bg-gray-800 rounded overflow-hidden p-1"
+											>
+												{p.url ? (
+													<img
+														src={p.url}
+														alt={p.caption || 'poster'}
+														className="object-cover w-full h-20"
+													/>
+												) : (
+													<div className="h-20 bg-gray-700" />
+												)}
+												<div className="flex items-center justify-between mt-1">
+													<div className="text-xs text-gray-300 truncate">
+														{p.caption || ''}
+													</div>
+													<button
+														type="button"
+														onClick={() =>
+															handleRemovePoster(
+																p.publicId || p.public_id
+															)
+														}
+														className="text-red-400 p-1"
+														disabled={loading}
+													>
+														<Trash2 className="h-4 w-4" />
+													</button>
 												</div>
-												<button
-													type="button"
-													onClick={() =>
-														handleRemovePoster(
-															p.publicId || p.public_id
-														)
-													}
-													className="text-red-400 p-1"
-													disabled={loading}
-												>
-													<Trash2 className="h-4 w-4" />
-												</button>
 											</div>
-										</div>
-									))}
-								</div>
+										))}
+									</div>
+								)}
 								<div className="flex items-center gap-2">
 									<input
 										type="file"
