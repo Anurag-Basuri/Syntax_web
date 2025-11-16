@@ -1,86 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Linkedin, Twitter, Github, Globe, Star, Shield } from 'lucide-react';
+import {
+	Linkedin,
+	Twitter,
+	Github,
+	Globe,
+	Mail,
+	Phone,
+	ShieldCheck,
+	Briefcase,
+} from 'lucide-react';
 
-const cardVariants = {
-	hidden: { opacity: 0, y: 8 },
-	visible: { opacity: 1, y: 0 },
+const FALLBACK_AVATAR = (name) =>
+	`https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(name || '??')}`;
+
+const getSocialIcon = (platform = '') => {
+	const p = platform.toLowerCase();
+	if (p.includes('github')) return Github;
+	if (p.includes('linkedin')) return Linkedin;
+	if (p.includes('twitter')) return Twitter;
+	return Globe;
 };
 
-const TeamMemberCard = React.forwardRef(({ member, onClick }, ref) => {
+const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 	const [imageError, setImageError] = useState(false);
+	const cardRef = useRef(null);
 
-	const socialLinks = Array.isArray(member.socialLinks) ? member.socialLinks : [];
-	const hasSocials = socialLinks.length > 0;
-
-	const avatarUrl =
-		member.profilePicture?.url ||
-		`https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(member.fullname)}`;
-
-	const isLeader = !!member.isLeader;
-
-	// Get initials
+	const avatar = (member.profilePicture && (member.profilePicture.url || member.profilePicture)) || FALLBACK_AVATAR(member.fullname);
 	const initials =
-		member.fullname
-			?.split(' ')
-			.map((n) => n?.[0] || '')
+		(member.fullname || '??')
+			.split(' ')
+			.map((p) => p[0])
+			.filter(Boolean)
 			.join('')
 			.substring(0, 2)
 			.toUpperCase() || '??';
 
-	// Helper to select icon
-	const getSocialIcon = (platform) => {
-		const p = (platform || '').toLowerCase();
-		if (p.includes('github')) return Github;
-		if (p.includes('linkedin')) return Linkedin;
-		if (p.includes('twitter')) return Twitter;
-		return Globe;
-	};
+	// Accessibility: focus style handling
+	useEffect(() => {
+		const el = cardRef.current;
+		if (!el) return;
+		const handleKey = (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				onClick?.(member);
+			}
+		};
+		el.addEventListener('keydown', handleKey);
+		return () => el.removeEventListener('keydown', handleKey);
+	}, [member, onClick]);
 
-	// Open card - used on click/Enter. We stop propagation on social links.
-	const handleOpen = () => onClick && onClick(member);
+	const openProfile = useCallback(
+		(e) => {
+			// Prevent card click when a social link was clicked (links stopPropagation)
+			if (e && e.defaultPrevented) return;
+			onClick?.(member);
+		},
+		[member, onClick]
+	);
 
 	return (
 		<motion.article
+			ref={cardRef}
 			layout
-			variants={cardVariants}
-			initial="hidden"
-			animate="visible"
-			exit="hidden"
-			transition={{ duration: 0.28, ease: 'easeInOut' }}
-			className="team-card group bg-gradient-to-b from-white/60 to-white/30 dark:from-gray-900/60 dark:to-gray-900/30 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transform-gpu hover:-translate-y-2 transition-all duration-300 cursor-pointer focus:outline-none"
-			onClick={handleOpen}
-			tabIndex={0}
+			initial={{ opacity: 0, y: 6 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, y: 6 }}
+			transition={{ duration: 0.28, ease: 'easeOut' }}
+			onClick={openProfile}
 			role="button"
+			tabIndex={0}
 			aria-label={`Open profile for ${member.fullname}`}
-			onKeyDown={(e) => e.key === 'Enter' && handleOpen()}
-			ref={ref}
+			className="group relative rounded-2xl overflow-hidden bg-[var(--card-bg)] border border-[var(--card-border)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] focus:shadow-[var(--shadow-md)] transition-transform transform hover:-translate-y-1 focus:-translate-y-1 cursor-pointer"
 		>
-			{/* Top image area with subtle gradient and overlay */}
-			<div className="relative w-full h-36 sm:h-40 overflow-hidden bg-gradient-to-br from-indigo-600/10 to-purple-600/6">
+			{/* Top cover */}
+			<div className="relative h-36 sm:h-40 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/10 dark:to-purple-900/8">
+				{/* Decorative blur or cover image (subtle) */}
 				{!imageError ? (
 					<img
-						src={avatarUrl}
-						alt={member.fullname}
-						className="w-full h-full object-cover transform scale-105 group-hover:scale-100 transition-transform duration-500"
-						loading="lazy"
+						src={avatar}
+						alt={`${member.fullname} avatar`}
 						onError={() => setImageError(true)}
+						className="w-full h-full object-cover opacity-95 group-hover:opacity-100 transition-opacity"
+						loading="lazy"
+						decoding="async"
 					/>
 				) : (
-					<div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 text-white font-semibold text-3xl">
+					<div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-2xl font-bold">
 						{initials}
 					</div>
 				)}
 
-				{/* Avatar overlapping */}
+				{/* Avatar (overlap) */}
 				<div className="absolute left-4 -bottom-8">
-					<div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full ring-2 ring-white dark:ring-gray-900 overflow-hidden bg-gray-200 shadow-lg">
+					<div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full ring-2 ring-white dark:ring-gray-900 overflow-hidden bg-gray-100 shadow-lg">
 						{!imageError ? (
 							<img
-								src={avatarUrl}
-								alt={member.fullname}
-								className="w-full h-full object-cover"
+								src={avatar}
+								alt={`${member.fullname}`}
 								onError={() => setImageError(true)}
+								className="w-full h-full object-cover"
+								loading="lazy"
+								decoding="async"
 							/>
 						) : (
 							<div className="w-full h-full flex items-center justify-center bg-indigo-600 text-white font-bold text-lg">
@@ -90,73 +111,100 @@ const TeamMemberCard = React.forwardRef(({ member, onClick }, ref) => {
 					</div>
 				</div>
 
-				{/* Leader badge */}
-				{isLeader && (
-					<span className="absolute right-3 top-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 shadow">
-						<Shield size={14} /> Leader
-					</span>
+				{/* Leader Badge */}
+				{member.isLeader && (
+					<div className="absolute right-3 top-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-200 shadow-sm">
+						<ShieldCheck size={14} /> Leader
+					</div>
 				)}
 			</div>
 
-			{/* Content */}
-			<div className="px-4 pt-6 pb-4 sm:pb-5">
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0">
+			{/* Body */}
+			<div className="pt-10 pb-4 px-4 sm:px-5">
+				<div className="flex items-start gap-3">
+					<div className="min-w-0 flex-1">
 						<h3 className="text-base sm:text-lg font-semibold leading-tight truncate" title={member.fullname} style={{ color: 'var(--text-primary)' }}>
 							{member.fullname}
 						</h3>
-						<p className="text-sm text-[var(--text-secondary)] truncate" title={member.primaryRole || member.primaryDesignation || 'Member'}>
+						<div className="mt-1 text-sm text-[var(--text-secondary)] truncate">
 							{member.primaryRole || member.primaryDesignation || 'Member'}
-						</p>
-						<p className="text-xs text-[var(--text-muted)] mt-1 truncate" title={member.primaryDept || member.primaryDepartment || 'Team'}>
-							{member.primaryDept || member.primaryDepartment || 'Team'}
-						</p>
+						</div>
+						<div className="text-xs text-[var(--text-muted)] mt-1 truncate flex items-center gap-2">
+							<Briefcase size={12} /> <span>{member.primaryDept || 'Team'}</span>
+						</div>
 					</div>
 				</div>
 
 				{/* Skills */}
 				{Array.isArray(member.skills) && member.skills.length > 0 && (
 					<div className="mt-3 flex flex-wrap gap-2">
-						{member.skills.slice(0, 6).map((s, idx) => (
-							<span key={idx} className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
+						{member.skills.slice(0, 6).map((s, i) => (
+							<span key={i} className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
 								{s}
 							</span>
 						))}
 					</div>
 				)}
 
-				{/* Socials */}
-				{hasSocials && (
-					<div className="mt-4 flex items-center gap-2">
-						{socialLinks.slice(0, 4).map((social, idx) => {
-							const Icon = getSocialIcon(social.platform);
-							const raw = social.url || '';
-							const url = raw.startsWith('http') ? raw : `https://${raw}`;
+				{/* Footer: socials and quick actions (show on hover/focus) */}
+				<div className="mt-4 flex items-center gap-2 justify-between">
+					<div className="flex items-center gap-2">
+						{Array.isArray(member.socialLinks) && member.socialLinks.slice(0, 3).map((s, i) => {
+							const Icon = getSocialIcon(s.platform);
+							const url = (s.url || '').startsWith('http') ? s.url : `https://${s.url || ''}`;
 							return (
 								<a
-									key={idx}
+									key={i}
 									href={url}
 									target="_blank"
 									rel="noopener noreferrer"
-									className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-white/8 hover:bg-white/12 transition-colors text-[var(--text-secondary)]"
 									onClick={(e) => e.stopPropagation()}
-									aria-label={`${member.fullname} - ${social.platform || 'link'}`}
-									title={social.platform || 'link'}
+									className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-white/6 hover:bg-white/10 transition-colors text-[var(--text-secondary)]"
+									aria-label={`${member.fullname} ${s.platform || 'profile'}`}
+									title={s.platform || 'profile'}
 								>
 									<Icon size={14} />
 								</a>
 							);
 						})}
-						{socialLinks.length > 4 && (
-							<span className="ml-auto text-xs px-2 py-0.5 rounded-md bg-white/5 text-[var(--text-muted)]">+{socialLinks.length - 4}</span>
-						)}
 					</div>
-				)}
+
+					{/* Actions overlay on hover/focus */}
+					<div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+						{member.email && (
+							<a
+								href={`mailto:${member.email}`}
+								onClick={(e) => e.stopPropagation()}
+								className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-[var(--glass-bg)] border border-[var(--glass-border)] text-sm"
+								aria-label={`Email ${member.fullname}`}
+								title={`Email ${member.fullname}`}
+							>
+								<Mail size={14} /> <span className="sr-only">Email</span>
+							</a>
+						)}
+						{member.phone && (
+							<a
+								href={`tel:${member.phone}`}
+								onClick={(e) => e.stopPropagation()}
+								className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-[var(--glass-bg)] border border-[var(--glass-border)] text-sm"
+								aria-label={`Call ${member.fullname}`}
+								title={`Call ${member.fullname}`}
+							>
+								<Phone size={14} /> <span className="sr-only">Call</span>
+							</a>
+						)}
+						<button
+							onClick={(e) => { e.stopPropagation(); onClick?.(member); }}
+							className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[linear-gradient(90deg,var(--accent-1),var(--accent-2))] text-white text-sm"
+							aria-label={`Open profile for ${member.fullname}`}
+						>
+							View
+						</button>
+					</div>
+				</div>
 			</div>
 		</motion.article>
 	);
 });
-
-TeamMemberCard.displayName = 'TeamMemberCard';
 
 export default TeamMemberCard;
