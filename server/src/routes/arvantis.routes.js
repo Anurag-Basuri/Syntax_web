@@ -31,6 +31,7 @@ import {
 	updateThemeColors,
 	addTrack,
 	removeTrack,
+	reorderTracks,
 	addFAQ,
 	removeFAQ,
 	reorderFAQs,
@@ -257,6 +258,50 @@ router.delete(
 	removeGalleryMedia
 );
 
+// Reorder gallery
+router.patch(
+	'/:identifier/gallery/reorder',
+	validate([
+		param('identifier').notEmpty().withMessage('Fest identifier is required'),
+		body('order').isArray().withMessage('order must be an array of publicIds'),
+	]),
+	reorderGallery
+);
+
+// Posters (support multiple uploads)
+router.patch(
+	'/:identifier/posters',
+	(req, res, next) => {
+		/* eslint-disable no-console */
+		console.log('[ROUTE] PATCH /:identifier/posters', {
+			identifier: req.params.identifier,
+			contentType: req.headers['content-type'],
+		});
+		/* eslint-enable no-console */
+		next();
+	},
+	uploadFile('posters', { multiple: true, maxCount: 20 }),
+	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
+	addFestPoster
+);
+
+// Delete specific poster by publicId (recommended)
+router.delete(
+	'/:identifier/posters/:publicId',
+	validate([
+		param('identifier').notEmpty().withMessage('Fest identifier is required'),
+		param('publicId').notEmpty().withMessage('Poster publicId is required'),
+	]),
+	removeFestPoster
+);
+
+// Legacy single-poster delete (body-based) kept for compatibility
+router.delete(
+	'/:identifier/poster',
+	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
+	removeFestPoster
+);
+
 // Hero
 router.patch(
 	'/:identifier/hero',
@@ -271,10 +316,13 @@ router.delete(
 	removeFestHero
 );
 
-// Bulk delete media
+// Bulk delete media (validate publicIds array)
 router.post(
 	'/:identifier/media/bulk-delete',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
+	validate([
+		param('identifier').notEmpty().withMessage('Fest identifier is required'),
+		body('publicIds').isArray().withMessage('publicIds must be an array of publicId strings'),
+	]),
 	bulkDeleteMedia
 );
 
@@ -323,7 +371,10 @@ router.delete(
 
 router.patch(
 	'/:identifier/faqs/reorder',
-	validate([param('identifier').notEmpty().withMessage('Fest identifier is required')]),
+	validate([
+		param('identifier').notEmpty().withMessage('Fest identifier is required'),
+		body('order').isArray().withMessage('order must be an array of faq ids'),
+	]),
 	reorderFAQs
 );
 
