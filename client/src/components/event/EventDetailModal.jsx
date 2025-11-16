@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { useEvent } from '../../hooks/useEvents.js'; // keep existing hook
+import { useEvent } from '../../hooks/useEvents.js'; // existing hook, unchanged
 
 // Friendly date/time formatter
 const safeFormatDate = (dateInput) => {
@@ -60,26 +60,53 @@ const generateICS = (ev = {}) => {
 
 /**
  * EventDetailModal
- * - UI-focused: improved speakers, partners, co-organizers presentation
- * - No meta/registrations displayed
- * - Poster image fixed to reliably cover the visual area
- * - Uses existing useEvent hook; no changes to services/hooks
+ * - Theme-aware: uses CSS variables where appropriate for bright/dark parity.
+ * - Image handling is robust (preloads & fallback).
+ * - Improved presentation of speakers, partners, co-organizers (cards / grid / chips).
+ * - No hooks/services were changed (still uses existing useEvent).
  */
 const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 	const [imgIndex, setImgIndex] = useState(0);
+	const [posterValid, setPosterValid] = useState(true);
 	const closeRef = useRef(null);
 	const id = initialEvent?._id ?? null;
 
-	// existing hook (unchanged)
-	const { data: fetched, isLoading, isError, refetch } = useEvent(isOpen ? id : null);
+	// Use existing hook; pass id only when open. The hook itself manages enabled: !!id
+	const { data: fetched } = useEvent(isOpen ? id : null);
 
-	// prefer fetched data
 	const event = fetched || initialEvent;
 
-	// countdown computed safely
 	const countdown = useMemo(() => timeUntil(event?.eventDate || event?.date), [event]);
 
-	// disable background scroll while open
+	// Determine theme: prefer explicit data-theme, fallback to system preference
+	const isDark = (() => {
+		try {
+			const dt = document.documentElement?.getAttribute?.('data-theme');
+			if (dt) return dt === 'dark';
+			return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+		} catch {
+			return true;
+		}
+	})();
+
+	// compute posterUrl and pre-validate it so we can gracefully fallback if it 404s
+	const posterUrl = event?.posters?.[imgIndex]?.url ?? null;
+	useEffect(() => {
+		let mounted = true;
+		if (!posterUrl) {
+			setPosterValid(false);
+			return;
+		}
+		const img = new Image();
+		img.onload = () => mounted && setPosterValid(true);
+		img.onerror = () => mounted && setPosterValid(false);
+		img.src = posterUrl;
+		return () => {
+			mounted = false;
+		};
+	}, [posterUrl]);
+
+	// disable body scroll while modal is open
 	useEffect(() => {
 		if (!isOpen) return;
 		const prev = document.body.style.overflow;
@@ -89,7 +116,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		};
 	}, [isOpen]);
 
-	// focus, escape handling
+	// focus management + escape to close
 	useEffect(() => {
 		if (!isOpen) return;
 		closeRef.current?.focus();
@@ -100,7 +127,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		return () => window.removeEventListener('keydown', onKey);
 	}, [isOpen, onClose]);
 
-	// defensive arrays
+	// Defensive arrays
 	const speakers = Array.isArray(event?.speakers) ? event.speakers : event?.speakers ? [event.speakers] : [];
 	const partners = Array.isArray(event?.partners) ? event.partners : event?.partners ? [event.partners] : [];
 	const coOrganizers = Array.isArray(event?.coOrganizers) ? event.coOrganizers : event?.coOrganizers ? [event.coOrganizers] : [];
@@ -157,12 +184,9 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		setImgIndex((p) => (p - 1 + event.posters.length) % event.posters.length);
 	};
 
-	// fallback poster src (cover the area reliably and show a gradient if image fails)
-	const posterUrl = event?.posters?.[imgIndex]?.url || null;
-
-	// Helper: avatar (photo or initials)
-	const Avatar = ({ src, name, size = 48 }) => {
-		const initials = (name || '').split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase();
+	// UI helpers: Avatar, SpeakerCard, PartnerTile, CoOrganizerChip
+	const Avatar = ({ src, name, size = 56 }) => {
+		const initials = (name || '').split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase() || '–';
 		return src ? (
 			<img
 				src={src}
@@ -177,40 +201,44 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 				style={{ width: size, height: size }}
 				aria-hidden
 			>
-				<span className="font-semibold">{initials || '–'}</span>
+				<span className="font-semibold">{initials}</span>
 			</div>
 		);
 	};
 
-	// Present speakers as cards with name, role, short bio and social links
 	const SpeakerCard = ({ sp }) => {
 		const bio = sp.bio || sp.description || '';
-		const short = bio.length > 160 ? bio.slice(0, 157).trim() + '…' : bio;
+		const short = bio.length > 220 ? bio.slice(0, 217).trim() + '…' : bio;
 		return (
-			<div className="flex gap-3 items-start p-3 bg-white/3 rounded-md">
+			<div
+				className="p-3 rounded-md flex gap-3 items-start"
+				style={{
+					background: 'var(--glass-bg)',
+					border: '1px solid var(--glass-border)',
+				}}
+			>
 				<Avatar src={sp.photo} name={sp.name} size={56} />
 				<div className="min-w-0">
-					<div className="flex items-center justify-between gap-2">
-						<div className="font-medium text-white truncate">{sp.name || sp.title || 'Speaker'}</div>
-						{sp.company && <div className="text-xs text-gray-300">{sp.company}</div>}
+					<div className="flex items-center justify-between gap-3">
+						<div className="font-medium text-[var(--text-primary)] truncate">{sp.name || sp.title || 'Speaker'}</div>
+						{sp.company && <div className="text-xs text-[var(--text-muted)]">{sp.company}</div>}
 					</div>
-					{sp.title && <div className="text-xs text-gray-400 truncate">{sp.title}</div>}
-					{bio && <div className="text-sm text-gray-300 mt-2">{short}</div>}
-					{/* social links */}
+					{sp.title && <div className="text-xs text-[var(--text-muted)] truncate">{sp.title}</div>}
+					{bio && <div className="text-sm text-[var(--text-secondary)] mt-2">{short}</div>}
 					{(sp.links || sp.social || sp.website) && (
-						<div className="mt-2 flex gap-2 items-center">
+						<div className="mt-2 flex gap-3 items-center">
 							{sp.links?.twitter && (
-								<a href={sp.links.twitter} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-300">
+								<a href={sp.links.twitter} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-500">
 									Twitter
 								</a>
 							)}
 							{sp.links?.linkedin && (
-								<a href={sp.links.linkedin} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-300">
+								<a href={sp.links.linkedin} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-500">
 									LinkedIn
 								</a>
 							)}
 							{sp.website && (
-								<a href={sp.website} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-300">
+								<a href={sp.website} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="text-xs text-blue-500">
 									Website
 								</a>
 							)}
@@ -221,7 +249,6 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 		);
 	};
 
-	// Partners grid: logo + name + optional tier badge
 	const PartnerTile = ({ p }) => {
 		return (
 			<a
@@ -229,26 +256,35 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 				onClick={(e) => e.stopPropagation()}
 				target="_blank"
 				rel="noreferrer"
-				className="flex items-center gap-3 p-3 bg-white/3 rounded hover:scale-[1.02] transition-transform"
+				className="flex items-center gap-3 p-3 rounded-md hover:shadow-md transition-shadow"
+				style={{
+					background: 'var(--glass-bg)',
+					border: '1px solid var(--glass-border)',
+				}}
 			>
-				<div className="flex-shrink-0 w-12 h-12 bg-white/5 rounded flex items-center justify-center overflow-hidden">
+				<div className="flex-shrink-0 w-12 h-12 rounded-md bg-white/5 overflow-hidden flex items-center justify-center">
 					{p.logo ? (
 						<img src={p.logo} alt={p.name || 'partner'} className="w-full h-full object-contain" loading="lazy" />
 					) : (
-						<div className="text-sm text-gray-200">{(p.name || '').slice(0, 1)}</div>
+						<div className="text-sm text-[var(--text-primary)]">{(p.name || '').slice(0, 1)}</div>
 					)}
 				</div>
 				<div className="min-w-0">
-					<div className="font-medium text-white truncate">{p.name || 'Partner'}</div>
-					{p.tier && <div className="text-xs text-gray-400 mt-0.5">{p.tier}</div>}
+					<div className="font-medium text-[var(--text-primary)] truncate">{p.name || 'Partner'}</div>
+					{p.tier && <div className="text-xs text-[var(--text-muted)] mt-0.5">{p.tier}</div>}
 				</div>
 			</a>
 		);
 	};
 
-	// Co-organizers chips
 	const CoOrganizerChip = ({ c }) => (
-		<div className="flex items-center gap-2 bg-white/4 rounded-full px-3 py-1">
+		<div
+			className="flex items-center gap-2 rounded-full px-3 py-1"
+			style={{
+				background: 'rgba(255,255,255,0.03)',
+				border: '1px solid var(--glass-border)',
+			}}
+		>
 			<div className="w-7 h-7 rounded-full overflow-hidden">
 				{c.logo ? (
 					<img src={c.logo} alt={c.name || 'co-organizer'} className="w-full h-full object-cover" loading="lazy" />
@@ -258,7 +294,7 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 					</div>
 				)}
 			</div>
-			<div className="text-xs text-white">{c.name || c}</div>
+			<div className="text-xs text-[var(--text-primary)]">{c.name || c}</div>
 		</div>
 	);
 
@@ -274,50 +310,74 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 				role="dialog"
 				onClick={onClose}
 			>
-				{/* backdrop */}
+				{/* overlay adapts to theme: darker overlay in dark, lighter in bright */}
 				<Motion.div
-					className="absolute inset-0 bg-black/75"
+					className="absolute inset-0"
+					style={{
+						background: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.72)',
+						backdropFilter: 'blur(6px)',
+						webkitBackdropFilter: 'blur(6px)',
+					}}
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
 					exit={{ opacity: 0 }}
 					onClick={onClose}
 				/>
 
-				{/* modal */}
+				{/* modal container */}
 				<Motion.div
 					initial={{ scale: 0.98, opacity: 0 }}
 					animate={{ scale: 1, opacity: 1 }}
 					exit={{ scale: 0.98, opacity: 0 }}
 					onClick={(e) => e.stopPropagation()}
-					className="relative w-[96vw] max-w-[1200px] h-[92vh] bg-gradient-to-br from-gray-900/95 to-black rounded-2xl overflow-hidden shadow-2xl grid md:grid-cols-3"
+					className="relative w-[96vw] max-w-[1200px] h-[92vh] rounded-2xl overflow-hidden shadow-2xl grid md:grid-cols-3"
+					style={{
+						background: 'linear-gradient(180deg, var(--glass-bg), color-mix(in srgb, var(--glass-bg) 92%, transparent))',
+						border: '1px solid var(--glass-border)',
+					}}
 					aria-labelledby="event-modal-title"
 				>
-					{/* Visual column (left): use explicit container to ensure full image coverage */}
-					<div className="md:col-span-1 w-full h-full bg-black relative flex items-stretch">
-						{posterUrl ? (
+					{/* Left visual column */}
+					<div className="md:col-span-1 w-full h-full relative flex items-stretch">
+						{posterValid && posterUrl ? (
 							<div
 								className="w-full h-full bg-center bg-no-repeat bg-cover"
 								style={{ backgroundImage: `url("${posterUrl}")` }}
 								aria-hidden
 							/>
 						) : (
-							<div className="w-full h-full flex items-center justify-center text-7xl opacity-10">🎭</div>
+							<div
+								className="w-full h-full flex items-center justify-center"
+								style={{
+									background: isDark
+										? 'linear-gradient(180deg,#08121a,#041021)'
+										: 'linear-gradient(180deg,#f7fbfc,#eef7f8)',
+								}}
+							>
+								<div className="text-7xl opacity-20">🎭</div>
+							</div>
 						)}
 
-						{/* small caption overlay */}
+						{/* caption */}
 						{event.posters?.[imgIndex]?.caption && (
-							<div className="absolute left-4 bottom-4 px-3 py-1 bg-black/50 text-xs rounded text-gray-200">
+							<div
+								className="absolute left-4 bottom-4 rounded px-3 py-1 text-xs"
+								style={{
+									background: 'rgba(0,0,0,0.45)',
+									color: 'var(--text-primary)',
+								}}
+							>
 								{event.posters[imgIndex].caption}
 							</div>
 						)}
 
-						{/* image navigation */}
-						{event.posters?.length > 1 && (
+						{/* image nav */}
+						{(event.posters?.length ?? 0) > 1 && (
 							<>
 								<button
 									onClick={prevImg}
-									className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 p-2 rounded-full"
-									aria-label="Previous image"
+									className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/30 p-2 rounded-full text-white"
+									aria-label="Previous"
 								>
 									<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -325,8 +385,8 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 								</button>
 								<button
 									onClick={nextImg}
-									className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 p-2 rounded-full"
-									aria-label="Next image"
+									className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/30 p-2 rounded-full text-white"
+									aria-label="Next"
 								>
 									<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -348,19 +408,25 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 						</button>
 					</div>
 
-					{/* Details column (middle + right) - scrollable */}
+					{/* Right columns: content scroll area */}
 					<div className="md:col-span-2 p-6 overflow-auto flex flex-col gap-4">
-						{/* header */}
+						{/* Header */}
 						<div className="flex items-start justify-between gap-4">
 							<div className="min-w-0">
-								<h2 id="event-modal-title" className="text-2xl font-bold text-white leading-tight">
+								<h2 id="event-modal-title" className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
 									{event.title}
 								</h2>
-								<div className="text-sm text-gray-400 mt-1">{event.organizer || event.host || ''}</div>
+								<div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+									{event.organizer || event.host || ''}
+								</div>
 								<div className="mt-2 flex flex-wrap gap-2">
 									{Array.isArray(event.tags) &&
 										event.tags.map((t) => (
-											<span key={t} className="text-xs bg-white/5 px-2 py-0.5 rounded">
+											<span
+												key={t}
+												className="text-xs px-2 py-0.5 rounded"
+												style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)' }}
+											>
 												{t}
 											</span>
 										))}
@@ -374,8 +440,10 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 									</button>
 								) : countdown ? (
 									<div className="text-right">
-										<div className="text-xs text-gray-300">Starts in</div>
-										<div className="font-semibold">
+										<div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+											Starts in
+										</div>
+										<div className="font-semibold" style={{ color: 'var(--text-primary)' }}>
 											{countdown.days > 0
 												? `${countdown.days}d ${countdown.hours}h`
 												: countdown.hours > 0
@@ -387,24 +455,50 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 										</button>
 									</div>
 								) : (
-									<div className="text-xs text-gray-400">{event.status || 'TBD'}</div>
+									<div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+										{event.status || 'TBD'}
+									</div>
 								)}
-								<button onClick={downloadICS} className="text-xs px-3 py-1 border rounded mt-1">
+								<button onClick={downloadICS} className="text-xs px-3 py-1 border rounded" style={{ borderColor: 'var(--glass-border)' }}>
 									Add to calendar
 								</button>
 							</div>
 						</div>
 
-						{/* description */}
+						{/* Date & venue */}
+						<div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+							<div className="flex items-center gap-2">
+								<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								{safeFormatDate(event.eventDate)}
+							</div>
+							{event.venue && (
+								<div className="flex items-center gap-2">
+									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+									</svg>
+									{event.venue}
+								</div>
+							)}
+						</div>
+
+						{/* Description */}
 						<section>
-							<h3 className="text-sm font-semibold text-gray-200 mb-2">Description</h3>
-							<div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{event.description || 'No description available.'}</div>
+							<h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+								Description
+							</h3>
+							<div className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+								{event.description || 'No description available.'}
+							</div>
 						</section>
 
-						{/* Speakers — improved presentation */}
+						{/* Speakers */}
 						{speakers.length > 0 && (
 							<section>
-								<h3 className="text-sm font-semibold text-gray-200 mb-3">Speakers</h3>
+								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+									Speakers
+								</h3>
 								<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 									{speakers.map((sp, i) => (
 										<SpeakerCard key={sp._id || sp.name || i} sp={sp} />
@@ -413,10 +507,12 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 							</section>
 						)}
 
-						{/* Partners — logos grid */}
+						{/* Partners */}
 						{partners.length > 0 && (
 							<section>
-								<h3 className="text-sm font-semibold text-gray-200 mb-3">Partners</h3>
+								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+									Partners
+								</h3>
 								<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
 									{partners.map((p, i) => (
 										<PartnerTile key={p._id || p.name || i} p={p} />
@@ -428,7 +524,9 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 						{/* Co-organizers */}
 						{coOrganizers.length > 0 && (
 							<section>
-								<h3 className="text-sm font-semibold text-gray-200 mb-3">Co-organizers</h3>
+								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+									Co-organizers
+								</h3>
 								<div className="flex flex-wrap gap-2">
 									{coOrganizers.map((c, i) => (
 										<CoOrganizerChip key={c._id || c.name || i} c={c} />
@@ -440,11 +538,13 @@ const EventDetailModal = ({ event: initialEvent, isOpen, onClose }) => {
 						{/* Resources */}
 						{resources.length > 0 && (
 							<section>
-								<h3 className="text-sm font-semibold text-gray-200 mb-3">Resources</h3>
-								<ul className="list-disc list-inside text-sm text-blue-300 space-y-1">
+								<h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+									Resources
+								</h3>
+								<ul className="list-disc list-inside text-sm" style={{ color: 'var(--text-secondary)' }}>
 									{resources.map((r, i) => (
 										<li key={r.title || r.url || i}>
-											<a href={r.url || '#'} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer">
+											<a href={r.url || '#'} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-1)' }}>
 												{r.title || r.url}
 											</a>
 										</li>
