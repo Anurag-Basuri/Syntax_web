@@ -15,7 +15,7 @@ const FALLBACK_AVATAR = (name) =>
 	`https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(name || '??')}`;
 
 const getSocialIcon = (platform = '') => {
-	const p = platform.toLowerCase();
+	const p = (platform || '').toLowerCase();
 	if (p.includes('github')) return Github;
 	if (p.includes('linkedin')) return Linkedin;
 	if (p.includes('twitter')) return Twitter;
@@ -24,9 +24,11 @@ const getSocialIcon = (platform = '') => {
 
 const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 	const [imageError, setImageError] = useState(false);
-	const cardRef = useRef(null);
+	const ref = useRef(null);
 
-	const avatar = (member.profilePicture && (member.profilePicture.url || member.profilePicture)) || FALLBACK_AVATAR(member.fullname);
+	const avatar =
+		(member.profilePicture && (member.profilePicture.url || member.profilePicture)) ||
+		FALLBACK_AVATAR(member.fullname);
 	const initials =
 		(member.fullname || '??')
 			.split(' ')
@@ -36,24 +38,23 @@ const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 			.substring(0, 2)
 			.toUpperCase() || '??';
 
-	// Accessibility: focus style handling
+	// Keyboard activation
 	useEffect(() => {
-		const el = cardRef.current;
+		const el = ref.current;
 		if (!el) return;
-		const handleKey = (e) => {
+		const onKey = (e) => {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
 				onClick?.(member);
 			}
 		};
-		el.addEventListener('keydown', handleKey);
-		return () => el.removeEventListener('keydown', handleKey);
+		el.addEventListener('keydown', onKey);
+		return () => el.removeEventListener('keydown', onKey);
 	}, [member, onClick]);
 
 	const openProfile = useCallback(
 		(e) => {
-			// Prevent card click when a social link was clicked (links stopPropagation)
-			if (e && e.defaultPrevented) return;
+			if (e?.defaultPrevented) return;
 			onClick?.(member);
 		},
 		[member, onClick]
@@ -61,7 +62,7 @@ const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 
 	return (
 		<motion.article
-			ref={cardRef}
+			ref={ref}
 			layout
 			initial={{ opacity: 0, y: 6 }}
 			animate={{ opacity: 1, y: 0 }}
@@ -73,9 +74,8 @@ const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 			aria-label={`Open profile for ${member.fullname}`}
 			className="group relative rounded-2xl overflow-hidden bg-[var(--card-bg)] border border-[var(--card-border)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] focus:shadow-[var(--shadow-md)] transition-transform transform hover:-translate-y-1 focus:-translate-y-1 cursor-pointer"
 		>
-			{/* Top cover */}
-			<div className="relative h-36 sm:h-40 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/10 dark:to-purple-900/8">
-				{/* Decorative blur or cover image (subtle) */}
+			{/* Cover */}
+			<div className="relative h-36 sm:h-40 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/8 dark:to-purple-900/8">
 				{!imageError ? (
 					<img
 						src={avatar}
@@ -91,7 +91,7 @@ const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 					</div>
 				)}
 
-				{/* Avatar (overlap) */}
+				{/* Overlapping avatar */}
 				<div className="absolute left-4 -bottom-8">
 					<div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full ring-2 ring-white dark:ring-gray-900 overflow-hidden bg-gray-100 shadow-lg">
 						{!imageError ? (
@@ -111,7 +111,7 @@ const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 					</div>
 				</div>
 
-				{/* Leader Badge */}
+				{/* Leader badge */}
 				{member.isLeader && (
 					<div className="absolute right-3 top-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-200 shadow-sm">
 						<ShieldCheck size={14} /> Leader
@@ -146,7 +146,7 @@ const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 					</div>
 				)}
 
-				{/* Footer: socials and quick actions (show on hover/focus) */}
+				{/* Footer with socials & quick actions */}
 				<div className="mt-4 flex items-center gap-2 justify-between">
 					<div className="flex items-center gap-2">
 						{Array.isArray(member.socialLinks) && member.socialLinks.slice(0, 3).map((s, i) => {
@@ -169,7 +169,7 @@ const TeamMemberCard = React.memo(function TeamMemberCard({ member, onClick }) {
 						})}
 					</div>
 
-					{/* Actions overlay on hover/focus */}
+					{/* Hover actions */}
 					<div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
 						{member.email && (
 							<a
