@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Trash2, ArrowUp, ArrowDown, Copy } from 'lucide-react';
+import { Download, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import Badge from '../../components/arvantis/Badge.jsx';
