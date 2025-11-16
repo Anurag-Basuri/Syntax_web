@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import TeamMemberCard from './TeamMemberCard.jsx';
 import { Users } from 'lucide-react';
+
+/**
+ * Rebuilt TeamGrid
+ * - stable keys
+ * - leaders displayed as featured section
+ * - responsive grid using CSS from design.css / index.css
+ * - accessible empty state
+ */
 
 const containerVariants = {
 	hidden: {},
@@ -11,9 +19,21 @@ const containerVariants = {
 };
 
 const TeamGrid = ({ members = [], onCardClick }) => {
-	if (!members || members.length === 0) {
+	const safeMembers = Array.isArray(members) ? members : [];
+
+	const { leaders, rest } = useMemo(() => {
+		const l = [];
+		const r = [];
+		for (const m of safeMembers) {
+			if (m && m.isLeader) l.push(m);
+			else r.push(m);
+		}
+		return { leaders: l, rest: r };
+	}, [safeMembers]);
+
+	if (safeMembers.length === 0) {
 		return (
-			<div className="team-grid-empty">
+			<div className="team-grid-empty" role="status" aria-live="polite">
 				<div className="flex flex-col items-center justify-center text-center py-16 px-4">
 					<div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mb-4 shadow-lg">
 						<Users size={36} className="text-white" />
@@ -33,14 +53,9 @@ const TeamGrid = ({ members = [], onCardClick }) => {
 		);
 	}
 
-	// Leaders first, then rest
-	const leaders = members.filter((m) => m.isLeader);
-	const rest = members.filter((m) => !m.isLeader);
-
-	// Grid classes ensure uniform card slots and equal heights.
-	// Use fixed row height wrappers (responsive) instead of auto-rows to avoid shrink.
-	const gridClass =
-		'grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+	// helper for stable key
+	const getKey = (m, idx) =>
+		m?._id || m?.id || m?.memberID || `${m?.fullname || 'member'}-${idx}`;
 
 	return (
 		<motion.div
@@ -51,19 +66,18 @@ const TeamGrid = ({ members = [], onCardClick }) => {
 		>
 			{/* Featured leaders row */}
 			{leaders.length > 0 && (
-				<section className="mb-6">
+				<section aria-label="Leadership" className="mb-6">
 					<h3 className="text-lg font-semibold mb-3">Leadership</h3>
 					<div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-						<AnimatePresence mode="popLayout">
-							{leaders.map((m) => (
+						<AnimatePresence>
+							{leaders.map((m, i) => (
 								<motion.div
-									key={m._id}
+									key={getKey(m, i)}
 									layout
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
+									initial={{ opacity: 0, y: 8 }}
+									animate={{ opacity: 1, y: 0 }}
+									exit={{ opacity: 0, y: 8 }}
 								>
-									{/* responsive fixed height wrapper so leader cards align with grid */}
 									<div className="h-64 sm:h-72 lg:h-80">
 										<TeamMemberCard member={m} onClick={onCardClick} />
 									</div>
@@ -75,19 +89,18 @@ const TeamGrid = ({ members = [], onCardClick }) => {
 			)}
 
 			{/* Main grid */}
-			<section>
-				<div className={gridClass}>
-					<AnimatePresence mode="popLayout">
-						{rest.map((m) => (
+			<section aria-label="Team members">
+				<div className="team-grid">
+					<AnimatePresence>
+						{rest.map((m, i) => (
 							<motion.div
-								key={m._id}
+								key={getKey(m, i)}
 								layout
 								initial={{ opacity: 0, scale: 0.98 }}
 								animate={{ opacity: 1, scale: 1 }}
 								exit={{ opacity: 0, scale: 0.98 }}
 								transition={{ duration: 0.22 }}
 							>
-								{/* uniform responsive wrapper ensures equal card size */}
 								<div className="h-64 sm:h-72 lg:h-80">
 									<TeamMemberCard member={m} onClick={onCardClick} />
 								</div>
