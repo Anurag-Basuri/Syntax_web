@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
 	X,
 	Mail,
@@ -10,7 +10,6 @@ import {
 	Clock,
 	Shield,
 	FileText,
-	User,
 	Clipboard,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -137,7 +136,6 @@ const TeamMemberModal = ({ member, isOpen, onClose }) => {
 			show: !!(member.program || member.year || typeof member.hosteler === 'boolean'),
 		},
 		{ id: 'documents', label: 'Documents', show: !!member.resume?.url },
-		{ id: 'details', label: 'Details', show: isAuthenticated },
 	].filter((t) => t.show);
 
 	const copyContact = async () => {
@@ -276,7 +274,7 @@ const TeamMemberModal = ({ member, isOpen, onClose }) => {
 						</button>
 						<button
 							onClick={downloadVCard}
-							className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--glass-bg)] border border-[var(--glass-border)]"
+							className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--glass-bg)] border border-[var,--glass-border)]"
 						>
 							<FileText size={14} /> Download vCard
 						</button>
@@ -370,7 +368,7 @@ const TeamMemberModal = ({ member, isOpen, onClose }) => {
 						{active === 'contact' && (
 							<div className="space-y-3">
 								{isAuthenticated && member.email && (
-									<div className="rounded-md p-3 bg-[var(--glass-bg)] border border-[var,--glass-border)]">
+									<div className="rounded-md p-3 bg-[var(--glass-bg)] border border-[var(--glass-border)]">
 										<div className="text-xs text-[var(--text-muted)] mb-1 flex items-center gap-2">
 											<Mail size={14} /> Email
 										</div>
@@ -504,35 +502,6 @@ const TeamMemberModal = ({ member, isOpen, onClose }) => {
 									<p className="text-[var(--text-muted)] italic">
 										No documents available.
 									</p>
-								)}
-							</div>
-						)}
-
-						{active === 'details' && isAuthenticated && (
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-								{member.memberID && (
-									<div className="rounded-md p-3 bg-[var(--glass-bg)] border border-[var,--glass-border)]">
-										<div className="text-xs text-[var(--text-muted)]">
-											Member ID
-										</div>
-										<div className="font-mono mt-1">{member.memberID}</div>
-									</div>
-								)}
-								{member._id && (
-									<div className="rounded-md p-3 bg-[var(--glass-bg)] border border-[var,--glass-border)]">
-										<div className="text-xs text-[var,--text-muted]">
-											Database ID
-										</div>
-										<div className="font-mono mt-1">{member._id}</div>
-									</div>
-								)}
-								{member.createdAt && (
-									<div className="rounded-md p-3 bg-[var(--glass-bg)] border border-[var,--glass-border)] sm:col-span-2">
-										<div className="text-xs text-[var(--text-muted)]">
-											Created
-										</div>
-										<div className="mt-1">{formatDate(member.createdAt)}</div>
-									</div>
 								)}
 							</div>
 						)}
