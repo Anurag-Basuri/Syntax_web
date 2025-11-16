@@ -28,7 +28,21 @@ import { createPost, deletePost } from '../services/socialsServices.js';
 import useSocials from '../hooks/useSocials.js';
 import toast from 'react-hot-toast';
 
-// Helper for time ago formatting
+/**
+ * Socials feed page (improved)
+ *
+ * - Keeps existing hooks/services untouched.
+ * - Cleaner, faster PostCard with memoization.
+ * - Inline QuickComposer + CreatePostModal (supports text-only posts).
+ * - Better media placeholders, full-screen viewer, responsive layout.
+ *
+ * Note: This file replaces the previous socials.jsx. Keep a backup if needed.
+ */
+
+/* ----------------------
+   Helpers & Transformers
+   ---------------------- */
+
 const formatTimeAgo = (dateString) => {
 	if (!dateString) return 'Just now';
 	const date = new Date(dateString);
@@ -41,13 +55,11 @@ const formatTimeAgo = (dateString) => {
 	return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-// Transform backend post to frontend format
 const transformPost = (post) => {
-	// Backend returns: { _id, author: { fullname, _id }, title, content, media: [{ url, publicId, resource_type }], createdAt, ... }
 	const media = (post.media || []).map((item) => ({
 		id: item.publicId || item._id || Math.random().toString(36),
 		url: item.url,
-		type: item.resource_type === 'video' ? 'video' : 'image',
+		type: item.resource_type === 'video' || (item.url || '').match(/\.(mp4|webm|ogg)$/) ? 'video' : 'image',
 		publicId: item.publicId,
 	}));
 
@@ -55,11 +67,11 @@ const transformPost = (post) => {
 		_id: post._id,
 		user: {
 			id: post.author?._id || post.author?.id,
-			name: post.author?.fullname || 'Unknown',
-			fullname: post.author?.fullname || 'Unknown',
-			role: 'admin', // Posts are always by admins
-			avatar: '', // Admin model doesn't have profilePicture
-			verified: false,
+			name: post.author?.fullname || post.author?.name || 'Unknown',
+			fullname: post.author?.fullname || post.author?.name || 'Unknown',
+			role: post.author?.role || 'member',
+			avatar: post.author?.profilePicture?.url || post.author?.avatar || '',
+			verified: !!post.author?.verified,
 		},
 		title: post.title || '',
 		content: post.content || '',
@@ -73,11 +85,13 @@ const transformPost = (post) => {
 	};
 };
 
-const PostCard = ({ post, currentUser, onDelete }) => {
+/* ----------------------
+   PostCard (memoized)
+   ---------------------- */
+
+const PostCard = React.memo(({ post, currentUser, onDelete }) => {
 	const [showOptions, setShowOptions] = useState(false);
 	const [isLiked, setIsLiked] = useState(false);
-	const [imageLoaded, setImageLoaded] = useState({});
-	const [videoStates, setVideoStates] = useState({});
 	const [expandedMedia, setExpandedMedia] = useState(null);
 	const videoRefs = useRef({});
 	const optionsRef = useRef(null);
@@ -85,467 +99,240 @@ const PostCard = ({ post, currentUser, onDelete }) => {
 	const canDelete = currentUser?.role === 'admin' || currentUser?.id === post.user?.id;
 
 	useEffect(() => {
-		const handleClickOutside = (e) => {
+		const handle = (e) => {
 			if (optionsRef.current && !optionsRef.current.contains(e.target)) {
 				setShowOptions(false);
 			}
 		};
-		if (showOptions) {
-			document.addEventListener('mousedown', handleClickOutside);
-		}
-		return () => document.removeEventListener('mousedown', handleClickOutside);
+		if (showOptions) document.addEventListener('mousedown', handle);
+		return () => document.removeEventListener('mousedown', handle);
 	}, [showOptions]);
 
 	const toggleVideo = useCallback((id) => {
-		const video = videoRefs.current[id];
-		if (video) {
-			if (video.paused) {
-				video.play().catch(() => {});
-				setVideoStates((prev) => ({ ...prev, [id]: { ...prev[id], playing: true } }));
-			} else {
-				video.pause();
-				setVideoStates((prev) => ({ ...prev, [id]: { ...prev[id], playing: false } }));
-			}
-		}
+		const v = videoRefs.current[id];
+		if (!v) return;
+		if (v.paused) v.play().catch(() => {});
+		else v.pause();
 	}, []);
 
 	const toggleMute = useCallback((id) => {
-		const video = videoRefs.current[id];
-		if (video) {
-			video.muted = !video.muted;
-			setVideoStates((prev) => ({ ...prev, [id]: { ...prev[id], muted: video.muted } }));
-		}
+		const v = videoRefs.current[id];
+		if (!v) return;
+		v.muted = !v.muted;
 	}, []);
 
-	const media = post.media || [];
-	const initials =
+	const initials = (
 		post.user?.name
 			?.split(' ')
 			.map((n) => n?.[0] || '')
 			.join('')
 			.substring(0, 2)
-			.toUpperCase() || '??';
+			.toUpperCase() || '??'
+	);
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
+		<motion.article
+			initial={{ opacity: 0, y: 8 }}
 			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, x: -100 }}
-			transition={{ duration: 0.3 }}
-			className="relative bg-[var(--card-bg)] backdrop-blur-lg rounded-2xl overflow-hidden border border-[var(--card-border)] shadow-[var(--shadow-md)] group mb-6 sm:mb-8 transition-all duration-300 hover:shadow-[var(--shadow-lg)] hover:border-[var(--accent-1)]/30"
+			exit={{ opacity: 0, y: 8 }}
+			transition={{ duration: 0.28 }}
+			className="relative bg-[var(--card-bg)] backdrop-blur-lg rounded-2xl overflow-hidden border border-[var(--card-border)] shadow-[var(--shadow-md)] mb-6 sm:mb-8"
 		>
-			{/* Post Header */}
-			<div className="p-4 sm:p-6 pb-4">
-				<div className="flex items-center justify-between gap-3">
-					<div className="flex items-center space-x-3 flex-1 min-w-0">
-						<div className="relative flex-shrink-0">
-							{post.user?.avatar ? (
-								<motion.img
-									whileHover={{ scale: 1.05 }}
-									src={post.user.avatar}
-									alt={post.user?.name || 'User'}
-									className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-[var(--accent-1)]/50 transition-all duration-300"
-									onError={(e) => {
-										e.target.style.display = 'none';
-										const fallback = e.target.nextElementSibling;
-										if (fallback) fallback.style.display = 'flex';
-									}}
-								/>
-							) : null}
-							<div
-								className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[var(--accent-1)] to-[var(--accent-2)] flex items-center justify-center text-white font-bold text-xs sm:text-sm ring-2 ring-[var(--accent-1)]/50 ${
-									post.user?.avatar ? 'hidden' : ''
-								}`}
-							>
+			{/* Header */}
+			<div className="p-4 sm:p-6">
+				<div className="flex items-start gap-3">
+					<div className="flex-shrink-0">
+						{post.user?.avatar ? (
+							<img
+								src={post.user.avatar}
+								alt={post.user.name}
+								className="w-12 h-12 rounded-full object-cover"
+								loading="lazy"
+							/>
+						) : (
+							<div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--accent-1)] to-[var(--accent-2)] flex items-center justify-center text-white font-semibold">
 								{initials}
 							</div>
-							{post.user?.verified && (
-								<motion.div
-									initial={{ scale: 0 }}
-									animate={{ scale: 1 }}
-									transition={{ delay: 0.2 }}
-									className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-r from-[var(--accent-1)] to-[var(--accent-2)] rounded-full flex items-center justify-center shadow-[var(--shadow-sm)]"
-								>
-									<div className="w-2 h-2 bg-white rounded-full"></div>
-								</motion.div>
-							)}
-						</div>
-						<div className="flex-1 min-w-0">
-							<div className="flex items-center space-x-2 flex-wrap gap-1">
-								<h3 className="font-semibold text-[var(--text-primary)] hover:text-[var(--accent-1)] transition-colors cursor-pointer truncate text-sm sm:text-base">
-									{post.user?.name || post.user?.fullname || 'Unknown'}
-								</h3>
-								{post.user?.role === 'admin' && (
-									<motion.span
-										initial={{ opacity: 0, scale: 0.8 }}
-										animate={{ opacity: 1, scale: 1 }}
-										className="px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-[var(--accent-1)] to-[var(--accent-2)] text-white rounded-full flex-shrink-0 shadow-[var(--shadow-sm)]"
-									>
-										Admin
-									</motion.span>
-								)}
-							</div>
-							<div className="flex items-center gap-2 mt-0.5">
-								<Clock className="w-3 h-3 text-[var(--text-muted)]" />
-								<p className="text-xs sm:text-sm text-[var(--text-muted)]">
+						)}
+					</div>
+
+					<div className="flex-1 min-w-0">
+						<div className="flex items-center justify-between gap-3">
+							<div className="min-w-0">
+								<div className="flex items-center gap-2">
+									<h3 className="font-semibold text-[var(--text-primary)] truncate text-sm sm:text-base">
+										{post.user?.name}
+									</h3>
+									{post.user?.role === 'admin' && (
+										<span className="text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-[var(--accent-1)] to-[var(--accent-2)] text-white">
+											Admin
+										</span>
+									)}
+								</div>
+								<p className="text-xs text-[var(--text-muted)] mt-1">
 									{formatTimeAgo(post.createdAt)}
 								</p>
 							</div>
-						</div>
-					</div>
-					{canDelete && (
-						<div className="relative flex-shrink-0" ref={optionsRef}>
-							<motion.button
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.95 }}
-								onClick={() => setShowOptions(!showOptions)}
-								className="p-2 rounded-full transition-colors opacity-0 group-hover:opacity-100 hover:bg-[var(--glass-hover)] touch-manipulation"
-								aria-label="Post options"
-							>
-								<MoreHorizontal className="w-5 h-5 text-[var(--accent-1)]" />
-							</motion.button>
-							<AnimatePresence>
-								{showOptions && (
-									<motion.div
-										initial={{ opacity: 0, scale: 0.95, y: -10 }}
-										animate={{ opacity: 1, scale: 1, y: 0 }}
-										exit={{ opacity: 0, scale: 0.95, y: -10 }}
-										className="absolute right-0 top-full mt-2 bg-[var(--glass-bg)] backdrop-blur-lg rounded-lg shadow-[var(--shadow-lg)] border border-[var(--glass-border)] z-10 min-w-[150px]"
-									>
-										<button
-											onClick={() => {
-												onDelete(post._id);
-												setShowOptions(false);
-											}}
-											className="flex items-center space-x-2 px-4 py-3 text-red-400 hover:bg-[var(--glass-hover)] w-full text-left rounded-lg transition-colors text-sm touch-manipulation"
-										>
-											<Trash2 className="w-4 h-4" />
-											<span>Delete Post</span>
-										</button>
-									</motion.div>
-								)}
-							</AnimatePresence>
-						</div>
-					)}
-				</div>
-			</div>
 
-			{/* Post Content */}
-			{(post.title || post.content) && (
-				<div className="px-4 sm:px-6 pb-4">
-					{post.title && (
-						<h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-2 leading-tight">
-							{post.title}
-						</h2>
-					)}
-					{post.content && (
-						<motion.p
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							transition={{ delay: 0.1 }}
-							className="text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap break-words text-sm sm:text-base"
-						>
-							{post.content}
-						</motion.p>
-					)}
-				</div>
-			)}
+							{canDelete && (
+								<div ref={optionsRef} className="relative">
+									<button
+										onClick={() => setShowOptions((s) => !s)}
+										className="p-2 rounded-full hover:bg-[var(--glass-hover)]"
+										aria-label="Options"
+									>
+										<MoreHorizontal className="w-5 h-5 text-[var(--text-muted)]" />
+									</button>
 
-			{/* Media Grid */}
-			{media.length > 0 && (
-				<div className="mb-4">
-					{media.length === 1 ? (
-						<div className="px-4 sm:px-6">
-							<div className="rounded-xl overflow-hidden border border-[var(--glass-border)]">
-								{media[0].type === 'image' ? (
-									<motion.div
-										initial={{ opacity: 0, scale: 1.05 }}
-										animate={{ opacity: 1, scale: 1 }}
-										transition={{ duration: 0.4 }}
-										className="relative overflow-hidden cursor-pointer"
-										onClick={() => setExpandedMedia(media[0])}
-									>
-										<img
-											src={media[0].url}
-											alt="Post media"
-											className="w-full h-auto max-h-[500px] sm:max-h-[600px] object-cover transition-transform duration-500 hover:scale-105"
-											onLoad={() =>
-												setImageLoaded((prev) => ({
-													...prev,
-													[media[0].id]: true,
-												}))
-											}
-											onError={(e) => {
-												e.target.style.display = 'none';
-											}}
-											loading="lazy"
-										/>
-										{!imageLoaded[media[0].id] && (
-											<div className="absolute inset-0 bg-[var(--bg-soft)] animate-pulse flex items-center justify-center">
-												<ImageIcon className="w-8 h-8 text-[var(--text-muted)]" />
-											</div>
-										)}
-									</motion.div>
-								) : (
-									<div className="relative">
-										<video
-											ref={(el) => (videoRefs.current[media[0].id] = el)}
-											src={media[0].url}
-											className="w-full h-auto max-h-[500px] sm:max-h-[600px] object-cover"
-											muted
-											loop
-											playsInline
-											onLoadedData={() => {
-												setVideoStates((prev) => ({
-													...prev,
-													[media[0].id]: {
-														...prev[media[0].id],
-														loaded: true,
-													},
-												}));
-											}}
-										/>
-										{!videoStates[media[0].id]?.loaded && (
-											<div className="absolute inset-0 bg-[var(--bg-soft)] animate-pulse flex items-center justify-center">
-												<VideoIcon className="w-8 h-8 text-[var(--text-muted)]" />
-											</div>
-										)}
-										<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-											<div className="flex space-x-3 sm:space-x-4 pointer-events-auto">
-												<motion.button
-													whileHover={{ scale: 1.1 }}
-													whileTap={{ scale: 0.95 }}
-													onClick={(e) => {
-														e.stopPropagation();
-														toggleVideo(media[0].id);
-													}}
-													className="p-2.5 sm:p-3 bg-black/60 hover:bg-black/80 rounded-full transition-colors backdrop-blur-sm touch-manipulation"
-													aria-label={
-														videoStates[media[0].id]?.playing
-															? 'Pause'
-															: 'Play'
-													}
-												>
-													{videoStates[media[0].id]?.playing ? (
-														<Pause className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-													) : (
-														<Play className="w-5 h-5 sm:w-6 sm:h-6 text-white ml-0.5" />
-													)}
-												</motion.button>
-												<motion.button
-													whileHover={{ scale: 1.1 }}
-													whileTap={{ scale: 0.95 }}
-													onClick={(e) => {
-														e.stopPropagation();
-														toggleMute(media[0].id);
-													}}
-													className="p-2.5 sm:p-3 bg-black/60 hover:bg-black/80 rounded-full transition-colors backdrop-blur-sm touch-manipulation"
-													aria-label={
-														videoStates[media[0].id]?.muted !== false
-															? 'Unmute'
-															: 'Mute'
-													}
-												>
-													{videoStates[media[0].id]?.muted !== false ? (
-														<VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-													) : (
-														<Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-													)}
-												</motion.button>
-											</div>
-										</div>
-									</div>
-								)}
-							</div>
-						</div>
-					) : (
-						<div className="px-4 sm:px-6">
-							<motion.div
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								transition={{ duration: 0.4 }}
-								className={`grid gap-2 rounded-xl overflow-hidden border border-[var(--glass-border)] ${
-									media.length === 2
-										? 'grid-cols-2'
-										: media.length === 3
-										? 'grid-cols-2 sm:grid-cols-3'
-										: media.length === 4
-										? 'grid-cols-2 grid-rows-2'
-										: 'grid-cols-2 grid-rows-3'
-								}`}
-							>
-								{media.slice(0, 4).map((m, index) => (
-									<motion.div
-										key={m.id}
-										initial={{ opacity: 0, scale: 0.9 }}
-										animate={{ opacity: 1, scale: 1 }}
-										transition={{ duration: 0.3, delay: index * 0.1 }}
-										className={`relative overflow-hidden cursor-pointer group ${
-											media.length === 5 && index === 0 ? 'row-span-2' : ''
-										}`}
-										onClick={() => setExpandedMedia(m)}
-									>
-										{m.type === 'image' ? (
-											<>
-												<img
-													src={m.url}
-													alt="Post media"
-													className="w-full h-full object-cover min-h-[120px] sm:min-h-[150px] md:min-h-[180px] transition-transform duration-300 group-hover:scale-110"
-													onError={(e) => {
-														e.target.style.display = 'none';
-													}}
-													loading="lazy"
-												/>
-												{!imageLoaded[m.id] && (
-													<div className="absolute inset-0 bg-[var(--bg-soft)] animate-pulse flex items-center justify-center">
-														<ImageIcon className="w-6 h-6 text-[var(--text-muted)]" />
-													</div>
-												)}
-											</>
-										) : (
-											<div className="relative">
-												<video
-													ref={(el) => (videoRefs.current[m.id] = el)}
-													src={m.url}
-													className="w-full h-full object-cover min-h-[120px] sm:min-h-[150px] md:min-h-[180px]"
-													muted
-													loop
-													playsInline
-												/>
-												<button
-													onClick={(e) => {
-														e.stopPropagation();
-														toggleVideo(m.id);
-													}}
-													className="absolute inset-0 flex items-center justify-center group-hover:bg-black/20 transition-colors touch-manipulation"
-													aria-label={
-														videoStates[m.id]?.playing
-															? 'Pause'
-															: 'Play'
-													}
-												>
-													<motion.div
-														whileHover={{ scale: 1.1 }}
-														whileTap={{ scale: 0.95 }}
-														className="p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors backdrop-blur-sm"
-													>
-														{videoStates[m.id]?.playing ? (
-															<Pause className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-														) : (
-															<Play className="w-4 h-4 sm:w-5 sm:h-5 text-white ml-0.5" />
-														)}
-													</motion.div>
-												</button>
-											</div>
-										)}
-										{media.length > 4 && index === 3 && (
+									<AnimatePresence>
+										{showOptions && (
 											<motion.div
-												initial={{ opacity: 0 }}
-												animate={{ opacity: 1 }}
-												className="absolute inset-0 bg-black/70 flex items-center justify-center backdrop-blur-sm"
+												initial={{ opacity: 0, scale: 0.95, y: -6 }}
+												animate={{ opacity: 1, scale: 1, y: 0 }}
+												exit={{ opacity: 0, scale: 0.95, y: -6 }}
+												className="absolute right-0 top-full mt-2 bg-[var(--glass-bg)] rounded-lg border border-[var(--glass-border)] shadow-[var(--shadow-lg)] z-10"
 											>
-												<span className="text-white font-semibold text-base sm:text-lg">
-													+{media.length - 4}
-												</span>
+												<button
+													onClick={() => {
+														if (window.confirm('Delete this post?')) onDelete(post._id);
+														setShowOptions(false);
+													}}
+													className="flex items-center gap-2 px-4 py-3 text-red-500 hover:bg-[var(--glass-hover)] rounded-lg text-sm"
+												>
+													<Trash2 className="w-4 h-4" />
+													Delete Post
+												</button>
 											</motion.div>
 										)}
-									</motion.div>
-								))}
-							</motion.div>
+									</AnimatePresence>
+								</div>
+							)}
+						</div>
+					</div>
+				</div>
+
+				{/* Title & content */}
+				{(post.title || post.content) && (
+					<div className="mt-4">
+						{post.title && <h4 className="text-lg font-bold text-[var(--text-primary)]">{post.title}</h4>}
+						{post.content && <p className="mt-2 text-[var(--text-secondary)] whitespace-pre-wrap">{post.content}</p>}
+					</div>
+				)}
+			</div>
+
+			{/* Media */}
+			{post.media && post.media.length > 0 && (
+				<div className="px-4 sm:px-6 pb-3">
+					{post.media.length === 1 ? (
+						<div className="rounded-xl overflow-hidden border border-[var(--glass-border)]">
+							{post.media[0].type === 'image' ? (
+								<img
+									src={post.media[0].url}
+									alt="post image"
+									className="w-full h-auto max-h-[600px] object-cover"
+									loading="lazy"
+									onClick={() => setExpandedMedia(post.media[0])}
+								/>
+							) : (
+								<div className="relative">
+									<video
+										ref={(el) => (videoRefs.current[post.media[0].id] = el)}
+										src={post.media[0].url}
+										className="w-full h-auto max-h-[600px] object-cover"
+										muted
+										loop
+										playsInline
+										preload="metadata"
+									/>
+									<div className="absolute inset-0 flex items-center justify-center">
+										<button
+											onClick={() => toggleVideo(post.media[0].id)}
+											className="p-3 bg-black/60 text-white rounded-full"
+										>
+											{videoRefs.current[post.media[0].id] && !videoRefs.current[post.media[0].id].paused ? (
+												<Pause />
+											) : (
+												<Play />
+											)}
+										</button>
+									</div>
+								</div>
+							)}
+						</div>
+					) : (
+						<div className="grid gap-2 rounded-xl overflow-hidden border border-[var(--glass-border)] grid-cols-2">
+							{post.media.slice(0, 4).map((m) => (
+								<div key={m.id} className="relative cursor-pointer">
+									{m.type === 'image' ? (
+										<img src={m.url} alt="media" className="w-full h-48 sm:h-56 object-cover" loading="lazy" onClick={() => setExpandedMedia(m)} />
+									) : (
+										<div className="relative">
+											<video ref={(el) => (videoRefs.current[m.id] = el)} src={m.url} className="w-full h-48 sm:h-56 object-cover" muted loop playsInline preload="metadata" />
+											<button
+												onClick={() => toggleVideo(m.id)}
+												className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-black/50 flex items-center justify-center text-white"
+											>
+												{videoRefs.current[m.id] && !videoRefs.current[m.id].paused ? <Pause /> : <Play />}
+											</button>
+										</div>
+									)}
+									{post.media.length > 4 && m === post.media[3] && (
+										<div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-lg">+{post.media.length - 4}</div>
+									)}
+								</div>
+							))}
 						</div>
 					)}
 				</div>
 			)}
 
-			{/* Post Actions */}
-			<div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-[var(--glass-border)]">
-				<div className="flex items-center space-x-4 sm:space-x-6">
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
-						onClick={() => setIsLiked(!isLiked)}
-						className={`flex items-center space-x-2 transition-all duration-300 touch-manipulation ${
-							isLiked
-								? 'text-red-500 dark:text-red-400'
-								: 'text-[var(--text-muted)] hover:text-red-500 dark:hover:text-red-400'
-						}`}
-						aria-label={isLiked ? 'Unlike' : 'Like'}
-					>
-						<Heart
-							className={`w-5 h-5 transition-all duration-300 ${
-								isLiked ? 'fill-current scale-110' : ''
-							}`}
-						/>
-						<span className="text-sm font-medium">
-							{(post.likes || 0) + (isLiked ? 1 : 0)}
-						</span>
-					</motion.button>
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
-						className="flex items-center space-x-2 text-[var(--text-muted)] hover:text-[var(--accent-1)] transition-colors touch-manipulation"
-						aria-label="Comments"
-					>
-						<MessageCircle className="w-5 h-5" />
-						<span className="text-sm font-medium">{post.comments || 0}</span>
-					</motion.button>
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
-						className="flex items-center space-x-2 text-[var(--text-muted)] hover:text-emerald-400 transition-colors touch-manipulation"
-						aria-label="Share"
-					>
-						<Share2 className="w-5 h-5" />
-						<span className="text-sm font-medium hidden sm:inline">Share</span>
-					</motion.button>
-				</div>
+			{/* Actions */}
+			<div className="px-4 sm:px-6 py-3 border-t border-[var(--glass-border)] flex items-center gap-4">
+				<button
+					onClick={() => setIsLiked((s) => !s)}
+					className={`flex items-center gap-2 text-sm ${isLiked ? 'text-red-500' : 'text-[var(--text-muted)]'}`}
+					aria-label="Like"
+				>
+					<Heart className="w-5 h-5" />
+					<span>{(post.likes || 0) + (isLiked ? 1 : 0)}</span>
+				</button>
+
+				<button className="flex items-center gap-2 text-sm text-[var(--text-muted)]" aria-label="Comments">
+					<MessageCircle className="w-5 h-5" />
+					<span>{post.comments || 0}</span>
+				</button>
+
+				<button className="flex items-center gap-2 text-sm text-[var(--text-muted)]" aria-label="Share">
+					<Share2 className="w-5 h-5" />
+					<span className="hidden sm:inline">Share</span>
+				</button>
 			</div>
 
-			{/* Expanded Media Modal */}
+			{/* Fullscreen media viewer */}
 			<AnimatePresence>
 				{expandedMedia && (
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						className="fixed inset-0 z-[10000] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
-						onClick={() => setExpandedMedia(null)}
-					>
-						<motion.div
-							initial={{ scale: 0.9, opacity: 0 }}
-							animate={{ scale: 1, opacity: 1 }}
-							exit={{ scale: 0.9, opacity: 0 }}
-							onClick={(e) => e.stopPropagation()}
-							className="relative max-w-7xl max-h-[90vh] w-full"
-						>
-							<button
-								onClick={() => setExpandedMedia(null)}
-								className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
-								aria-label="Close"
-							>
+					<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[10000] bg-black/90 flex items-center justify-center p-4" onClick={() => setExpandedMedia(null)}>
+						<motion.div initial={{ scale: 0.96 }} animate={{ scale: 1 }} exit={{ scale: 0.96 }} onClick={(e) => e.stopPropagation()} className="relative max-w-6xl max-h-[90vh] w-full">
+							<button onClick={() => setExpandedMedia(null)} className="absolute -top-12 right-0 p-2 bg-white/10 rounded-full text-white">
 								<X className="w-6 h-6" />
 							</button>
+
 							{expandedMedia.type === 'image' ? (
-								<img
-									src={expandedMedia.url}
-									alt="Expanded media"
-									className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
-								/>
+								<img src={expandedMedia.url} alt="expanded" className="w-full h-auto max-h-[90vh] object-contain rounded-lg" />
 							) : (
-								<video
-									src={expandedMedia.url}
-									className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
-									controls
-									autoPlay
-								/>
+								<video src={expandedMedia.url} className="w-full h-auto max-h-[90vh] object-contain rounded-lg" controls autoPlay />
 							)}
 						</motion.div>
 					</motion.div>
 				)}
 			</AnimatePresence>
-		</motion.div>
+		</motion.article>
 	);
-};
+});
+
+/* ----------------------
+   CreatePostModal (updated)
+   ---------------------- */
 
 const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 	const [content, setContent] = useState('');
@@ -556,53 +343,43 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 	const fileInputRef = useRef();
 
 	const handleFileSelect = (e) => {
-		const files = Array.from(e.target.files);
-		if (selectedFiles.length + files.length > 5) {
-			setError('Maximum 5 files allowed');
+		const files = Array.from(e.target.files || []);
+		if (selectedFiles.length + files.length > 6) {
+			setError('Max 6 files allowed');
 			return;
 		}
 		const mapped = files
 			.map((file) => {
 				if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-					setError('Only images and videos are allowed');
+					setError('Only images and videos allowed');
 					return null;
 				}
 				return {
-					id: Math.random().toString(36).substr(2, 9),
+					id: Math.random().toString(36).slice(2),
 					url: URL.createObjectURL(file),
 					file,
 					type: file.type.startsWith('image/') ? 'image' : 'video',
 				};
 			})
 			.filter(Boolean);
-		setSelectedFiles((prev) => [...prev, ...mapped]);
+		setSelectedFiles((s) => [...s, ...mapped]);
 		setError('');
 	};
 
 	const removeFile = (id) => {
 		setSelectedFiles((prev) => {
-			const file = prev.find((f) => f.id === id);
-			if (file?.url) URL.revokeObjectURL(file.url);
-			return prev.filter((f) => f.id !== id);
+			const f = prev.find((x) => x.id === id);
+			if (f?.url) URL.revokeObjectURL(f.url);
+			return prev.filter((x) => x.id !== id);
 		});
 	};
 
-	const handleSubmit = async (e) => {
-		e.preventDefault();
+	const handleSubmit = async (ev) => {
+		ev.preventDefault();
 		setError('');
 
-		if (!title.trim()) {
-			setError('Title is required');
-			return;
-		}
-
-		if (!content.trim() && selectedFiles.length === 0) {
-			setError('Please add content or media');
-			return;
-		}
-
-		if (selectedFiles.length === 0) {
-			setError('At least one image or video is required');
+		if (!title.trim() && !content.trim() && selectedFiles.length === 0) {
+			setError('Add a title, content or media to create a post.');
 			return;
 		}
 
@@ -610,19 +387,18 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 		try {
 			const formData = new FormData();
 			formData.append('title', title.trim());
-			formData.append('content', content.trim() || '');
+			formData.append('content', content.trim());
 			formData.append('status', 'published');
 			selectedFiles.forEach((f) => formData.append('media', f.file));
-
 			await createPost(formData);
-			toast.success('Post created successfully!');
+			toast.success('Post created');
 			setContent('');
 			setTitle('');
 			setSelectedFiles([]);
 			onSubmit();
 			onClose();
 		} catch (err) {
-			setError(err.message || 'Failed to create post. Please try again.');
+			setError(err.message || 'Failed to create post');
 			toast.error(err.message || 'Failed to create post');
 		} finally {
 			setIsSubmitting(false);
@@ -632,9 +408,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 	const handleClose = () => {
 		setContent('');
 		setTitle('');
-		setSelectedFiles.forEach((f) => {
-			if (f.url) URL.revokeObjectURL(f.url);
-		});
+		selectedFiles.forEach((f) => f.url && URL.revokeObjectURL(f.url));
 		setSelectedFiles([]);
 		setError('');
 		onClose();
@@ -644,169 +418,78 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }) => {
 
 	return (
 		<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-			<motion.div
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-				exit={{ opacity: 0 }}
-				className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-				onClick={handleClose}
-			></motion.div>
-			<motion.div
-				initial={{ opacity: 0, scale: 0.9, y: 20 }}
-				animate={{ opacity: 1, scale: 1, y: 0 }}
-				exit={{ opacity: 0, scale: 0.9, y: 20 }}
-				onClick={(e) => e.stopPropagation()}
-				className="relative bg-[var(--glass-bg)] backdrop-blur-xl rounded-2xl shadow-[var(--shadow-xl)] max-w-2xl w-full max-h-[90vh] overflow-hidden border border-[var(--glass-border)] flex flex-col"
-			>
-				<div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--glass-border)] flex-shrink-0">
-					<h2 className="text-lg sm:text-xl font-semibold text-[var(--text-primary)]">
-						Create Post
-					</h2>
-					<motion.button
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.95 }}
-						onClick={handleClose}
-						className="p-2 rounded-full transition-colors hover:bg-[var(--glass-hover)] touch-manipulation"
-						aria-label="Close"
-					>
+			<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
+			<motion.form onSubmit={handleSubmit} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} onClick={(e) => e.stopPropagation()} className="relative bg-[var(--glass-bg)] rounded-2xl shadow-[var(--shadow-xl)] max-w-2xl w-full p-4 sm:p-6 border border-[var(--glass-border)]">
+				<div className="flex items-center justify-between mb-3">
+					<h3 className="text-lg font-semibold text-[var(--text-primary)]">Create post</h3>
+					<button type="button" onClick={handleClose} className="p-2 rounded-full hover:bg-[var(--glass-hover)]">
 						<X className="w-5 h-5 text-[var(--accent-1)]" />
-					</motion.button>
+					</button>
 				</div>
-				<form
-					onSubmit={handleSubmit}
-					className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1"
-				>
-					{error && (
-						<div className="flex items-center gap-2 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
-							<AlertCircle className="w-4 h-4 flex-shrink-0" />
-							<span>{error}</span>
-						</div>
-					)}
-					<div>
-						<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-							Title <span className="text-red-400">*</span>
-						</label>
-						<input
-							type="text"
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-							placeholder="Enter post title"
-							className="w-full p-3 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-xl focus:ring-2 focus:ring-[var(--accent-1)] focus:border-transparent transition-all duration-300 placeholder:text-[var(--input-placeholder)]"
-							maxLength={200}
-							required
-						/>
+
+				{error && <div className="mb-3 text-sm text-red-400 flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</div>}
+
+				<div className="mb-3">
+					<label className="block text-sm text-[var(--text-secondary)] mb-1">Title</label>
+					<input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg" placeholder="Title (optional)" />
+				</div>
+
+				<div className="mb-3">
+					<label className="block text-sm text-[var(--text-secondary)] mb-1">Content</label>
+					<textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Share an update..." className="w-full p-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg min-h-[120px]" />
+				</div>
+
+				{selectedFiles.length > 0 && (
+					<div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+						{selectedFiles.map((f) => (
+							<div key={f.id} className="relative rounded-lg overflow-hidden border border-[var(--glass-border)]">
+								{f.type === 'image' ? <img src={f.url} alt="" className="w-full h-28 object-cover" /> : <div className="w-full h-28 flex items-center justify-center bg-[var(--bg-soft)]"><VideoIcon className="w-6 h-6 text-[var(--accent-1)]" /></div>}
+								<button type="button" onClick={() => removeFile(f.id)} className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full"><X className="w-3 h-3" /></button>
+							</div>
+						))}
 					</div>
-					<div>
-						<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-							Content
-						</label>
-						<textarea
-							value={content}
-							onChange={(e) => setContent(e.target.value)}
-							placeholder="What's on your mind?"
-							className="w-full h-32 p-4 bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)] rounded-xl resize-none focus:ring-2 focus:ring-[var(--accent-1)] focus:border-transparent transition-all duration-300 placeholder:text-[var(--input-placeholder)]"
-							maxLength={5000}
-						/>
+				)}
+
+				<div className="flex items-center justify-between gap-3">
+					<input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileSelect} />
+					<div className="flex items-center gap-3">
+						<button type="button" onClick={() => fileInputRef.current?.click()} className="px-3 py-2 bg-[var(--button-secondary-bg)] border border-[var(--button-secondary-border)] rounded-lg text-[var(--accent-1)]">
+							<Upload className="w-4 h-4 inline-block" /> <span className="ml-2 hidden sm:inline">Add media</span>
+						</button>
 					</div>
-					{selectedFiles.length > 0 && (
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4"
-						>
-							{selectedFiles.map((file, index) => (
-								<motion.div
-									key={file.id}
-									initial={{ opacity: 0, scale: 0.8 }}
-									animate={{ opacity: 1, scale: 1 }}
-									transition={{ delay: index * 0.1 }}
-									className="relative group"
-								>
-									{file.type === 'image' ? (
-										<img
-											src={file.url}
-											alt="Selected"
-											className="w-full h-28 sm:h-32 object-cover rounded-lg border border-[var(--glass-border)]"
-										/>
-									) : (
-										<div className="w-full h-28 sm:h-32 bg-[var(--bg-soft)] rounded-lg flex items-center justify-center border border-[var(--glass-border)]">
-											<VideoIcon className="w-8 h-8 text-[var(--accent-1)]" />
-										</div>
-									)}
-									<motion.button
-										whileHover={{ scale: 1.1 }}
-										whileTap={{ scale: 0.95 }}
-										type="button"
-										onClick={() => removeFile(file.id)}
-										className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-[var(--shadow-sm)] touch-manipulation"
-										aria-label="Remove file"
-									>
-										<X className="w-3 h-3 sm:w-4 sm:h-4" />
-									</motion.button>
-								</motion.div>
-							))}
-						</motion.div>
-					)}
-					<div className="flex items-center justify-between pt-4 border-t border-[var(--glass-border)] flex-wrap gap-3">
-						<div className="flex items-center space-x-4">
-							<input
-								ref={fileInputRef}
-								type="file"
-								multiple
-								accept="image/*,video/*"
-								onChange={handleFileSelect}
-								className="hidden"
-							/>
-							<motion.button
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}
-								type="button"
-								onClick={() => fileInputRef.current?.click()}
-								disabled={selectedFiles.length >= 5}
-								className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-[var(--button-secondary-bg)] border border-[var(--button-secondary-border)] text-[var(--accent-1)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base hover:bg-[var(--button-secondary-hover)] touch-manipulation"
-							>
-								<Upload className="w-4 h-4 sm:w-5 sm:h-5" />
-								<span className="hidden sm:inline">
-									Add Media ({selectedFiles.length}/5)
-								</span>
-								<span className="sm:hidden">Media ({selectedFiles.length}/5)</span>
-							</motion.button>
-						</div>
-						<div className="flex items-center space-x-3">
-							<motion.button
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}
-								type="button"
-								onClick={handleClose}
-								className="px-4 sm:px-6 py-2 text-[var(--text-secondary)] hover:bg-[var(--glass-hover)] rounded-lg transition-colors text-sm sm:text-base touch-manipulation"
-							>
-								Cancel
-							</motion.button>
-							<motion.button
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}
-								type="submit"
-								disabled={
-									isSubmitting || !title.trim() || selectedFiles.length === 0
-								}
-								className="px-4 sm:px-6 py-2 bg-[var(--button-primary-bg)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-sm sm:text-base shadow-[var(--shadow-md)] touch-manipulation"
-							>
-								{isSubmitting ? (
-									<>
-										<Loader2 className="w-4 h-4 animate-spin" />
-										<span>Posting...</span>
-									</>
-								) : (
-									<span>Post</span>
-								)}
-							</motion.button>
-						</div>
+
+					<div className="flex items-center gap-2">
+						<button type="button" onClick={handleClose} className="px-3 py-2 rounded-lg border border-[var(--glass-border)]">Cancel</button>
+						<button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-[var(--button-primary-bg)] text-white rounded-lg">
+							{isSubmitting ? <Loader2 className="w-4 h-4 animate-spin inline-block" /> : 'Post'}
+						</button>
 					</div>
-				</form>
-			</motion.div>
+				</div>
+			</motion.form>
 		</div>
 	);
 };
+
+/* ----------------------
+   QuickComposer (inline)
+   ---------------------- */
+
+const QuickComposer = ({ canCreate, onOpenModal, currentUser }) => {
+	if (!canCreate) return null;
+	return (
+		<div className="bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-4 mb-6 flex gap-4 items-start">
+			<div className="flex-shrink-0">
+				{currentUser?.avatar ? <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent-1)] to-[var(--accent-2)] flex items-center justify-center text-white">{(currentUser?.name || 'U').slice(0,1)}</div>}
+			</div>
+			<button onClick={onOpenModal} className="flex-1 text-left p-3 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[var(--input-text)]">Share an update, photo or video...</button>
+			<button onClick={onOpenModal} className="p-2 rounded-full bg-[var(--button-primary-bg)] text-white"><Plus className="w-4 h-4" /></button>
+		</div>
+	);
+};
+
+/* ----------------------
+   SocialsFeedPage
+   ---------------------- */
 
 const SocialsFeedPage = () => {
 	const { isAuthenticated, user } = useAuth();
@@ -814,189 +497,120 @@ const SocialsFeedPage = () => {
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [showScrollTop, setShowScrollTop] = useState(false);
 
-	const transformedPosts = useMemo(() => {
-		if (!socials || !Array.isArray(socials)) return [];
-		return socials.map(transformPost);
-	}, [socials]);
+	const posts = useMemo(() => (Array.isArray(socials) ? socials.map(transformPost) : []), [socials]);
 
 	const currentUser = useMemo(() => {
-		if (!isAuthenticated || !user) {
-			return {
-				id: 'guest',
-				name: 'Guest',
-				role: 'guest',
-				avatar: '',
-			};
-		}
-		return {
-			id: user._id || user.id,
-			name: user.fullname || 'User',
-			role: user.role || 'member',
-			avatar: user.profilePicture?.url || user.avatar || '',
-		};
+		if (!isAuthenticated || !user) return { id: 'guest', name: 'Guest', role: 'guest', avatar: '' };
+		return { id: user._id || user.id, name: user.fullname || user.name, role: user.role || 'member', avatar: user.profilePicture?.url || user.avatar || '' };
 	}, [isAuthenticated, user]);
 
 	useEffect(() => {
-		const handleScroll = () => setShowScrollTop(window.scrollY > 200);
-		window.addEventListener('scroll', handleScroll, { passive: true });
-		return () => window.removeEventListener('scroll', handleScroll);
+		const onScroll = () => setShowScrollTop(window.scrollY > 300);
+		window.addEventListener('scroll', onScroll, { passive: true });
+		return () => window.removeEventListener('scroll', onScroll);
 	}, []);
 
 	const handleDeletePost = async (id) => {
-		if (!window.confirm('Are you sure you want to delete this post?')) return;
+		if (!window.confirm('Delete post permanently?')) return;
 		try {
 			await deletePost(id);
-			toast.success('Post deleted successfully');
+			toast.success('Post removed');
 			refetch();
 		} catch (err) {
-			toast.error(err.message || 'Failed to delete post');
+			toast.error(err.message || 'Failed to delete');
 		}
 	};
 
-	const handleCreatePost = () => {
-		refetch();
-	};
+	const handleCreate = () => refetch();
 
 	const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-	const canCreatePost = isAuthenticated && (user?.role === 'admin' || user?.role === 'member');
+	const canCreate = isAuthenticated && (user?.role === 'admin' || user?.role === 'member');
 
 	return (
 		<div className="relative min-h-screen bg-transparent overflow-x-hidden">
-			{/* Header */}
-			<div className="sticky top-0 z-40 bg-[var(--nav-bg)] backdrop-blur-lg border-b border-[var(--nav-border)] shadow-[var(--nav-shadow)]">
+			{/* Sticky header */}
+			<div className="sticky top-0 z-40 bg-[var(--nav-bg)] backdrop-blur-lg border-b border-[var(--nav-border)]">
 				<div className="page-container">
-					<div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-4 py-4 sm:py-6">
-						<motion.div
-							initial={{ opacity: 0, x: -20 }}
-							animate={{ opacity: 1, x: 0 }}
-							transition={{ duration: 0.6 }}
-							className="flex items-center gap-3"
-						>
-							<div className="bg-gradient-to-r from-[var(--accent-1)] to-[var(--accent-2)] p-2 rounded-xl shadow-[var(--shadow-md)]">
-								<Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+					<div className="flex items-center justify-between gap-4 py-4">
+						<div className="flex items-center gap-3">
+							<div className="bg-gradient-to-r from-[var(--accent-1)] to-[var(--accent-2)] p-2 rounded-xl">
+								<Sparkles className="w-6 h-6 text-white" />
 							</div>
 							<div>
-								<h1 className="text-xl sm:text-2xl md:text-3xl font-bold brand-text">
-									Vibrant Community
-								</h1>
-								<p className="text-[var(--text-secondary)] mt-1 text-xs sm:text-sm">
-									Where technology meets purpose
-								</p>
+								<h1 className="text-xl font-bold brand-text">Vibrant Community</h1>
+								<p className="text-xs text-[var(--text-secondary)]">Updates & highlights from club activities</p>
 							</div>
-						</motion.div>
-						{canCreatePost && (
-							<motion.button
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}
-								onClick={() => setShowCreateModal(true)}
-								className="btn btn-primary flex items-center gap-2 text-xs sm:text-sm md:text-base whitespace-nowrap"
-							>
-								<Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-								<span className="hidden xs:inline">Create Post</span>
-								<span className="xs:hidden">Create</span>
-							</motion.button>
+						</div>
+
+						{canCreate && (
+							<button onClick={() => setShowCreateModal(true)} className="btn btn-primary flex items-center gap-2">
+								<Plus className="w-4 h-4" /> Create Post
+							</button>
 						)}
 					</div>
 				</div>
 			</div>
 
-			{/* Content Tips Banner */}
-			<div className="page-container mt-4 sm:mt-6 md:mt-8">
-				<div className="bg-[var(--glass-bg)] backdrop-blur-lg rounded-xl border border-[var(--glass-border)] p-3 sm:p-4 shadow-[var(--shadow-sm)]">
-					<div className="flex items-center justify-between flex-wrap gap-3">
-						<div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-							<Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--accent-1)] flex-shrink-0" />
-							<p className="text-[var(--text-secondary)] text-xs sm:text-sm">
-								<span className="font-semibold text-[var(--text-primary)]">
-									Content Tip:
-								</span>{' '}
-								Share your tech-for-good journey with #TechForGood
-							</p>
-						</div>
-						<div className="flex gap-2">
-							<motion.button
-								whileHover={{ scale: 1.05 }}
-								className="text-xs px-2 sm:px-3 py-1 bg-[var(--glass-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--accent-1)] transition-colors touch-manipulation"
-							>
-								#ImpactCoding
-							</motion.button>
-							<motion.button
-								whileHover={{ scale: 1.05 }}
-								className="text-xs px-2 sm:px-3 py-1 bg-[var(--glass-hover)] rounded-full text-[var(--text-muted)] hover:text-[var(--accent-1)] transition-colors touch-manipulation"
-							>
-								#TechForGood
-							</motion.button>
-						</div>
+			{/* Tips */}
+			<div className="page-container mt-4">
+				<div className="bg-[var(--glass-bg)] rounded-2xl border border-[var(--glass-border)] p-3 flex items-center justify-between gap-3">
+					<div className="flex items-center gap-3">
+						<Lightbulb className="w-5 h-5 text-[var(--accent-1)]" />
+						<div className="text-sm text-[var(--text-secondary)]">Share updates, event recaps, or highlight members. Tag posts with #TechForGood to get featured.</div>
+					</div>
+					<div className="flex gap-2">
+						<button className="px-2 py-1 text-xs rounded-full bg-[var(--glass-hover)]">#ImpactCoding</button>
+						<button className="px-2 py-1 text-xs rounded-full bg-[var(--glass-hover)]">#TechForGood</button>
 					</div>
 				</div>
 			</div>
 
-			{/* Feed */}
-			<div className="page-container py-6 sm:py-8 md:py-10">
-				{error && (
-					<div className="flex items-center gap-2 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 mb-6">
-						<AlertCircle className="w-5 h-5 flex-shrink-0" />
-						<span className="text-sm sm:text-base">{error}</span>
-					</div>
-				)}
-				<AnimatePresence>
-					{!loading && transformedPosts.length === 0 && (
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: 20 }}
-							className="text-center text-[var(--text-secondary)] py-16 sm:py-20"
-						>
-							<div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 bg-[var(--glass-bg)] rounded-full flex items-center justify-center">
-								<Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--accent-1)] opacity-50" />
-							</div>
-							<p className="text-lg sm:text-xl font-semibold text-[var(--text-primary)] mb-2">
-								No posts found
-							</p>
-							<p className="text-sm sm:text-base">
-								Be the first to share something amazing!
-							</p>
-						</motion.div>
+			{/* Feed container */}
+			<div className="page-container py-6">
+				{/* Quick composer */}
+				<QuickComposer canCreate={canCreate} onOpenModal={() => setShowCreateModal(true)} currentUser={currentUser} />
+
+				{/* Error */}
+				{error && <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded">{error}</div>}
+
+				{/* Posts */}
+				<div>
+					<AnimatePresence>
+						{!loading && posts.length === 0 && (
+							<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 text-center text-[var(--text-secondary)]">
+								<div className="mx-auto w-20 h-20 bg-[var(--glass-bg)] rounded-full flex items-center justify-center mb-4">
+									<Sparkles className="w-8 h-8 text-[var(--accent-1)]" />
+								</div>
+								<h3 className="text-lg font-semibold text-[var(--text-primary)]">No posts yet</h3>
+								<p className="text-sm">Be the first to share an update.</p>
+							</motion.div>
+						)}
+
+						{posts.map((p) => (
+							<PostCard key={p._id} post={p} currentUser={currentUser} onDelete={handleDeletePost} />
+						))}
+					</AnimatePresence>
+
+					{loading && (
+						<div className="flex justify-center py-10">
+							<Loader2 className="w-8 h-8 animate-spin text-[var(--accent-1)]" />
+						</div>
 					)}
-					{transformedPosts.map((post) => (
-						<PostCard
-							key={post._id}
-							post={post}
-							currentUser={currentUser}
-							onDelete={handleDeletePost}
-						/>
-					))}
-				</AnimatePresence>
-				{loading && (
-					<div className="flex justify-center py-10 sm:py-16">
-						<Loader2 className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-[var(--accent-1)] border-t-transparent rounded-full animate-spin" />
-					</div>
-				)}
+				</div>
 			</div>
 
-			{/* Scroll to Top Button */}
+			{/* Scroll to top */}
 			<AnimatePresence>
 				{showScrollTop && (
-					<motion.button
-						initial={{ opacity: 0, y: 40 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: 40 }}
-						onClick={scrollToTop}
-						className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 md:bottom-8 md:right-8 z-50 p-3 rounded-full bg-[var(--button-primary-bg)] text-white shadow-[var(--shadow-lg)] hover:scale-110 transition-transform touch-manipulation"
-						aria-label="Scroll to top"
-					>
-						<ChevronUp className="w-5 h-5 sm:w-6 sm:h-6" />
+					<motion.button initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} onClick={scrollToTop} className="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-[var(--button-primary-bg)] text-white shadow-[var(--shadow-lg)]">
+						<ChevronUp className="w-5 h-5" />
 					</motion.button>
 				)}
 			</AnimatePresence>
 
-			{/* Create Post Modal */}
-			<CreatePostModal
-				isOpen={showCreateModal}
-				onClose={() => setShowCreateModal(false)}
-				onSubmit={handleCreatePost}
-			/>
+			{/* Create modal */}
+			<CreatePostModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onSubmit={handleCreate} />
 		</div>
 	);
 };
