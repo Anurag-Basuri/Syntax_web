@@ -37,28 +37,11 @@ const findFestBySlugOrYear = async (identifier, populate = false) => {
 	return fest;
 };
 
-// Get landing page data (current or most recent completed)
-const getLandingPageData = asyncHandler(async (req, res) => {
-	const currentYear = new Date().getFullYear();
-	let fest = await Arvantis.findOne({
-		year: currentYear,
-		status: { $in: ['upcoming', 'ongoing'] },
-	})
-		.select('name year slug description status partners poster gallery')
-		.exec();
-
-	if (!fest) {
-		fest = await Arvantis.findOne({ status: 'completed' })
-			.sort({ year: -1 })
-			.select('name year slug description status poster gallery')
-			.exec();
-	}
-
-	if (!fest) {
-		return ApiResponse.success(res, null, 'No active or past fest data available.');
-	}
-
-	return ApiResponse.success(res, fest, 'Landing page data retrieved successfully.');
+// Get the latest fest (by year)
+const getLatestFest = asyncHandler(async (req, res) => {
+	const fest = await Arvantis.findOne().sort({ year: -1 }).populate({ path: 'events', select: 'title eventDate category slug' }).exec();
+	if (!fest) throw new ApiError.NotFound('No fest found.');
+	return ApiResponse.success(res, fest, 'Latest fest retrieved successfully');
 });
 
 // Create a new fest
@@ -379,41 +362,6 @@ const removeFestPoster = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, null, 'Fest poster removed successfully');
 });
 
-// Replace or set updateFestPoster (single file, field "poster")
-const updateFestPoster = asyncHandler(async (req, res) => {
-	const { identifier } = req.params;
-	const fest = await findFestBySlugOrYear(identifier);
-
-	if (!req.file) throw new ApiError.BadRequest('poster file is required (field "poster").');
-
-	// upload new poster
-	const uploaded = await uploadFile(req.file, { folder: `arvantis/${fest.year}/poster` });
-
-	// delete old poster if present
-	if (fest.poster?.publicId) {
-		try {
-			await deleteFile({
-				public_id: fest.poster.publicId,
-				resource_type: fest.poster.resource_type || 'image',
-			});
-		} catch (err) {
-			/* eslint-disable no-console */
-			console.warn('Failed to delete previous poster:', err.message || err);
-			/* eslint-enable no-console */
-		}
-	}
-
-	// assign new poster
-	fest.poster = {
-		url: uploaded.url,
-		publicId: uploaded.publicId,
-		resource_type: uploaded.resource_type,
-		caption: req.body.caption || undefined,
-	};
-	await fest.save();
-	return ApiResponse.success(res, fest.poster, 'Poster updated successfully', 200);
-});
-
 // Update hero media (single file)
 const updateFestHero = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
@@ -444,6 +392,30 @@ const updateFestHero = asyncHandler(async (req, res) => {
 	};
 	await fest.save();
 	return ApiResponse.success(res, fest.heroMedia, 'Hero media updated successfully', 200);
+});
+
+// Remove hero media
+const removeFestHero = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	if (!fest.heroMedia || !fest.heroMedia.publicId) {
+		throw new ApiError.BadRequest('No hero media to remove for this fest.');
+	}
+
+	try {
+		await deleteFile({
+			public_id: fest.heroMedia.publicId,
+			resource_type: fest.heroMedia.resource_type || 'image',
+		});
+	} catch (err) {
+		/* eslint-disable no-console */
+		console.warn('Failed to delete hero media from Cloudinary:', err.message || err);
+		/* eslint-enable no-console */
+	}
+
+	fest.heroMedia = undefined;
+	await fest.save();
+	return ApiResponse.success(res, null, 'Fest hero media removed successfully');
 });
 
 // Update a partner (by name param) - supports optional new logo upload
@@ -807,8 +779,8 @@ const generateFestReport = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, report, 'Fest report generated successfully');
 });
 
+
 export {
-	getLandingPageData,
 	createFest,
 	getAllFests,
 	getFestDetails,
@@ -818,18 +790,18 @@ export {
 	removePartner,
 	linkEventToFest,
 	unlinkEventFromFest,
-	updateFestPoster,
-	addFestPoster,
-	removeFestPoster,
 	addGalleryMedia,
 	removeGalleryMedia,
-	reorderGallery,
-	reorderPartners,
+	addFestPoster,
+	removeFestPoster,
+	updateFestHero,
+	removeFestHero,
 	updatePartner,
+	reorderPartners,
+	reorderGallery,
 	bulkDeleteMedia,
 	duplicateFest,
 	setFestStatus,
-	updateFestHero,
 	updatePresentation,
 	exportFestsCSV,
 	getFestStatistics,
