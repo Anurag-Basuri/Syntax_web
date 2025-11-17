@@ -146,26 +146,55 @@
 }
 
 /* Editions strip */
+.editions-strip-wrap {
+	border-radius: 0.75rem;
+	/* use glass surface but slightly bolder in light mode */
+	background: color-mix(in srgb, var(--glass-bg) 86%, transparent);
+	border: 1px solid var(--glass-border);
+	box-shadow: var(--shadow-sm);
+	padding: 0.25rem;
+}
 .editions-strip {
 	display: flex;
 	align-items: center;
 	gap: 1rem;
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
-	padding: 0.5rem;
+	padding: 0.25rem 0.5rem;
 }
 .edition-pill {
-	padding: 0.45rem 0.75rem;
+	padding: 0.5rem 0.9rem;
 	border-radius: 999px;
 	background: transparent;
 	border: 1px solid transparent;
-	font-weight: 600;
+	font-weight: 700;
 	color: var(--text-secondary);
 	white-space: nowrap;
+	transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.edition-pill:hover {
+	transform: translateY(-3px);
+	box-shadow: var(--shadow-sm);
 }
 .edition-pill.active {
-	background: linear-gradient(90deg, rgba(11, 116, 255, 0.08), rgba(37, 99, 235, 0.05));
-	border-color: rgba(11, 116, 255, 0.12);
+	background: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--accent-1) 14%, transparent),
+		color-mix(in srgb, var(--accent-2) 8%, transparent)
+	);
+	border-color: color-mix(in srgb, var(--accent-1) 18%, transparent);
 	color: var(--accent-1);
+	box-shadow: 0 8px 28px color-mix(in srgb, var(--accent-glow) 0.6, transparent);
+}
+
+/* make "Latest" badge higher contrast */
+.edition-pill .text-xs,
+.edition-pill .mono {
+	font-weight: 700;
+}
+
+/* ensure editions strip contrasts in light theme specifically */
+:root[data-theme='light'] .editions-strip-wrap {
+	background: rgba(255, 255, 255, 0.96);
+	border-color: rgba(6, 22, 28, 0.06);
 }
 
 /* Stat card tweaks */
