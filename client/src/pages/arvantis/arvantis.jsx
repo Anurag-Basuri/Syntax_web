@@ -15,6 +15,8 @@ import {
 	ExternalLink,
 	ChevronDown,
 	ChevronUp,
+	Copy,
+	HelpCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PosterHero from '../../components/Arvantis/PosterHero.jsx';
@@ -356,56 +358,47 @@ const FAQList = ({ faqs = [], visible = false }) => {
 	const [expandAll, setExpandAll] = useState(false);
 
 	useEffect(() => {
-		if (!visible) return;
 		if (expandAll) {
-			const map = {};
-			(faqs || []).forEach((f) => (map[String(f._id || f.question || Math.random())] = true));
-			setExpandedMap(map);
+			const all = {};
+			faqs.forEach((f, i) => {
+				all[f._id || i] = true;
+			});
+			setExpandedMap(all);
 		} else {
 			setExpandedMap({});
 		}
-	}, [expandAll, visible, faqs]);
+	}, [expandAll, faqs]);
 
 	const filtered = useMemo(() => {
-		if (!query) return faqs || [];
-		const q = query.trim().toLowerCase();
-		return (faqs || []).filter((f) => {
-			const qn = String(f.question || '').toLowerCase();
-			const an = String(f.answer || '').toLowerCase();
-			return qn.includes(q) || an.includes(q);
-		});
+		if (!query) return faqs;
+		const q = query.toLowerCase();
+		return faqs.filter(
+			(f) => f.question?.toLowerCase().includes(q) || f.answer?.toLowerCase().includes(q)
+		);
 	}, [faqs, query]);
 
-	const toggleOne = useCallback((id) => {
-		setExpandedMap((s) => ({ ...s, [id]: !s[id] }));
-	}, []);
+	const toggleOne = useCallback((id) => setExpandedMap((s) => ({ ...s, [id]: !s[id] })), []);
 
 	const copyLink = useCallback((id) => {
-		try {
-			const url = `${window.location.origin}${window.location.pathname}#faq-${id}`;
-			navigator.clipboard?.writeText(url);
-			window.dispatchEvent(
-				new CustomEvent('toast', { detail: { message: 'FAQ link copied' } })
-			);
-		} catch {
-			/* ignore */
-		}
+		const url = `${window.location.origin}${window.location.pathname}#faq-${id}`;
+		navigator.clipboard.writeText(url);
+		window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'FAQ link copied!' } }));
 	}, []);
 
 	if (!visible) return null;
 
 	return (
-		<section aria-labelledby="arvantis-faqs" className="mt-8">
-			<div className="flex items-center justify-between">
+		<section aria-labelledby="arvantis-faqs" className="mt-12">
+			<div className="flex items-center justify-between mb-6">
 				<div>
-					<h3 id="arvantis-faqs" className="section-title">
-						Frequently asked questions
+					<h3 id="arvantis-faqs" className="section-title flex items-center gap-2">
+						<HelpCircle size={22} className="text-[var(--accent-1)]" />
+						Frequently Asked Questions
 					</h3>
-					<p className="muted">
-						Clear answers to common queries — search, expand and copy links.
+					<p className="muted mt-1">
+						Find answers to common queries. Search, expand, and copy links.
 					</p>
 				</div>
-
 				<div className="flex items-center gap-2">
 					<input
 						type="search"
@@ -422,11 +415,11 @@ const FAQList = ({ faqs = [], visible = false }) => {
 					>
 						{expandAll ? (
 							<>
-								<ChevronUp size={14} /> Collapse
+								<ChevronUp size={14} /> Collapse all
 							</>
 						) : (
 							<>
-								<ChevronDown size={14} /> Expand
+								<ChevronDown size={14} /> Expand all
 							</>
 						)}
 					</button>
@@ -434,104 +427,63 @@ const FAQList = ({ faqs = [], visible = false }) => {
 			</div>
 
 			{filtered.length === 0 ? (
-				<div className="mt-4 muted">No FAQs match your search.</div>
+				<div className="mt-8 muted text-center">No FAQs match your search.</div>
 			) : (
-				<ul className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 					{filtered.map((f, i) => {
-						const id = String(f._id || `faq-${i}`);
-						const isOpen = !!expandedMap[id];
-						const q = f.question || `FAQ ${i + 1}`;
-						const a = f.answer || 'No answer provided.';
+						const id = f._id || i;
+						const expanded = expandedMap[id];
 						return (
-							<li
+							<div
 								key={id}
 								id={`faq-${id}`}
-								className="detail-card p-4"
-								role="listitem"
+								className="glass-card p-5 transition-all duration-300"
+								style={{
+									boxShadow: 'var(--shadow-md)',
+									border: '1px solid var(--glass-border)',
+								}}
 							>
-								<div className="flex items-start gap-3">
-									<div className="min-w-0">
-										<button
-											onClick={() => toggleOne(id)}
-											aria-expanded={isOpen}
-											aria-controls={`faq-panel-${id}`}
-											className="text-left w-full"
-										>
-											<div
-												className="font-semibold text-base"
-												style={{ color: 'var(--text-primary)' }}
-											>
-												{q}
-											</div>
-											<div className="text-xs muted mt-1">
-												{isOpen ? 'Hide answer' : 'Show answer'}
-											</div>
-										</button>
-									</div>
-									<div className="ml-auto flex items-center gap-2">
-										<button
-											onClick={() => copyLink(id)}
-											className="btn-ghost small"
-											title="Copy link to this FAQ"
-											aria-label={`Copy link for ${q}`}
-										>
-											<svg
-												width="14"
-												height="14"
-												viewBox="0 0 24 24"
-												fill="none"
-												aria-hidden
-											>
-												<path
-													d="M10 14L14 10"
-													stroke="currentColor"
-													strokeWidth="1.6"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												/>
-												<rect
-													x="3"
-													y="3"
-													width="14"
-													height="14"
-													rx="2"
-													stroke="currentColor"
-													strokeWidth="1.6"
-												/>
-												<rect
-													x="7"
-													y="7"
-													width="14"
-													height="14"
-													rx="2"
-													stroke="currentColor"
-													strokeWidth="1.6"
-												/>
-											</svg>
-										</button>
-									</div>
-								</div>
-
-								<div
-									id={`faq-panel-${id}`}
-									className="mt-3 text-sm muted whitespace-pre-wrap"
-									role="region"
-									aria-labelledby={`faq-${id}`}
+								<button
+									className="w-full flex items-center justify-between gap-3"
+									onClick={() => toggleOne(id)}
+									aria-expanded={expanded}
 									style={{
-										transition: 'max-height 240ms ease, opacity 180ms ease',
-										overflow: 'hidden',
-										maxHeight: isOpen ? '720px' : '0px',
-										opacity: isOpen ? 1 : 0,
+										background: 'transparent',
+										border: 'none',
+										padding: 0,
 									}}
 								>
-									<div style={{ color: 'var(--text-primary)', lineHeight: 1.6 }}>
-										{a}
+									<div className="flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)]">
+										<HelpCircle size={18} className="text-[var(--accent-1)]" />
+										{f.question}
 									</div>
-								</div>
-							</li>
+									{expanded ? (
+										<ChevronUp size={18} className="text-[var(--accent-1)]" />
+									) : (
+										<ChevronDown size={18} className="text-[var(--accent-1)]" />
+									)}
+								</button>
+								{expanded && (
+									<div className="mt-4 text-[var(--text-secondary)] text-base">
+										{f.answer}
+										<div className="mt-3 flex gap-2">
+											<button
+												onClick={() => copyLink(id)}
+												className="btn-ghost small"
+												title="Copy FAQ link"
+											>
+												<Copy size={14} /> Copy link
+											</button>
+											{/* <button className="btn-ghost small" title="Open in new tab">
+												<ExternalLink size={14} /> Open
+											</button> */}
+										</div>
+									</div>
+								)}
+							</div>
 						);
 					})}
-				</ul>
+				</div>
 			)}
 		</section>
 	);
