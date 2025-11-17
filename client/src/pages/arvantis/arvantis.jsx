@@ -577,7 +577,7 @@ const ArvantisPage = () => {
 			/>
 
 			{/* Hero */}
-			<PosterHero fest={fest} />
+			<PosterHero fest={fest} onImageOpen={handleImageClick} />
 
 			{/* Prominent partners (full-width) */}
 			<PartnersShowcase partners={partners} titleSponsor={titleSponsor} />
@@ -732,7 +732,11 @@ const ArvantisPage = () => {
 			{/* Modals - lazy loaded with Suspense to keep initial bundle small */}
 			{selectedImage && (
 				<Suspense fallback={<LoadingBlock label="Opening image..." />}>
-					<ImageLightbox image={selectedImage} onClose={() => setSelectedImage(null)} />
+					<ImageLightbox
+						image={selectedImage}
+						onClose={() => setSelectedImage(null)}
+						// optional: enable next/prev if page has posters/gallery navigation logic
+					/>
 				</Suspense>
 			)}
 

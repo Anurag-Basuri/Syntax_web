@@ -2,7 +2,9 @@ import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { Sparkles, Calendar, Ticket, MapPin, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { StatusPill } from './StatusPill';
 import { motion } from 'framer-motion';
-import ImageLightbox from './ImageLightbox.jsx';
+
+/* NOTE: Image lightbox is handled at page level (shared lazy component).
+   PosterHero delegates opening images via onImageOpen(image). */
 
 const formatDate = (date) => {
 	if (!date) return 'TBA';
@@ -108,7 +110,7 @@ const Countdown = ({ target }) => {
 	);
 };
 
-const PosterHero = ({ fest = {} }) => {
+const PosterHero = ({ fest = {}, onImageOpen }) => {
 	// prefer fest.hero virtual or heroMedia, then posters array, then poster fallback
 	const posters = useMemo(() => {
 		// backend uses posters[] and heroMedia; accept gallery fallback
@@ -135,7 +137,6 @@ const PosterHero = ({ fest = {} }) => {
 	const heroUrl = hero?.url || hero?.src || '';
 
 	const [index, setIndex] = useState(0);
-	const [lightboxOpen, setLightboxOpen] = useState(false);
 
 	useEffect(() => {
 		// reset index when posters change
@@ -152,12 +153,17 @@ const PosterHero = ({ fest = {} }) => {
 		setIndex((i) => (i - 1 + posters.length) % posters.length);
 	}, [posters.length]);
 
-	const openLightbox = useCallback((i = 0) => {
-		setIndex(i);
-		setLightboxOpen(true);
-	}, []);
-
-	const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+	const openLightbox = useCallback(
+		(i = 0) => {
+			setIndex(i);
+			// delegate to parent lightbox if provided
+			const img = posters.length ? posters[i] || posters[0] : hero || { url: heroUrl };
+			if (typeof onImageOpen === 'function') {
+				onImageOpen(img);
+			}
+		},
+		[onImageOpen, posters, hero, heroUrl]
+	);
 
 	const ticketSold = fest?.tickets?.sold || 0;
 	const ticketCap = fest?.tickets?.capacity || 0;
@@ -215,6 +221,8 @@ const PosterHero = ({ fest = {} }) => {
 													openLightbox(posters.length ? index : 0)
 												}
 												loading="lazy"
+												role="button"
+												aria-label="Open poster preview"
 											/>
 										</>
 									) : (
@@ -385,22 +393,12 @@ const PosterHero = ({ fest = {} }) => {
 									</div>
 								</div>
 							)}
-
-							
 						</aside>
 					</div>
 				</div>
 			</motion.section>
 
-			{/* Lightbox */}
-			{lightboxOpen && (
-				<ImageLightbox
-					image={posters[index] || hero || { url: heroUrl }}
-					onClose={closeLightbox}
-					onPrev={posters.length > 1 ? prev : undefined}
-					onNext={posters.length > 1 ? next : undefined}
-				/>
-			)}
+			{/* Note: image preview handled by parent via onImageOpen -> selectedImage */}
 		</>
 	);
 };
