@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { HelpCircle, ChevronDown, ChevronUp, Copy, ExternalLink, Layers3, Calendar, Users, Image } from 'lucide-react';
+import {
+	HelpCircle,
+	ChevronDown,
+	ChevronUp,
+	Copy,
+	ExternalLink,
+	Layers3,
+	Calendar,
+	Users,
+	Image,
+} from 'lucide-react';
 import PosterHero from '../../components/Arvantis/PosterHero.jsx';
 import StatCard from '../../components/Arvantis/StatCard.jsx';
 import EventsGrid from '../../components/Arvantis/EventsGrid.jsx';
@@ -9,6 +19,7 @@ import GalleryGrid from '../../components/Arvantis/GalleryGrid.jsx';
 import ImageLightbox from '../../components/Arvantis/ImageLightbox.jsx';
 import LoadingBlock from '../../components/Arvantis/LoadingBlock.jsx';
 import ErrorBlock from '../../components/Arvantis/ErrorBlock.jsx';
+import EditionsStrip from '../../components/Arvantis/EditionsStrip.jsx';
 import {
 	getArvantisLandingData,
 	getAllFests,
@@ -16,17 +27,9 @@ import {
 } from '../../services/arvantisServices.js';
 import '../../arvantis.css';
 
-const ITEMS_IN_PAST_SECTION = 8;
 const PARTNERS_PREVIEW = 8;
 
 const safeArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
-const fmtDate = (d) => {
-	if (!d) return 'TBA';
-	const dt = new Date(d);
-	if (isNaN(dt.getTime())) return String(d);
-	return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
 const normalizeLanding = (raw) => {
 	if (!raw) return null;
 	if (raw.fest) {
@@ -64,7 +67,6 @@ const groupPartnersByTier = (partners = [], titleSponsor = null) => {
 		if (!map.has(tier)) map.set(tier, []);
 		map.get(tier).push(p);
 	});
-	// return array of [tier, list] sorted by common priority
 	const order = [
 		'title',
 		'presenting',
@@ -100,8 +102,6 @@ const PartnersSection = ({
 			<h3 id="arvantis-partners" className="section-title">
 				Partners & Sponsors
 			</h3>
-
-			{/* Title sponsor / powered-by prominent banner */}
 			{titleSponsor ? (
 				<div
 					className="glass-card p-5 mt-4 flex flex-col md:flex-row items-center gap-4"
@@ -143,8 +143,6 @@ const PartnersSection = ({
 							)}
 						</div>
 					</div>
-
-					{/* description and details */}
 					<div className="flex-1 text-sm text-[var(--text-secondary)] md:pl-6">
 						{titleSponsor.description ? (
 							<p className="mb-2" style={{ color: 'var(--text-primary)' }}>
@@ -170,8 +168,6 @@ const PartnersSection = ({
 							)}
 						</div>
 					</div>
-
-					{/* CTA */}
 					<div className="mt-3 md:mt-0 md:flex-shrink-0">
 						<a
 							href={titleSponsor.website || '#'}
@@ -188,10 +184,7 @@ const PartnersSection = ({
 			) : (
 				<div className="muted mt-2">No title sponsor for this edition.</div>
 			)}
-
-			{/* All partners preview + tiered groups */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 items-start">
-				{/* Left: quick stats / summary */}
 				<div className="glass-card p-4">
 					<div className="text-sm text-[var(--text-secondary)]">Partners summary</div>
 					<div
@@ -211,8 +204,6 @@ const PartnersSection = ({
 						{showAll ? 'Show less' : `Show all (${partners.length})`}
 					</button>
 				</div>
-
-				{/* Middle: featured grid (visiblePartners) */}
 				<div className="glass-card p-4 lg:col-span-1">
 					<div className="text-sm text-[var(--text-secondary)]">Featured partners</div>
 					<div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -253,8 +244,6 @@ const PartnersSection = ({
 						)}
 					</div>
 				</div>
-
-				{/* Right: tiered listing with descriptions */}
 				<div className="glass-card p-4">
 					<div className="text-sm text-[var(--text-secondary)]">Partner tiers</div>
 					<div className="mt-3 space-y-3">
@@ -272,7 +261,6 @@ const PartnersSection = ({
 											{list.length})
 										</div>
 									</div>
-
 									<ul className="mt-3 grid grid-cols-1 gap-2">
 										{list.map((p, i) => (
 											<li
@@ -365,7 +353,6 @@ const FAQList = ({ faqs = [] }) => {
 	}, [faqs, query]);
 
 	const toggleOne = useCallback((id) => setExpandedMap((s) => ({ ...s, [id]: !s[id] })), []);
-
 	const copyLink = useCallback((id) => {
 		const url = `${window.location.origin}${window.location.pathname}#faq-${id}`;
 		navigator.clipboard.writeText(url);
@@ -412,7 +399,6 @@ const FAQList = ({ faqs = [] }) => {
 					</button>
 				</div>
 			</div>
-
 			{filtered.length === 0 ? (
 				<div className="mt-8 muted text-center">No FAQs match your search.</div>
 			) : (
@@ -474,23 +460,12 @@ const FAQList = ({ faqs = [] }) => {
 	);
 };
 
-/* --- Main Page Component --- */
 const ArvantisPage = () => {
-	// primary state
 	const [identifier, setIdentifier] = useState(null);
 	const [selectedEvent, setSelectedEvent] = useState(null);
 	const [selectedImage, setSelectedImage] = useState(null);
-	const [showPastEditions, setShowPastEditions] = useState(false);
 	const [showAllPartners, setShowAllPartners] = useState(false);
-	const [expandedTiers, setExpandedTiers] = useState({});
-	const [showTracks, setShowTracks] = useState(false);
-	const [showFaqs, setShowFaqs] = useState(false);
 
-	// Event filters
-	const [eventType, setEventType] = useState('all');
-	const [eventSort, setEventSort] = useState('date-desc');
-
-	// queries
 	const landingQuery = useQuery({
 		queryKey: ['arvantis', 'landing'],
 		queryFn: getArvantisLandingData,
@@ -504,7 +479,6 @@ const ArvantisPage = () => {
 		retry: 1,
 	});
 
-	// normalize editions result (support paginated shape)
 	const editions = useMemo(() => {
 		const raw = editionsQuery.data;
 		if (!raw) return [];
@@ -517,7 +491,6 @@ const ArvantisPage = () => {
 
 	const landingFest = useMemo(() => normalizeLanding(landingQuery.data), [landingQuery.data]);
 
-	// default identifier - landing -> first edition
 	useEffect(() => {
 		if (identifier) return;
 		if (landingFest) {
@@ -534,7 +507,6 @@ const ArvantisPage = () => {
 		}
 	}, [identifier, landingFest, editions]);
 
-	// details query for chosen edition
 	const detailsQuery = useQuery({
 		queryKey: ['arvantis', 'details', identifier],
 		queryFn: () => (identifier ? getFestDetails(identifier) : Promise.resolve(null)),
@@ -543,13 +515,11 @@ const ArvantisPage = () => {
 		retry: 1,
 	});
 
-	// resolved fest: prefer details (explicit selection), else landingFest
 	const fest = useMemo(() => {
 		if (detailsQuery.data) return detailsQuery.data;
 		return landingFest ?? null;
 	}, [detailsQuery.data, landingFest]);
 
-	// derived collections
 	const events = useMemo(() => safeArray(fest?.events), [fest]);
 	const partners = useMemo(() => safeArray(fest?.partners), [fest]);
 	const titleSponsor = useMemo(() => findTitleSponsor(partners), [partners]);
@@ -558,65 +528,16 @@ const ArvantisPage = () => {
 		[partners, titleSponsor]
 	);
 
-	// helper: detect if an event offers registration now (safe checks)
-	const isEventRegistrationOpen = useCallback((ev) => {
-		if (!ev) return false;
-		// prefer server-provided virtual
-		if (
-			typeof ev.registrationInfo === 'object' &&
-			typeof ev.registrationInfo.isOpen === 'boolean'
-		) {
-			return Boolean(ev.registrationInfo.isOpen);
-		}
-		// external registration with URL -> treat as available
-		if (ev.registration?.mode === 'external' && ev.registration?.externalUrl) return true;
-		// internal registration: respect optional window
-		if (ev.registration?.mode === 'internal') {
-			const open = ev.registrationOpenDate
-				? new Date(ev.registrationOpenDate).getTime()
-				: null;
-			const close = ev.registrationCloseDate
-				? new Date(ev.registrationCloseDate).getTime()
-				: null;
-			const now = Date.now();
-			if (open && now < open) return false;
-			if (close && now > close) return false;
-			// if capacity exists, we assume open unless closed by virtual flag
-			return true;
-		}
-		return false;
-	}, []);
-
-	// count events that currently allow registration (used for CTA)
-	const openEventRegistrationCount = useMemo(() => {
-		return events.reduce((acc, ev) => acc + (isEventRegistrationOpen(ev) ? 1 : 0), 0);
-	}, [events, isEventRegistrationOpen]);
-
-	// filtered events
 	const filteredEvents = useMemo(() => {
 		let out = [...events];
-		if (eventType && eventType !== 'all')
-			out = out.filter((e) => (e.type || 'general') === eventType);
 		out.sort((a, b) => {
 			const ad = new Date(a.eventDate || a.date || 0).getTime();
 			const bd = new Date(b.eventDate || b.date || 0).getTime();
-			if (eventSort === 'date-asc') return ad - bd;
 			return bd - ad;
 		});
 		return out;
-	}, [events, eventType, eventSort]);
+	}, [events]);
 
-	// other editions (excluding current)
-	const otherEditions = useMemo(() => {
-		if (!editions || editions.length === 0) return [];
-		const id = identifier;
-		return editions.filter((f) => {
-			const fid = f?.slug || String(f?.year || '');
-			return fid !== id;
-		});
-	}, [editions, identifier]);
-
-	// stats
 	const stats = useMemo(() => {
 		const safe = fest || {};
 		return [
@@ -624,10 +545,9 @@ const ArvantisPage = () => {
 			{ icon: Users, label: 'Partners', value: safe.partners?.length ?? 0 },
 			{ icon: Calendar, label: 'Events', value: safe.events?.length ?? 0 },
 			{ icon: Image, label: 'Gallery', value: safe.gallery?.length ?? 0 },
-+		];
+		];
 	}, [fest]);
 
-	// loading / error states
 	const isLoading = landingQuery.isLoading || editionsQuery.isLoading || detailsQuery.isLoading;
 	const isError = landingQuery.isError || editionsQuery.isError || detailsQuery.isError;
 	const errorMsg =
@@ -636,7 +556,6 @@ const ArvantisPage = () => {
 		editionsQuery.error?.message ||
 		'Failed to load data.';
 
-	// handlers
 	const handleSelectEdition = useCallback((id) => {
 		if (!id) return;
 		setIdentifier(id);
@@ -645,48 +564,20 @@ const ArvantisPage = () => {
 
 	const handleEventClick = useCallback((ev) => setSelectedEvent(ev), []);
 	const handleImageClick = useCallback((img) => setSelectedImage(img), []);
-	const toggleTier = useCallback(
-		(tier) => setExpandedTiers((s) => ({ ...s, [tier]: !s[tier] })),
-		[]
-	);
-
-	// accessibility: focus edition strip on mount
-	const stripRef = useRef(null);
-	useEffect(() => {
-		if (stripRef.current && typeof stripRef.current.focus === 'function')
-			stripRef.current.focus();
-	}, []);
-
-	// small presentational helpers
-	const renderPartnerItem = (p, key) => {
-		const logo = p?.logo?.url;
-		return (
-			<a
-				key={key}
-				href={p.website || '#'}
-				target={p.website ? '_blank' : '_self'}
-				rel={p.website ? 'noopener noreferrer' : undefined}
-				className="partner-cell group flex items-center justify-center p-3 rounded-xl transition-transform duration-300"
-				title={p.name}
-				style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}
-				onClick={(e) => e.stopPropagation()}
-			>
-				{logo ? (
-					<img src={logo} alt={p.name} className="partner-logo" loading="lazy" />
-				) : (
-					<div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-						{p.name}
-					</div>
-				)}
-			</a>
-		);
-	};
 
 	if (isLoading) return <LoadingBlock label="Loading Arvantis..." />;
 	if (isError) return <ErrorBlock message={errorMsg} onRetry={() => window.location.reload()} />;
 
 	return (
 		<div className="arvantis-page">
+			{/* Editions strip (top) */}
+			<EditionsStrip
+				editions={editions}
+				currentIdentifier={identifier}
+				onSelect={handleSelectEdition}
+				landingIdentifier={landingFest?.slug || String(landingFest?.year || '')}
+			/>
+
 			{/* Hero / Poster */}
 			<PosterHero fest={fest} />
 
@@ -704,7 +595,13 @@ const ArvantisPage = () => {
 			</div>
 
 			{/* Partners Section - improved */}
-			<PartnersSection partners={partners} />
+			<PartnersSection
+				titleSponsor={titleSponsor}
+				partnersByTier={partnersByTier}
+				partners={partners}
+				showAll={showAllPartners}
+				onToggleShowAll={() => setShowAllPartners((s) => !s)}
+			/>
 
 			{/* Events */}
 			<EventsGrid events={filteredEvents} onEventClick={handleEventClick} />
@@ -722,25 +619,5 @@ const ArvantisPage = () => {
 		</div>
 	);
 };
-
-/* Small inline icon for sticky CTA to avoid extra import when ticketUrl exists */
-const TicketIcon = () => (
-	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-		<path
-			d="M3 7h18v10H3z"
-			stroke="currentColor"
-			strokeWidth="1.5"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-		<path
-			d="M8 12h.01"
-			stroke="currentColor"
-			strokeWidth="1.5"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-	</svg>
-);
 
 export default ArvantisPage;
