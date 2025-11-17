@@ -574,15 +574,29 @@ const ArvantisPage = () => {
 										{showFaqs ? 'Hide' : 'View'}
 									</button>
 								</div>
+
+								{/* Improved FAQ presentation: long rows with Question (left) and Answer (right).
+									Uses responsive grid: stacked on small screens, long rows on md+. */}
 								{showFaqs && (fest.faqs || []).length > 0 ? (
-									<div className="mt-3 space-y-2">
+									<div
+										className="mt-3 space-y-4"
+										aria-live="polite"
+										aria-label="Frequently asked questions"
+									>
 										{(fest.faqs || []).map((f, i) => (
-											<details key={i} className="detail-card p-3">
-												<summary className="font-semibold">
-													{f.question}
-												</summary>
-												<div className="mt-2 text-sm muted">{f.answer}</div>
-											</details>
+											<div key={f._id || i} className="detail-card p-4">
+												<dl className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+													<dt
+														className="md:col-span-4 font-semibold text-base"
+														style={{ color: 'var(--text-primary)' }}
+													>
+														{f.question}
+													</dt>
+													<dd className="md:col-span-8 text-sm muted whitespace-pre-wrap">
+														{f.answer || 'No answer provided.'}
+													</dd>
+												</dl>
+											</div>
 										))}
 									</div>
 								) : (
