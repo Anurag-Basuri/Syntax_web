@@ -63,6 +63,7 @@ const ArvantisPage = () => {
 	// UI controls
 	const [showPastEditions, setShowPastEditions] = useState(false);
 	const [showLandingFirst, setShowLandingFirst] = useState(true);
+	const [showAllPartners, setShowAllPartners] = useState(false); // new: toggle view all partners
 
 	// Landing (latest) edition
 	const landingQuery = useQuery({
@@ -257,6 +258,59 @@ const ArvantisPage = () => {
 	}, [editions, identifier]);
 
 	/* -------------------------
+     Render helpers
+     ------------------------- */
+	const renderPartnerLogo = (p, i, opts = {}) => {
+		const size = opts.size || 72;
+		const url = p?.logo?.url || null;
+		const name = p?.name || 'Partner';
+		return (
+			<a
+				key={`${name}-${i}`}
+				href={p.website || '#'}
+				target={p.website ? '_blank' : '_self'}
+				rel={p.website ? 'noopener noreferrer' : undefined}
+				className="partner-cell group flex items-center justify-center p-3 rounded-xl transition-transform duration-300"
+				title={name}
+				style={{
+					minHeight: size,
+					minWidth: size * 1.8,
+					background: 'var(--glass-bg)',
+					border: '1px solid var(--glass-border)',
+				}}
+				onClick={(e) => opts.onClick && opts.onClick(p, e)}
+			>
+				{url ? (
+					<img
+						src={url}
+						alt={name}
+						loading="lazy"
+						style={{ maxHeight: size, objectFit: 'contain' }}
+						className="partner-logo"
+					/>
+				) : (
+					<div
+						style={{
+							height: size,
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							padding: 8,
+						}}
+					>
+						<span
+							className="text-sm font-semibold"
+							style={{ color: 'var(--text-primary)' }}
+						>
+							{name}
+						</span>
+					</div>
+				)}
+			</a>
+		);
+	};
+
+	/* -------------------------
      Render
      ------------------------- */
 	const landingIdentifier = landingFest
@@ -269,41 +323,55 @@ const ArvantisPage = () => {
 				{/* Header */}
 				<header className="mb-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 					<div>
-						<h1
-							className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight"
-							style={{ fontFamily: 'Space Grotesk, system-ui' }}
-						>
-							Arvantis <span className="ml-2 accent-neon">{fest?.year ?? ''}</span>
-						</h1>
+						{/* Title + inline "powered by" for title sponsor */}
+						<div className="flex items-center gap-4">
+							<h1
+								className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight"
+								style={{ fontFamily: 'Space Grotesk, system-ui' }}
+							>
+								<span>Arvantis</span>
+								{fest?.year ? (
+									<span className="ml-3 accent-neon">{fest.year}</span>
+								) : null}
+							</h1>
+
+							{titleSponsor && (
+								<div
+									className="ml-3 text-sm text-[var(--text-secondary)] flex items-center gap-3"
+									aria-hidden
+								>
+									<span className="uppercase text-xs">powered by</span>
+									{titleSponsor.logo?.url ? (
+										<a
+											href={titleSponsor.website || '#'}
+											target="_blank"
+											rel="noreferrer"
+											className="flex items-center gap-2"
+										>
+											<img
+												src={titleSponsor.logo.url}
+												alt={titleSponsor.name}
+												style={{ height: 40, objectFit: 'contain' }}
+											/>
+										</a>
+									) : (
+										<a
+											href={titleSponsor.website || '#'}
+											target="_blank"
+											rel="noreferrer"
+											className="font-semibold"
+										>
+											{titleSponsor.name}
+										</a>
+									)}
+								</div>
+							)}
+						</div>
+
 						<p className="mt-2 text-base md:text-lg text-[var(--text-secondary)] max-w-2xl">
 							{fest?.tagline ||
 								'A celebration of tech, creativity and collaboration — by Syntax Club.'}
 						</p>
-
-						{/* Powered by title sponsor */}
-						{titleSponsor && (
-							<div className="mt-3 flex items-center gap-3">
-								<div className="text-sm text-[var(--text-secondary)]">
-									Powered by
-								</div>
-								<a
-									href={titleSponsor.website || '#'}
-									target="_blank"
-									rel="noreferrer"
-									className="flex items-center gap-3"
-								>
-									{titleSponsor.logo?.url ? (
-										<img
-											src={titleSponsor.logo.url}
-											alt={titleSponsor.name}
-											style={{ height: 36, objectFit: 'contain' }}
-										/>
-									) : (
-										<div className="font-semibold">{titleSponsor.name}</div>
-									)}
-								</a>
-							</div>
-						)}
 					</div>
 
 					<div className="flex items-center gap-3">
@@ -465,7 +533,7 @@ const ArvantisPage = () => {
 							<EventsGrid events={filteredEvents} onEventClick={handleEventClick} />
 						</section>
 
-						{/* Partners */}
+						{/* Partners - improved presentation */}
 						<section
 							className="rounded-3xl p-6"
 							style={{
@@ -486,6 +554,7 @@ const ArvantisPage = () => {
 								</div>
 							</div>
 
+							{/* prominent title sponsor card (if present) */}
 							{titleSponsor && (
 								<div
 									className="mb-6 rounded-xl p-4 flex items-center gap-4"
@@ -497,8 +566,8 @@ const ArvantisPage = () => {
 								>
 									<div
 										style={{
-											width: 140,
-											height: 64,
+											width: 160,
+											height: 72,
 											display: 'flex',
 											alignItems: 'center',
 											justifyContent: 'center',
@@ -508,18 +577,19 @@ const ArvantisPage = () => {
 											<img
 												src={titleSponsor.logo.url}
 												alt={titleSponsor.name}
-												style={{ maxHeight: 64, objectFit: 'contain' }}
+												style={{ maxHeight: 72, objectFit: 'contain' }}
 											/>
 										) : (
 											<div className="font-semibold">{titleSponsor.name}</div>
 										)}
 									</div>
-									<div>
+
+									<div className="flex-1">
 										<div className="text-sm text-[var(--text-secondary)]">
 											Title sponsor
 										</div>
 										<div
-											className="text-lg font-bold"
+											className="text-2xl font-bold"
 											style={{ color: 'var(--text-primary)' }}
 										>
 											{titleSponsor.name}
@@ -530,7 +600,8 @@ const ArvantisPage = () => {
 											</div>
 										)}
 									</div>
-									<div className="ml-auto">
+
+									<div className="ml-auto flex flex-col gap-2 items-end">
 										{titleSponsor.website && (
 											<a
 												href={titleSponsor.website}
@@ -541,32 +612,70 @@ const ArvantisPage = () => {
 												Visit
 											</a>
 										)}
+										<button
+											onClick={() =>
+												window.open(titleSponsor.website || '#', '_blank')
+											}
+											className="btn-ghost"
+										>
+											Sponsor details
+										</button>
 									</div>
 								</div>
 							)}
 
-							{Object.keys(otherPartnersByTier).length === 0 ? (
-								<div className="text-sm text-[var(--text-secondary)]">
-									No partners listed yet.
-								</div>
-							) : (
-								Object.entries(otherPartnersByTier).map(([tier, list]) => (
-									<div key={tier} className="mb-6">
-										<div className="flex items-center justify-between mb-3">
-											<div
-												className="text-sm font-semibold"
-												style={{ color: 'var(--text-secondary)' }}
-											>
-												{tier.toUpperCase()}
-											</div>
-											<div className="text-xs text-[var(--text-secondary)]">
-												{list.length} partners
-											</div>
-										</div>
-										<PartnersGrid partners={list} />
+							{/* grouped partner tiers with larger logos & optional "show all" */}
+							<div className="grid gap-6">
+								{Object.keys(otherPartnersByTier).length === 0 ? (
+									<div className="text-sm text-[var(--text-secondary)]">
+										No partners listed yet.
 									</div>
-								))
-							)}
+								) : (
+									Object.entries(otherPartnersByTier).map(([tier, list]) => {
+										const visible = showAllPartners ? list : list.slice(0, 8);
+										return (
+											<div key={tier}>
+												<div className="flex items-center justify-between mb-3">
+													<div className="flex items-center gap-3">
+														<div
+															className="text-sm font-semibold"
+															style={{
+																color: 'var(--text-secondary)',
+															}}
+														>
+															{tier.toUpperCase()}
+														</div>
+														<div className="text-xs text-[var(--text-secondary)]">
+															{list.length} partners
+														</div>
+													</div>
+													{list.length > 8 && (
+														<button
+															onClick={() =>
+																setShowAllPartners((s) => !s)
+															}
+															className="text-sm btn-ghost"
+														>
+															{showAllPartners
+																? 'Show less'
+																: `Show all (${list.length})`}
+														</button>
+													)}
+												</div>
+
+												{/* responsive horizontal grid of logos (larger) */}
+												<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+													{visible.map((p, i) =>
+														renderPartnerLogo(p, `${tier}-${i}`, {
+															size: 72,
+														})
+													)}
+												</div>
+											</div>
+										);
+									})
+								)}
+							</div>
 						</section>
 
 						{/* Gallery */}
