@@ -25,48 +25,51 @@
    ========================================================================== */
 
 :root {
-	/* Accent (primary gradient pair) — tuned toward bluish tones for bright mode */
-	--accent-1: #0ea5ff; /* sky-500 (brighter blue) */
-	--accent-2: #3b82f6; /* blue-500 */
-	--accent-glow: rgba(14, 165, 255, 0.16);
+	/* Accent (primary gradient pair) — tuned toward stronger bluish tones for bright mode */
+	--accent-1: #0b74ff; /* deeper blue for stronger contrast */
+	--accent-2: #2563eb; /* blue-600 */
+	--accent-glow: rgba(11, 116, 255, 0.18);
 
-	/* Neutral / background family (light defaults) — subtle vertical tone + bluish overlays */
-	--bg-base: linear-gradient(180deg,#f7fbff 0%, #f3f9ff 55%);
+	/* Neutral / background family (light defaults) */
+	/* Slightly richer base gradient and a stronger bluish overlay for visible depth */
+	--bg-base: linear-gradient(180deg,#f7fbff 0%, #eef6ff 56%);
 	--bg-soft: #ffffff;
 	--bg-softer: rgba(255, 255, 255, 0.96);
-	--bg-muted: #eef7ff;
-	--bg-overlay: radial-gradient(28rem 18rem at 8% 12%, rgba(14,165,255,0.04), transparent), radial-gradient(18rem 12rem at 92% 78%, rgba(59,130,246,0.02), transparent);
+	--bg-muted: #eaf6ff;
+	--bg-overlay: radial-gradient(30rem 20rem at 8% 12%, rgba(11,116,255,0.045), transparent), radial-gradient(18rem 12rem at 92% 78%, rgba(37,99,235,0.03), transparent);
 
 	/* Nav / glass surfaces (light defaults) */
-	--nav-bg: rgba(255, 255, 255, 0.98);
-	--nav-border: rgba(14, 42, 62, 0.06);
+	/* stronger glass border and hover to make edges readable on bright backgrounds */
+	--nav-bg: rgba(255, 255, 255, 0.985);
+	--nav-border: rgba(6, 42, 86, 0.08);
 	--glass-bg: rgba(255, 255, 255, 0.96);
-	--glass-border: rgba(14, 42, 62, 0.06);
-	--glass-hover: rgba(14, 42, 62, 0.08);
+	--glass-border: rgba(6, 42, 86, 0.08);
+	--glass-hover: rgba(6, 42, 86, 0.10);
 
-	/* Text */
-	--text-primary: #04283b; /* headings: slightly cooler dark-blue */
-	--text-secondary: #0b566f; /* body */
-	--text-muted: #4b788f;
+	/* Text — increased contrast */
+	--text-primary: #02243a; /* stronger cool/blue heading color */
+	--text-secondary: #09496a; /* body text with more weight for readability */
+	--text-muted: #476b80; /* keep muted still readable */
 
 	/* Buttons & inputs */
 	--button-primary-bg: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-	--button-primary-hover: linear-gradient(135deg, #0aa2ff, #2563eb);
+	--button-primary-hover: linear-gradient(135deg, #0971e6, #1e40af);
+	--button-primary-shadow: 0 10px 36px rgba(11,116,255,0.12);
 	--button-secondary-bg: rgba(255, 255, 255, 0.94);
-	--button-secondary-border: rgba(14, 42, 62, 0.06);
+	--button-secondary-border: rgba(6, 42, 86, 0.08);
 
-	--input-bg: rgba(255, 255, 255, 0.96);
-	--input-border: rgba(14, 42, 62, 0.08);
-	--input-border-focus: rgba(14,165,255,0.34);
+	--input-bg: rgba(255, 255, 255, 0.98);
+	--input-border: rgba(6, 42, 86, 0.10);
+	--input-border-focus: rgba(11,116,255,0.36);
 
 	/* Cards */
 	--card-bg: rgba(255, 255, 255, 0.98);
-	--card-border: rgba(14, 42, 62, 0.04);
-	--card-hover-bg: rgba(246, 250, 255, 0.98);
+	--card-border: rgba(6, 42, 86, 0.06);
+	--card-hover-bg: rgba(247, 250, 255, 0.98);
 
 	/* Focus & shadows */
-	--focus-ring: 0 0 0 4px rgba(14,165,255,0.12);
-	--nav-shadow-elevated: 0 12px 42px rgba(14, 42, 62, 0.08);
+	--focus-ring: 0 0 0 4px rgba(11,116,255,0.12);
+	--nav-shadow-elevated: 0 12px 42px rgba(6, 42, 86, 0.10);
 
 	/* accessory helpers (safe defaults) */
 	--input-text: var(--text-primary);
@@ -75,21 +78,20 @@
 	/* small transition alias */
 	--transition-fast: 180ms ease;
 
-	/* shadow tokens */
-	--shadow-sm: 0 6px 18px rgba(14, 42, 62, 0.06);
-	--shadow-md: 0 10px 30px rgba(14, 42, 62, 0.08);
-	--shadow-lg: 0 18px 50px rgba(14, 42, 62, 0.10);
-	--glow-blue: 0 10px 48px rgba(14,165,255,0.12);
+	/* shadow tokens (slightly stronger for bright mode) */
+	--shadow-sm: 0 6px 18px rgba(6, 42, 86, 0.06);
+	--shadow-md: 0 12px 36px rgba(6, 42, 86, 0.08);
+	--shadow-lg: 0 24px 80px rgba(6, 42, 86, 0.10);
+	--glow-blue: 0 10px 56px rgba(11,116,255,0.14);
 }
 
-/* Dark theme overrides — leave dark mostly unchanged */
+/* Dark theme overrides — unchanged */
 :root[data-theme='dark'],
 [data-theme='dark'] {
 	--accent-1: #22d3ee;
 	--accent-2: #06b6d4;
 	--accent-glow: rgba(34, 211, 238, 0.22);
 
-	/* deep, slightly textured base with subtle vignette */
 	--bg-base: linear-gradient(180deg,#04121a 0%, #061726 70%);
 	--bg-soft: #071826;
 	--bg-softer: rgba(6, 10, 14, 0.64);
@@ -125,30 +127,29 @@
 	--input-text: var(--text-primary);
 	--input-placeholder: rgba(255, 255, 255, 0.65);
 
-	/* darker shadow variants */
 	--shadow-sm: 0 6px 18px rgba(2, 6, 23, 0.45);
 	--shadow-md: 0 10px 30px rgba(2, 6, 23, 0.5);
 	--shadow-lg: 0 24px 80px rgba(2, 6, 23, 0.6);
 	--glow-blue: 0 10px 30px rgba(34, 211, 238, 0.06);
 }
 
-/* Light theme explicit overrides (optional) — toggle by setting data-theme="light" on root */
+/* Light theme explicit overrides (toggle by setting data-theme="light") */
 :root[data-theme='light'] {
-	/* ensure contrast-safe surfaces in explicit light mode */
+	/* ensure glass and interactive states are more visible in bright contexts */
 	--glass-bg: rgba(255, 255, 255, 0.98);
-	--glass-border: rgba(14, 42, 62, 0.06);
-	--input-bg: rgba(255, 255, 255, 0.98);
-	--input-border: rgba(14, 42, 62, 0.08);
-	--input-text: #04283b;
+	--glass-border: rgba(6, 42, 86, 0.10);
+	--input-bg: rgba(255, 255, 255, 0.99);
+	--input-border: rgba(6, 42, 86, 0.10);
+	--input-text: #02243a;
 	--input-placeholder: #6b8fa6;
-	--card-bg: rgba(255, 255, 255, 0.98);
-	--card-border: rgba(14, 42, 62, 0.04);
+	--card-bg: rgba(255, 255, 255, 0.99);
+	--card-border: rgba(6, 42, 86, 0.06);
 	--bg-softer: rgba(255, 255, 255, 0.96);
 
 	/* stronger bluish glow + hover for light contexts */
-	--glow-blue: 0 10px 52px rgba(14,165,255,0.14);
-	--glass-hover: rgba(14, 42, 62, 0.08);
-	--nav-shadow-elevated: 0 14px 48px rgba(14, 42, 62, 0.10);
+	--glow-blue: 0 12px 64px rgba(11,116,255,0.16);
+	--glass-hover: rgba(6, 42, 86, 0.10);
+	--nav-shadow-elevated: 0 18px 56px rgba(6, 42, 86, 0.12);
 }
 
 /* Respect system preference if no explicit data-theme set.
