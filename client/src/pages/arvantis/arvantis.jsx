@@ -568,96 +568,149 @@ const ArvantisPage = () => {
 			{/* lightweight live region for small toasts (used by components via window.dispatchEvent) */}
 			<div id="arvantis-toasts" aria-live="polite" className="sr-only" />
 
-			{/* Editions navigation */}
-			<EditionsStrip
-				editions={editions}
-				currentIdentifier={identifier}
-				onSelect={handleSelectEdition}
-				landingIdentifier={landingFest?.slug || String(landingFest?.year || '')}
-			/>
+			{/* ---------- Top: Title / Key info (primary entry) ---------- */}
+			<header className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+				<div className="glass-card p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+					<div className="min-w-0">
+						<h1
+							className="text-3xl md:text-4xl font-extrabold"
+							style={{ color: 'var(--text-primary)' }}
+						>
+							{fest?.name || 'Arvantis'} {fest?.year ? `· ${fest.year}` : ''}
+						</h1>
+						<div
+							className="mt-2 text-sm mono"
+							style={{ color: 'var(--text-secondary)' }}
+						>
+							{fest?.tagline || 'Tech • Hack • Build'}
+						</div>
 
-			{/* Hero */}
-			<PosterHero fest={fest} onImageOpen={handleImageClick} />
+						{/* compact meta row */}
+						<div
+							className="mt-4 flex flex-wrap items-center gap-4 text-sm"
+							style={{ color: 'var(--text-secondary)' }}
+						>
+							<div className="inline-flex items-center gap-2">
+								<Calendar size={16} />
+								<span>
+									{fest?.startDate
+										? new Date(fest.startDate).toLocaleDateString()
+										: 'TBD'}
+								</span>
+							</div>
+							<div className="inline-flex items-center gap-2">
+								<ExternalLink size={16} />
+								<span>{fest?.location || 'Location TBA'}</span>
+							</div>
+							{fest?.contactEmail && (
+								<div className="inline-flex items-center gap-2 mono">
+									📧 {fest.contactEmail}
+								</div>
+							)}
+							{/* Countdown inline for immediate visibility */}
+							{fest?.startDate && (
+								<div className="ml-2">
+									<CountdownClock target={fest.startDate} />
+								</div>
+							)}
+						</div>
+					</div>
 
-			{/* Prominent partners (full-width) */}
-			<PartnersShowcase partners={partners} titleSponsor={titleSponsor} />
+					{/* CTAs */}
+					<div className="flex-shrink-0 flex items-center gap-3">
+						{fest?.tickets?.url && (
+							<a
+								href={fest.tickets.url}
+								target="_blank"
+								rel="noreferrer"
+								className="btn-primary neon-btn"
+							>
+								Buy Tickets
+							</a>
+						)}
+						<a href="#events" className="btn-ghost">
+							Browse Events
+						</a>
+					</div>
+				</div>
+			</header>
 
-			{/* Main content container */}
+			{/* Editions navigation: more prominent and readable on bright backgrounds */}
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+				<div className="editions-strip-wrap glass-card p-3">
+					<EditionsStrip
+						editions={editions}
+						currentIdentifier={identifier}
+						onSelect={handleSelectEdition}
+						landingIdentifier={landingFest?.slug || String(landingFest?.year || '')}
+					/>
+				</div>
+			</div>
+
+			{/* Poster / Hero (prominent visual below title) */}
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+				<PosterHero fest={fest} onImageOpen={handleImageClick} />
+			</div>
+
+			{/* Description + Prominent Partners (placed immediately after poster) */}
+			<section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+				{/* Description / details */}
+				<div className="glass-card p-6">
+					<h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+						About the Fest
+					</h2>
+					<p className="mt-3 text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
+						{fest?.description || 'No description available.'}
+					</p>
+
+					{/* quick details grid */}
+					<div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+						<div
+							className="p-3 rounded-md"
+							style={{
+								background: 'var(--glass-bg)',
+								border: '1px solid var(--glass-border)',
+							}}
+						>
+							<div className="text-xs text-[var(--text-secondary)]">Duration</div>
+							<div className="font-medium">
+								{fest?.durationDays ? `${fest.durationDays} days` : 'TBD'}
+							</div>
+						</div>
+						<div
+							className="p-3 rounded-md"
+							style={{
+								background: 'var(--glass-bg)',
+								border: '1px solid var(--glass-border)',
+							}}
+						>
+							<div className="text-xs text-[var(--text-secondary)]">Location</div>
+							<div className="font-medium">{fest?.location || 'TBA'}</div>
+						</div>
+						<div
+							className="p-3 rounded-md"
+							style={{
+								background: 'var(--glass-bg)',
+								border: '1px solid var(--glass-border)',
+							}}
+						>
+							<div className="text-xs text-[var(--text-secondary)]">Partners</div>
+							<div className="font-medium">{partners.length} partners</div>
+						</div>
+					</div>
+				</div>
+
+				{/* Prominent partners placed right after description */}
+				<div className="mt-6">
+					<PartnersShowcase partners={partners} titleSponsor={titleSponsor} />
+				</div>
+			</section>
+
+			{/* Main content container: Events + Gallery + FAQs + Sidebar */}
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 				{/* Main column */}
 				<main className="lg:col-span-2 space-y-8" id="maincontent" tabIndex={-1}>
-					{/* Summary card: title, tagline, description, location */}
-					<section className="glass-card p-6" aria-labelledby="fest-summary">
-						<div className="flex flex-col md:flex-row md:items-start md:gap-6">
-							<div className="flex-1 min-w-0">
-								<h1
-									id="fest-summary"
-									className="text-2xl font-extrabold"
-									style={{ color: 'var(--text-primary)' }}
-								>
-									{fest?.name || 'Arvantis'} {fest?.year ? `· ${fest.year}` : ''}
-								</h1>
-								<div
-									className="mt-2 text-sm mono"
-									style={{ color: 'var(--text-secondary)' }}
-								>
-									{fest?.tagline || 'Tech • Hack • Build'}
-								</div>
-
-								<div
-									className="mt-4 text-base leading-relaxed"
-									style={{ color: 'var(--text-secondary)' }}
-								>
-									{fest?.description || 'No description available.'}
-								</div>
-
-								<div
-									className="mt-4 flex flex-wrap items-center gap-4 text-sm"
-									style={{ color: 'var(--text-secondary)' }}
-								>
-									<div className="inline-flex items-center gap-2">
-										<Calendar size={16} />
-										<span>
-											{fest?.startDate
-												? new Date(fest.startDate).toLocaleDateString()
-												: 'TBD'}
-										</span>
-									</div>
-									<div className="inline-flex items-center gap-2">
-										<ExternalLink size={16} />
-										<span>{fest?.location || 'Location TBA'}</span>
-									</div>
-									{fest?.contactEmail && (
-										<div className="inline-flex items-center gap-2 mono">
-											📧 {fest.contactEmail}
-										</div>
-									)}
-								</div>
-
-								{/* Improved Countdown (shows days / hh:mm:ss with seconds live) */}
-								{fest?.startDate && <CountdownClock target={fest.startDate} />}
-							</div>
-
-							{/* quick actions */}
-							<div className="mt-4 md:mt-0 md:flex-shrink-0 flex flex-col gap-3">
-								{fest?.tickets?.url && (
-									<a
-										href={fest.tickets.url}
-										target="_blank"
-										rel="noreferrer"
-										className="btn-primary neon-btn"
-									>
-										Buy Tickets
-									</a>
-								)}
-								<a href="#events" className="btn-ghost">
-									Browse Events
-								</a>
-							</div>
-						</div>
-					</section>
-
-					{/* Events */}
+					{/* Events (now after partners) */}
 					<EventsGrid events={events} onEventClick={handleEventClick} />
 
 					{/* Gallery */}
@@ -729,7 +782,7 @@ const ArvantisPage = () => {
 				</aside>
 			</div>
 
-			{/* Modals - lazy loaded with Suspense to keep initial bundle small */}
+			{/* Modals */}
 			{selectedImage && (
 				<Suspense fallback={<LoadingBlock label="Opening image..." />}>
 					<ImageLightbox
