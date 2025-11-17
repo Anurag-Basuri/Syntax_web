@@ -72,21 +72,51 @@ const findTitleSponsor = (partners = []) => {
 /* ---------- Partners showcase (prominent) ---------- */
 const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 	if (!partners || partners.length === 0) return null;
+
+	// group partners by tier for clearer presentation (title, platinum, gold, sponsor, partner, other)
+	const tierOrder = [
+		'title',
+		'presenting',
+		'platinum',
+		'gold',
+		'sponsor',
+		'collaborator',
+		'partner',
+		'other',
+	];
+	const normalized = partners.map((p) => ({
+		...p,
+		_tierKey: (p.tier || p.role || 'other').toString().toLowerCase(),
+	}));
+	const grouped = normalized.reduce((acc, p) => {
+		const key = tierOrder.includes(p._tierKey) ? p._tierKey : 'other';
+		(acc[key] = acc[key] || []).push(p);
+		return acc;
+	}, {});
+
+	const total = partners.length;
+
 	return (
-		<section id="partners" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-			<div className="glass-card p-6">
+		<section
+			id="partners"
+			className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8"
+			aria-labelledby="partners-heading"
+		>
+			<div className="glass-card p-6" role="region" aria-roledescription="partners showcase">
 				<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
 					<div className="min-w-0">
 						<h2
+							id="partners-heading"
 							className="text-xl font-extrabold"
 							style={{ color: 'var(--text-primary)' }}
 						>
 							Our Partners
 						</h2>
 						<p className="mt-2 muted">
-							We collaborate with organizations across tiers — from title sponsors to
-							community partners.
-							{titleSponsor ? ` Proudly presented by ${titleSponsor.name}.` : ''}
+							Collaborating organizations across tiers — from title sponsors to
+							community partners.{' '}
+							<span className="font-medium">{total} partners</span>
+							{titleSponsor ? ` · Proudly presented by ${titleSponsor.name}.` : ''}
 						</p>
 					</div>
 
@@ -98,12 +128,14 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 								rel={titleSponsor.website ? 'noopener noreferrer' : undefined}
 								className="btn-ghost small"
 								onClick={(e) => e.stopPropagation()}
+								aria-label={`Title sponsor ${titleSponsor.name}`}
 							>
 								{titleSponsor.logo?.url ? (
 									<img
 										src={titleSponsor.logo.url}
 										alt={titleSponsor.name}
 										className="h-6 object-contain"
+										loading="lazy"
 									/>
 								) : (
 									<span>{titleSponsor.name}</span>
@@ -114,18 +146,81 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 							href="#partners"
 							className="btn-primary small"
 							onClick={(e) => e.preventDefault()}
+							aria-label="View all partners"
 						>
 							View all partners
 						</a>
 					</div>
 				</div>
 
-				{/* bigger grid for prominence, responsive */}
-				<div className="mt-6">
-					<PartnersGrid
-						partners={partners.slice(0, 24)}
-						className="!grid-cols-3 sm:!grid-cols-4 md:!grid-cols-6"
-					/>
+				{/* Prominent tier-first grid: show title/presenting first then others */}
+				<div className="mt-6 space-y-6">
+					{['title', 'presenting'].map((k) =>
+						(grouped[k] || []).length ? (
+							<div key={k}>
+								<div className="text-sm text-[var(--text-secondary)] font-semibold mb-3">
+									{k === 'title' ? 'Title Sponsor' : 'Presenting Partners'}
+								</div>
+								<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+									{grouped[k].map((p, i) => (
+										<a
+											key={`${p.name}-${i}`}
+											href={p.website || '#'}
+											target={p.website ? '_blank' : '_self'}
+											rel={p.website ? 'noopener noreferrer' : undefined}
+											className="flex items-center gap-4 p-4 rounded-lg transition-transform transform hover:-translate-y-1 hover:shadow-xl"
+											style={{
+												background: 'var(--glass-bg)',
+												border: '1px solid var(--glass-border)',
+											}}
+											onClick={(e) => e.stopPropagation()}
+										>
+											<div className="w-20 h-12 flex items-center justify-center">
+												{p.logo?.url ? (
+													<img
+														src={p.logo.url}
+														alt={p.name}
+														className="max-h-10 object-contain"
+														loading="lazy"
+													/>
+												) : (
+													<div className="text-sm mono">{p.name}</div>
+												)}
+											</div>
+											<div className="min-w-0">
+												<div
+													className="font-medium"
+													style={{ color: 'var(--text-primary)' }}
+												>
+													{p.name}
+												</div>
+												{p.description && (
+													<div className="text-sm muted truncate">
+														{p.description}
+													</div>
+												)}
+											</div>
+										</a>
+									))}
+								</div>
+							</div>
+						) : null
+					)}
+
+					{/* Remaining tiers in a compact grid */}
+					{['platinum', 'gold', 'sponsor', 'collaborator', 'partner', 'other'].map((k) =>
+						(grouped[k] || []).length ? (
+							<div key={k}>
+								<div className="text-sm text-[var(--text-secondary)] font-semibold mb-3">
+									{String(k).charAt(0).toUpperCase() + String(k).slice(1)}
+								</div>
+								<PartnersGrid
+									partners={grouped[k].slice(0, 24)}
+									className="grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+								/>
+							</div>
+						) : null
+					)}
 				</div>
 			</div>
 		</section>
@@ -533,24 +628,6 @@ const ArvantisPage = () => {
 							</div>
 						</div>
 					)}
-
-					{/* Partners preview */}
-					<div className="glass-card p-4">
-						<div className="flex items-center justify-between">
-							<div className="text-sm text-[var(--text-secondary)]">Partners</div>
-							<div className="text-xs muted">{partners.length}</div>
-						</div>
-						<div className="mt-3">
-							<PartnersGrid partners={partners.slice(0, 8)} />
-						</div>
-						{partners.length > 8 && (
-							<div className="mt-3 text-center">
-								<a href="#partners" className="btn-ghost small">
-									View all partners
-								</a>
-							</div>
-						)}
-					</div>
 				</aside>
 			</div>
 
