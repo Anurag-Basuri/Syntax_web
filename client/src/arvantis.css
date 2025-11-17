@@ -1,17 +1,320 @@
-/* --- ARVANTIS PAGE OVERRIDES --- */
+/* --- ARVANTIS PAGE: Full page & component styles (moved from index.css) --- */
 
-/* Only override background for .arvantis-page, keep rest from index.css */
+/* Page root */
 .arvantis-page {
-	background: transparent !important;
+	background: var(--bg, transparent) !important;
+	color: var(--text-primary);
+	/* small entrance animation */
+	animation: arv-fade-in 240ms ease both;
+}
+@keyframes arv-fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
 }
 
-/* Glass cards: let index.css control glass-card, only add extra blur if needed */
+/* Glass surface used heavily across Arvantis */
 .glass-card {
-	backdrop-filter: blur(6px) saturate(120%);
-	-webkit-backdrop-filter: blur(6px) saturate(120%);
+	background: var(--glass-bg);
+	border: 1px solid var(--glass-border);
+	color: var(--text-primary);
+	border-radius: 0.75rem;
+	padding: 1rem;
+	-webkit-backdrop-filter: blur(8px) saturate(120%);
+	backdrop-filter: blur(8px) saturate(120%);
+	box-shadow: var(--shadow-md);
 }
 
-/* Remove background from poster-main, lightbox-panel, etc, but do NOT override index.css tokens */
+/* Buttons used on Arvantis page */
+.btn-primary {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: var(--button-primary-bg);
+	color: #fff;
+	box-shadow: var(--button-primary-shadow, 0 8px 36px rgba(11, 116, 255, 0.12));
+	border: none;
+	padding: 0.6rem 0.9rem;
+	border-radius: 0.75rem;
+	font-weight: 600;
+}
+.btn-primary.small {
+	padding: 0.35rem 0.6rem;
+	font-size: 0.875rem;
+}
+.btn-primary:focus,
+.btn-primary:active {
+	outline: 3px solid var(--focus-ring);
+	outline-offset: 2px;
+}
+
+.btn-ghost {
+	background: var(--button-secondary-bg);
+	color: var(--text-primary);
+	border: 1px solid var(--button-secondary-border);
+	padding: 0.55rem 0.9rem;
+	border-radius: 0.75rem;
+}
+
+/* muted helper */
+.muted,
+.text-muted {
+	color: var(--text-muted) !important;
+}
+
+/* Titles / sections */
+.section-title {
+	color: var(--text-primary);
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+
+/* Poster / Hero / Carousel */
+.arvantis-hero {
+	position: relative;
+	overflow: hidden;
+}
+.poster-carousel {
+	position: relative;
+}
+.poster-main {
+	position: relative;
+	border-radius: 1rem;
+	overflow: hidden;
+}
+.poster-main-img,
+.thumb-img,
+.partner-logo,
+.gallery-tile img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	background: transparent;
+}
+
+/* Poster navigation buttons */
+.poster-nav-btn {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 40px;
+	height: 40px;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255, 255, 255, 0.85);
+	border: 1px solid rgba(0, 0, 0, 0.06);
+	box-shadow: 0 6px 20px rgba(2, 6, 23, 0.08);
+	z-index: 20;
+}
+.poster-nav-btn.left {
+	left: 12px;
+}
+.poster-nav-btn.right {
+	right: 12px;
+}
+.poster-nav-btn svg {
+	color: var(--accent-2);
+}
+
+/* Thumbs */
+.poster-thumbs {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+.thumb-btn {
+	border-radius: 0.5rem;
+	overflow: hidden;
+	padding: 0;
+	border: 1px solid var(--card-border);
+	background: transparent;
+	width: 64px;
+	height: 44px;
+	flex: 0 0 auto;
+}
+.thumb-btn.active {
+	box-shadow: 0 6px 20px rgba(2, 6, 23, 0.06);
+	transform: translateY(-4px);
+}
+
+/* Editions strip */
+.editions-strip {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+	padding: 0.5rem;
+}
+.edition-pill {
+	padding: 0.45rem 0.75rem;
+	border-radius: 999px;
+	background: transparent;
+	border: 1px solid transparent;
+	font-weight: 600;
+	color: var(--text-secondary);
+	white-space: nowrap;
+}
+.edition-pill.active {
+	background: linear-gradient(90deg, rgba(11, 116, 255, 0.08), rgba(37, 99, 235, 0.05));
+	border-color: rgba(11, 116, 255, 0.12);
+	color: var(--accent-1);
+}
+
+/* Stat card tweaks */
+.glass-tech {
+	padding: 1rem;
+}
+.stat-icon {
+	width: 44px;
+	height: 44px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 0.5rem;
+}
+.stat-value {
+	font-variant-numeric: tabular-nums;
+}
+
+/* Events grid / card */
+.event-card {
+	border-radius: 1rem;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+.event-card .chip {
+	background: rgba(0, 0, 0, 0.06);
+	padding: 0.25rem 0.5rem;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-weight: 600;
+}
+.event-card .ribbon {
+	position: absolute;
+	right: -44px;
+	top: 14px;
+	transform: rotate(45deg);
+	background: var(--accent-1);
+	color: white;
+	padding: 6px 64px;
+	font-size: 12px;
+	box-shadow: 0 6px 18px rgba(2, 6, 23, 0.08);
+}
+
+/* Ticket progress */
+.ticket-progress {
+	height: 10px;
+	background: rgba(0, 0, 0, 0.06);
+	border-radius: 999px;
+	overflow: hidden;
+}
+.progress-bar {
+	height: 100%;
+	background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+	transition: width 420ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+/* Partners grid tweaks */
+.partners-grid .partner-cell {
+	padding: 0.75rem;
+	border-radius: 0.75rem;
+	transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+.partners-grid .partner-cell:hover {
+	transform: translateY(-6px);
+	box-shadow: var(--shadow-lg);
+}
+
+/* Gallery styles */
+.columns-2 {
+	column-gap: 1rem;
+}
+.gallery-tile {
+	display: block;
+	break-inside: avoid;
+	border-radius: 0.75rem;
+	overflow: hidden;
+	position: relative;
+}
+.gallery-tile .overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.35);
+	color: white;
+	opacity: 0;
+	transition: opacity 180ms ease;
+}
+.gallery-tile:hover .overlay {
+	opacity: 1;
+}
+
+/* Lightbox */
+.lightbox-wrap {
+	z-index: 9999;
+}
+.lightbox-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(8px);
+}
+.lightbox-panel {
+	position: relative;
+	z-index: 10;
+	background: transparent;
+	padding: 1rem;
+}
+.control-btn {
+	background: rgba(255, 255, 255, 0.9);
+	border-radius: 0.5rem;
+	border: none;
+	box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+}
+
+/* Modal specific refinements used by EventDetailModal */
+.fixed.inset-0 {
+	-webkit-tap-highlight-color: transparent;
+}
+.event-detail-modal {
+	max-width: 1100px;
+}
+
+/* Sponsors mini */
+.sponsor-mini {
+	height: 32px;
+	object-fit: contain;
+}
+
+/* Small utility classes used by Arvantis page */
+.mono {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Space Mono', monospace;
+}
+.accent-neon {
+	text-shadow: 0 6px 32px rgba(11, 116, 255, 0.12);
+	color: var(--accent-2);
+}
+
+/* Keep overrides from previous arvantis.css */
+.gallery-tile .overlay,
+.lightbox-backdrop {
+	background: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Keep poster/main/lightbox panels transparent (page-controlled tokens) */
 .poster-main,
 .lightbox-panel,
 .detail-card,
@@ -32,8 +335,16 @@
 	background: transparent !important;
 }
 
-/* Overlay backgrounds for gallery/lightbox: keep semi-transparent, but do NOT override index.css */
-.gallery-tile .overlay,
-.lightbox-backdrop {
-	background: rgba(0, 0, 0, 0.45) !important;
+/* Extra responsive */
+@media (max-width: 768px) {
+	.poster-nav-btn {
+		width: 34px;
+		height: 34px;
+	}
+	.thumb-btn {
+		width: 56px;
+		height: 40px;
+	}
 }
+
+/* End ARVANTIS styles */

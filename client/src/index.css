@@ -328,7 +328,7 @@ textarea::placeholder {
 }
 
 /* ==========================================================================
-   3. LAYOUT & CORE COMPONENTS
+   3. LAYOUT & CORE COMPONENTS (GLOBAL ONLY)
    ========================================================================== */
 
 /* maintain small consistent transition token */
@@ -336,6 +336,7 @@ textarea::placeholder {
 	--t-fast: var(--transition-fast);
 }
 
+/* page-container remains global (used across the app) */
 .page-container {
 	width: 100%;
 	max-width: 80rem;
@@ -343,7 +344,7 @@ textarea::placeholder {
 	padding-inline: 1.25rem;
 }
 
-/* Auth card defaults: make sure they are readable in light mode */
+/* Auth card defaults: keep auth styles here (global auth pages) */
 .auth-card {
 	width: 100%;
 	max-width: 42rem;
@@ -380,36 +381,6 @@ textarea::placeholder {
 
 .auth-input::placeholder {
 	color: var(--input-placeholder);
-}
-
-/* Buttons */
-.auth-button {
-	position: relative;
-	overflow: hidden;
-	width: 100%;
-	padding-block: 0.875rem;
-	border-radius: 0.75rem;
-	background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-	color: white;
-	font-weight: 600;
-	font-size: 1rem;
-	box-shadow: var(--shadow-sm);
-	transition: transform 0.25s var(--transition-fast), box-shadow 0.25s var(--transition-fast);
-}
-
-.auth-button:hover:not(:disabled) {
-	box-shadow: var(--shadow-md);
-	transform: translateY(-2px);
-}
-
-.auth-button:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-
-/* make sure default form legend text is readable */
-.auth-legend {
-	color: var(--text-primary);
 }
 
 /* ==========================================================================
@@ -462,7 +433,7 @@ textarea::placeholder {
 }
 
 /* ==========================================================================
-   6. UTILITY & SMALL FIXES
+   6. UTILITY & SMALL FIXES (global)
    ========================================================================== */
 
 /* Ensure no unexpected horizontal overflow */
