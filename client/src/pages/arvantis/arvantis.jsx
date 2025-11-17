@@ -308,6 +308,101 @@ const FAQList = ({ faqs = [] }) => {
 	);
 };
 
+/* ---------- Countdown component (high-precision, shows seconds) ---------- */
+const CountdownClock = ({ target }) => {
+	const targetMs = useMemo(() => {
+		if (!target) return null;
+		const d = new Date(target);
+		return isNaN(d.getTime()) ? null : d.getTime();
+	}, [target]);
+
+	const [now, setNow] = useState(() => Date.now());
+
+	// update with requestAnimationFrame for smooth second transitions (low cost)
+	useEffect(() => {
+		if (!targetMs) return;
+		let mounted = true;
+		let rafId = 0;
+		const tick = () => {
+			if (!mounted) return;
+			setNow(Date.now());
+			rafId = requestAnimationFrame(tick);
+		};
+		rafId = requestAnimationFrame(tick);
+		return () => {
+			mounted = false;
+			cancelAnimationFrame(rafId);
+		};
+	}, [targetMs]);
+
+	if (!targetMs) return null;
+
+	const diff = Math.max(0, targetMs - now);
+	if (diff === 0) {
+		return (
+			<div
+				role="status"
+				aria-live="polite"
+				className="mt-4 text-sm font-medium text-green-500"
+			>
+				Ongoing
+			</div>
+		);
+	}
+
+	const totalSeconds = Math.floor(diff / 1000);
+	const days = Math.floor(totalSeconds / 86400);
+	const hours = Math.floor((totalSeconds % 86400) / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+	const two = (n) => String(n).padStart(2, '0');
+
+	return (
+		<div
+			className="mt-4 inline-flex items-center gap-3"
+			role="timer"
+			aria-live="polite"
+			aria-atomic="true"
+			aria-label={`Countdown to event start: ${days} days ${hours} hours ${minutes} minutes ${seconds} seconds`}
+		>
+			{/* compact, premium segments */}
+			<div className="flex items-baseline gap-2">
+				<div className="px-3 py-2 rounded-lg glass-card text-center">
+					<div
+						className="text-lg font-extrabold mono"
+						style={{ color: 'var(--text-primary)' }}
+					>
+						{days}
+					</div>
+					<div className="text-xs muted">Days</div>
+				</div>
+				<div className="px-3 py-2 rounded-lg glass-card text-center">
+					<div
+						className="text-lg font-extrabold mono"
+						style={{ color: 'var(--text-primary)' }}
+					>
+						{two(hours)}
+					</div>
+					<div className="text-xs muted">Hours</div>
+				</div>
+				<div className="px-3 py-2 rounded-lg glass-card text-center">
+					<div
+						className="text-lg font-extrabold mono"
+						style={{ color: 'var(--text-primary)' }}
+					>
+						{two(minutes)}
+					</div>
+					<div className="text-xs muted">Minutes</div>
+				</div>
+				<div className="px-3 py-2 rounded-lg glass-card text-center">
+					<div className="text-lg font-extrabold mono accent-neon">{two(seconds)}</div>
+					<div className="text-xs muted">Seconds</div>
+				</div>
+			</div>
+		</div>
+	);
+};
+
 /* ---------- Main page ---------- */
 const ArvantisPage = () => {
 	// page state
@@ -538,6 +633,9 @@ const ArvantisPage = () => {
 										</div>
 									)}
 								</div>
+
+								{/* Improved Countdown (shows days / hh:mm:ss with seconds live) */}
+								{fest?.startDate && <CountdownClock target={fest.startDate} />}
 							</div>
 
 							{/* quick actions */}
