@@ -33,14 +33,11 @@ const EventCard = ({ event }) => {
 		(event.status === 'ongoing' || eventDate.toDateString() === now.toDateString());
 	const isUpcoming = isValidDate && eventDate > now && !isOngoing;
 
-	// quick inline registration link if available on listing data
-	const registrationLink =
-		event.registrationLink || event.registrationUrl || event.registration || null;
-
 	return (
 		<>
 			<article
-				className="glass-card rounded-2xl overflow-hidden hover-lift transition-all duration-300 group relative cursor-pointer border border-white/10 hover:border-white/20"
+				className="rounded-2xl overflow-hidden hover-lift transition-all duration-300 group relative cursor-pointer border border-white/10 hover:border-white/20
+					backdrop-blur-md bg-white/5 dark:bg-slate-900/30 backdrop-saturate-150"
 				onClick={() => setShowModal(true)}
 				aria-labelledby={`event-${event._id}-title`}
 				role="button"
