@@ -934,6 +934,14 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 								placeholder="Description"
 							/>
 							<input
+								value={editForm.tagline || ''}
+								onChange={(e) =>
+									setEditForm((s) => ({ ...s, tagline: e.target.value }))
+								}
+								className="p-3 bg-white/5 rounded"
+								placeholder="Tagline (short)"
+							/>
+							<input
 								type="datetime-local"
 								value={
 									editForm.startDate
@@ -1543,19 +1551,58 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 									<h4 className="font-semibold text-white">
 										Tracks ({(editForm.tracks || []).length})
 									</h4>
-									<button
-										onClick={async () => {
-											const title = prompt('Track title');
-											if (!title) return;
-											const color =
-												prompt('Optional color (hex)', '#ffffff') || '';
-											await addTrack({ title, description: '', color });
-										}}
-										className="px-3 py-1 rounded bg-emerald-600 text-white text-sm"
-										disabled={actionBusy}
-									>
-										Add Track
-									</button>
+									{/* Inline add form toggle handled locally */}
+									<div className="flex items-center gap-2">
+										<input
+											id="newTrackTitle"
+											placeholder="Track title"
+											className="p-2 bg-white/5 rounded w-44"
+											value={window.__newTrackTitle || ''}
+											onChange={(e) =>
+												(window.__newTrackTitle = e.target.value)
+											}
+										/>
+										<input
+											type="color"
+											value={window.__newTrackColor || '#ffffff'}
+											onChange={(e) =>
+												(window.__newTrackColor = e.target.value)
+											}
+											className="w-10 h-8 p-0 border-0 rounded"
+										/>
+										<button
+											onClick={async () => {
+												const title = (window.__newTrackTitle || '').trim();
+												const color = window.__newTrackColor || '';
+												if (!title) return alert('Track title is required');
+												setActionBusy(true);
+												try {
+													await addTrack({
+														title,
+														color,
+													});
+													// refresh details
+													await loadFestDetails(editForm._id);
+													window.__newTrackTitle = '';
+													window.__newTrackColor = '#ffffff';
+												} catch (err) {
+													setToast({
+														type: 'error',
+														message: getErrMsg(
+															err,
+															'Failed to add track'
+														),
+													});
+												} finally {
+													if (mountedRef.current) setActionBusy(false);
+												}
+											}}
+											className="px-3 py-1 rounded bg-emerald-600 text-white text-sm"
+											disabled={actionBusy}
+										>
+											Add
+										</button>
+									</div>
 								</div>
 								<div className="space-y-2">
 									{(editForm.tracks || []).map((t, idx) => (
@@ -1563,12 +1610,22 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 											key={t.key || idx}
 											className="flex items-center justify-between p-3 bg-white/3 rounded"
 										>
-											<div>
-												<div className="font-medium text-white">
-													{t.title}
-												</div>
-												<div className="text-sm text-gray-400">
-													{t.description}
+											<div className="flex items-center gap-3">
+												{t.color ? (
+													<div
+														style={{ background: t.color }}
+														className="w-6 h-6 rounded-full border"
+													/>
+												) : (
+													<div className="w-6 h-6 rounded-full bg-gray-600" />
+												)}
+												<div>
+													<div className="font-medium text-white">
+														{t.title}
+													</div>
+													<div className="text-sm text-gray-400">
+														{t.description}
+													</div>
 												</div>
 											</div>
 											<div className="flex gap-2 items-center">
