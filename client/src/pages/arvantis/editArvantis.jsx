@@ -25,7 +25,7 @@ import {
 	updateSocialLinks,
 	updateThemeColors,
 	setVisibility as svcSetVisibility,
-	addTrack as svcAddTrack,
+	addTrack as addTrackService,
 	removeTrack as svcRemoveTrack,
 	reorderTracks as svcReorderTracks,
 	addFAQ as svcAddFAQ,
@@ -65,6 +65,9 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 		themeColors: {},
 		socialLinks: {},
 	});
+	// Track quick-add state (replaces the previous window.__newTrack* hack)
+	const [newTrackTitle, setNewTrackTitle] = useState('');
+	const [newTrackColor, setNewTrackColor] = useState('#ffffff');
 	const [createForm, setCreateForm] = useState({
 		year: new Date().getFullYear(),
 		description: '',
@@ -194,26 +197,24 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 		e?.preventDefault();
 		setCreateLoading(true);
 		setLocalError('');
+		// basic validation
+		if (!createForm.year || !createForm.startDate || !createForm.endDate) {
+			setLocalError('Year, start and end dates are required');
+			setCreateLoading(false);
+			return;
+		}
 		try {
-			// basic validation
-			if (!createForm.year || !createForm.startDate || !createForm.endDate) {
-				setLocalError('Year, start and end dates are required');
-				return;
-			}
-			// include tagline in payload
 			const payload = {
 				...createForm,
 				year: Number(createForm.year),
 			};
-			const created = await createFestService(payload);
-			// refresh and open created fest
+			const created = await createFest(payload);
+			// refresh list and open created fest for editing
 			await fetchFests();
 			if (created?._id) {
 				await loadFestDetails(created._id);
-				setCreateOpen(false);
-			} else {
-				setCreateOpen(false);
 			}
+			setCreateOpen(false);
 		} catch (err) {
 			setLocalError(getErrMsg(err, 'Failed to create fest'));
 		} finally {
@@ -576,7 +577,7 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 		if (!editForm || !editForm._id) return;
 		setActionBusy(true);
 		try {
-			const added = await svcAddTrack(editForm._id, payload);
+			const added = await addTrackService(editForm._id, payload);
 			setEditForm((s) => ({ ...s, tracks: [...(s.tracks || []), added] }));
 			setToast({ type: 'success', message: 'Track added' });
 		} catch (err) {
@@ -1560,34 +1561,41 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 											id="newTrackTitle"
 											placeholder="Track title"
 											className="p-2 bg-white/5 rounded w-44"
-											value={window.__newTrackTitle || ''}
-											onChange={(e) =>
-												(window.__newTrackTitle = e.target.value)
-											}
+											value={newTrackTitle}
+											onChange={(e) => setNewTrackTitle(e.target.value)}
+											disabled={actionBusy}
 										/>
 										<input
 											type="color"
-											value={window.__newTrackColor || '#ffffff'}
-											onChange={(e) =>
-												(window.__newTrackColor = e.target.value)
-											}
+											value={newTrackColor}
+											onChange={(e) => setNewTrackColor(e.target.value)}
 											className="w-10 h-8 p-0 border-0 rounded"
+											disabled={actionBusy}
 										/>
 										<button
 											onClick={async () => {
-												const title = (window.__newTrackTitle || '').trim();
-												const color = window.__newTrackColor || '';
-												if (!title) return alert('Track title is required');
+												const title = (newTrackTitle || '').trim();
+												const color = newTrackColor || '';
+												if (!title) {
+													setToast({
+														type: 'error',
+														message: 'Track title is required',
+													});
+													return;
+												}
 												setActionBusy(true);
 												try {
-													await addTrack({
+													await addTrackService(editForm._id, {
 														title,
 														color,
 													});
-													// refresh details
 													await loadFestDetails(editForm._id);
-													window.__newTrackTitle = '';
-													window.__newTrackColor = '#ffffff';
+													setNewTrackTitle('');
+													setNewTrackColor('#ffffff');
+													setToast({
+														type: 'success',
+														message: 'Track added',
+													});
 												} catch (err) {
 													setToast({
 														type: 'error',
