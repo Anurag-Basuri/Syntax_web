@@ -15,7 +15,7 @@ import {
 	Facebook,
 	Linkedin,
 	Phone,
-} from 'lucide-react;
+} from 'lucide-react';
 
 // SocialIcon helper component
 const SocialIcon = ({ keyName, url }) => {

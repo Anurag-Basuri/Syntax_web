@@ -674,4 +674,145 @@
 	transition: transform 220ms ease, box-shadow 220ms ease;
 }
 
+/* ---------- Techy theme overlays & accents (new) ---------- */
+/* Neon / cyber tokens (used by components to get consistent 'tech' vibe) */
+:root {
+	--tech-accent-1: #06b6d4; /* cyan */
+	--tech-accent-2: #7c3aed; /* violet */
+	--tech-neon: linear-gradient(90deg, var(--tech-accent-1), var(--tech-accent-2));
+	--tech-neon-glow: 0 10px 40px rgba(6, 182, 212, 0.08), 0 6px 28px rgba(124, 58, 237, 0.06);
+	--mono-ui: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;
+}
+
+/* subtle circuit / grid overlay to make page feel "techy" (large screens only) */
+.arvantis-page::after {
+	content: '';
+	pointer-events: none;
+	position: fixed;
+	inset: 0;
+	background-image: radial-gradient(rgba(124, 58, 237, 0.02) 0.5px, transparent 0.5px),
+		linear-gradient(90deg, rgba(6, 182, 212, 0.02) 1px, transparent 1px);
+	background-size: 48px 48px, 24px 24px;
+	opacity: 0.08;
+	mix-blend-mode: overlay;
+	z-index: 0;
+}
+
+/* Neon heading / accent */
+.neon-text {
+	font-family: var(--mono-ui);
+	background: var(--tech-neon);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+	text-shadow: 0 6px 26px rgba(6, 182, 212, 0.06);
+}
+
+/* Glowing primary CTA (used by PosterHero & other CTAs) */
+.btn-primary.neon-btn {
+	background: var(--tech-neon);
+	box-shadow: var(--tech-neon-glow);
+	border: none;
+}
+.btn-primary.neon-btn:active {
+	transform: translateY(1px) scale(0.998);
+}
+
+/* Card accent: thin neon left border and subtle lift */
+.glass-card.tech {
+	border-left: 4px solid transparent;
+	transition: transform 220ms ease, box-shadow 220ms ease, border-left-color 220ms ease;
+}
+.glass-card.tech:hover {
+	transform: translateY(-6px);
+	box-shadow: var(--tech-neon-glow);
+	border-left-color: var(--tech-accent-1);
+}
+
+/* PosterHero: darker glass overlay and radial light */
+.arvantis-hero.tech {
+	position: relative;
+	overflow: hidden;
+}
+.arvantis-hero.tech::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(60% 40% at 10% 20%, rgba(6, 182, 212, 0.06), transparent 20%),
+		radial-gradient(40% 30% at 90% 80%, rgba(124, 58, 237, 0.03), transparent 20%);
+	z-index: 1;
+	pointer-events: none;
+}
+
+/* festival title style in hero */
+.hero-title {
+	font-family: var(--mono-ui);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	text-wrap: balance;
+}
+
+/* Event cards: tech variant */
+.event-card.tech {
+	border-radius: 1rem;
+	overflow: hidden;
+	background: linear-gradient(180deg, rgba(2, 6, 23, 0.02), rgba(2, 6, 23, 0));
+	border: 1px solid rgba(14, 165, 164, 0.06);
+	transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+.event-card.tech:hover {
+	transform: translateY(-8px);
+	box-shadow: 0 28px 80px rgba(6, 182, 212, 0.06);
+	border-color: var(--tech-accent-1);
+}
+.event-card.tech .chip {
+	background: rgba(6, 182, 212, 0.08);
+	color: var(--tech-accent-1);
+	font-weight: 700;
+	border: 1px solid rgba(6, 182, 212, 0.06);
+}
+
+/* partner cards tech touch */
+.partner-card-tech.tech {
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+	border: 1px solid rgba(6, 182, 212, 0.04);
+}
+.partner-card-tech.tech:hover {
+	box-shadow: var(--tech-neon-glow);
+	transform: translateY(-6px);
+	border-color: var(--tech-accent-1);
+}
+
+/* gallery overlay style */
+.gallery-tile .overlay {
+	background: linear-gradient(180deg, rgba(3, 7, 18, 0.32), rgba(3, 7, 18, 0.66));
+	transition: opacity 160ms ease;
+}
+.gallery-tile:hover .overlay {
+	opacity: 1;
+}
+
+/* compact monospace meta */
+.mono-tech {
+	font-family: var(--mono-ui);
+	font-weight: 700;
+}
+
+/* accessibility: ensure portal modals above grid overlay */
+.lightbox-wrap,
+.modal-root {
+	z-index: 99999;
+}
+
+/* small responsive finesse */
+@media (max-width: 720px) {
+	.partners-cards-grid {
+		grid-template-columns: repeat(2, 1fr);
+		gap: 0.75rem;
+	}
+	.neon-text {
+		font-size: 1.02rem;
+	}
+}
+
 /* ---------- End ARVANTIS styles ---------- */
