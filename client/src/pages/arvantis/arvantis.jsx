@@ -766,7 +766,19 @@ const ArvantisPage = () => {
 			{/* Main content: Events, Gallery, FAQs */}
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
 				<main className="lg:col-span-2 space-y-8" id="maincontent" tabIndex={-1}>
-					<EventsGrid events={events} onEventClick={handleEventClick} />
+					{/* Pass fest hero/poster as a sensible fallback image for event cards.
+                        EventsGrid will still fetch full event details when needed (getEventById). */}
+					<EventsGrid
+						events={events}
+						onEventClick={handleEventClick}
+						fallbackImage={
+							fest?.hero?.url ||
+							fest?.hero?.src ||
+							fest?.poster?.url ||
+							(fest?.posters && fest.posters[0]?.url) ||
+							null
+						}
+					/>
 					<GalleryGrid gallery={fest?.gallery || []} onImageClick={handleImageClick} />
 					<FAQList faqs={fest?.faqs || []} />
 				</main>
