@@ -70,9 +70,10 @@ const transformPost = (post) => {
 		_id: post._id,
 		user: {
 			id: post.author?._id || post.author?.id,
-			name: post.author?.fullname || post.author?.name || 'Unknown',
-			fullname: post.author?.fullname || post.author?.name || 'Unknown',
-			role: post.author?.role || 'admin', // server authors are admins
+			// Always display "Admin" as the poster name per requirement
+			name: 'Admin',
+			fullname: 'Admin',
+			role: 'admin',
 			avatar: post.author?.profilePicture?.url || post.author?.avatar || '',
 			verified: !!post.author?.verified,
 		},
@@ -744,16 +745,8 @@ const SocialsFeedPage = () => {
 	// Only admins can create posts
 	const canCreate = isAuthenticated && user?.role === 'admin';
 
-	// Client-side search / filter (simple)
-	const filteredPosts = useMemo(() => {
-		const q = (searchQuery || '').trim().toLowerCase();
-		if (!q) return posts;
-		return posts.filter(
-			(p) =>
-				(p.title || '').toLowerCase().includes(q) ||
-				(p.content || '').toLowerCase().includes(q)
-		);
-	}, [posts, searchQuery]);
+	// No search: show all posts
+	const filteredPosts = posts;
 
 	return (
 		<div className="relative min-h-screen bg-transparent overflow-x-hidden">
@@ -776,17 +769,6 @@ const SocialsFeedPage = () => {
 						</div>
 
 						<div className="flex items-center gap-3">
-							{/* Search */}
-							<div className="hidden sm:flex items-center gap-2 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-full px-3 py-1">
-								<input
-									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
-									placeholder="Search updates..."
-									className="bg-transparent outline-none text-sm text-[var(--text-secondary)] w-56"
-									aria-label="Search posts"
-								/>
-							</div>
-
 							{canCreate && (
 								<button
 									onClick={() => setShowCreateModal(true)}
@@ -800,27 +782,6 @@ const SocialsFeedPage = () => {
 				</div>
 			</div>
 
-			{/* Tips */}
-			<div className="page-container mt-4">
-				<div className="bg-[var(--glass-bg)] rounded-2xl border border-[var(--glass-border)] p-3 flex items-center justify-between gap-3">
-					<div className="flex items-center gap-3">
-						<Lightbulb className="w-5 h-5 text-[var(--accent-1)]" />
-						<div className="text-sm text-[var(--text-secondary)]">
-							This feed is for official updates — only admins post here. Viewers may
-							share posts externally.
-						</div>
-					</div>
-					<div className="flex gap-2">
-						<button className="px-2 py-1 text-xs rounded-full bg-[var(--glass-hover)]">
-							#Updates
-						</button>
-						<button className="px-2 py-1 text-xs rounded-full bg-[var(--glass-hover)]">
-							#Events
-						</button>
-					</div>
-				</div>
-			</div>
-
 			{/* Feed container */}
 			<div className="page-container py-6">
 				{/* Quick composer (admin only) */}
@@ -829,16 +790,6 @@ const SocialsFeedPage = () => {
 					onOpenModal={() => setShowCreateModal(true)}
 					currentUser={currentUser}
 				/>
-
-				{/* Search for small screens */}
-				<div className="sm:hidden mb-4">
-					<input
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						placeholder="Search updates..."
-						className="w-full p-3 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)]"
-					/>
-				</div>
 
 				{/* Error */}
 				{error && (
