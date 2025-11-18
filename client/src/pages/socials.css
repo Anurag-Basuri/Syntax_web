@@ -1,0 +1,138 @@
+.socials-page {
+	padding-bottom: 4.5rem; /* extra breathing at bottom */
+}
+
+/* Card lift */
+.post-card {
+	transition: transform 180ms ease, box-shadow 180ms ease;
+	will-change: transform;
+}
+.post-card:hover,
+.post-card:focus-within {
+	transform: translateY(-6px);
+	box-shadow: 0 18px 50px rgba(2, 6, 23, 0.12);
+}
+
+/* Admin avatar fallback (more visible in light mode) */
+.admin-avatar {
+	background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+	color: #fff;
+	font-weight: 600;
+}
+
+/* Media: single large item */
+.media-single img,
+.media-single video {
+	display: block;
+	width: 100%;
+	height: auto;
+	max-height: 520px;
+	object-fit: cover;
+}
+
+/* Mosaic: responsive grid */
+.media-mosaic {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	grid-auto-rows: minmax(120px, 1fr);
+}
+.media-cell {
+	min-height: 120px;
+	overflow: hidden;
+	position: relative;
+}
+.media-cell img,
+.media-cell video {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+/* Responsive adjustments */
+@media (min-width: 640px) {
+	.media-mosaic {
+		grid-template-columns: repeat(3, 1fr);
+		grid-auto-rows: minmax(120px, 1fr);
+	}
+}
+@media (min-width: 1024px) {
+	.media-mosaic {
+		grid-template-columns: repeat(4, 1fr);
+	}
+}
+
+/* video overlay / play button */
+.video-overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+}
+.play-button {
+	pointer-events: auto;
+	background: rgba(0, 0, 0, 0.56);
+	border-radius: 999px;
+	padding: 10px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	border: none;
+}
+.play-button.small {
+	padding: 8px;
+	width: 44px;
+	height: 44px;
+}
+
+/* overlay count for extra media */
+.overlay-count {
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 18px;
+}
+
+/* Actions row tweaks */
+.post-card .px-4 .flex.items-center {
+	gap: 12px;
+}
+.post-card .text-[var(--text-muted)] {
+	color: var(--text-muted);
+}
+
+/* Quick composer: touch-friendly sizes on mobile */
+@media (max-width: 520px) {
+	.quick-composer-button,
+	.btn {
+		min-height: 44px;
+	}
+	.media-cell {
+		min-height: 100px;
+	}
+	.media-single img {
+		max-height: 420px;
+	}
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+	.post-card,
+	.post-card * {
+		transition: none !important;
+		transform: none !important;
+	}
+}
+
+/* Minor spacing polish for empty state and header */
+.page-container {
+	max-width: 980px;
+	margin: 0 auto;
+	padding-left: 1rem;
+	padding-right: 1rem;
+}
