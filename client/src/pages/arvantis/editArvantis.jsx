@@ -71,6 +71,7 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 		startDate: '',
 		endDate: '',
 		name: 'Arvantis',
+		tagline: '',
 	});
 	const [editForm, setEditForm] = useState(null);
 
@@ -159,6 +160,7 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 			tracks: data.tracks || [],
 			faqs: data.faqs || [],
 			visibility: data.visibility || 'public',
+			tagline: data.tagline || '',
 		};
 	};
 
@@ -1648,11 +1650,9 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 														faq.answer
 													);
 													if (newAnswer && newAnswer !== faq.answer)
-														updateFAQ(
-															editForm._id,
-															faq._id || faq.id,
-															{ answer: newAnswer }
-														)
+														updateFAQ(editForm._id, faq._id || faq.id, {
+															answer: newAnswer,
+														})
 															.then(() =>
 																loadFestDetails(editForm._id)
 															)
@@ -1732,6 +1732,14 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 								}
 								className="w-full p-3 bg-white/5 rounded"
 								placeholder="Name"
+							/>
+							<input
+								value={createForm.tagline}
+								onChange={(e) =>
+									setCreateForm((s) => ({ ...s, tagline: e.target.value }))
+								}
+								className="w-full p-3 bg-white/5 rounded"
+								placeholder="Tagline (short)"
 							/>
 							<input
 								value={createForm.year}

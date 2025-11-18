@@ -10,25 +10,41 @@ const PartnerQuickAdd = React.memo(({ onAdd = () => {}, disabled = false }) => {
 	const [logoFile, setLogoFile] = useState(null);
 	const [adding, setAdding] = useState(false);
 	const [err, setErr] = useState('');
+	const [description, setDescription] = useState('');
 
 	const submit = async () => {
 		setErr('');
-		if (!name || !logoFile) {
-			setErr('Partner name and logo are required');
+		if (!name) {
+			setErr('Partner name is required');
 			return;
 		}
 		setAdding(true);
 		try {
-			const fd = new FormData();
-			fd.append('name', name);
-			fd.append('tier', tier);
-			if (website) fd.append('website', website);
-			fd.append('logo', logoFile);
-			await onAdd(fd);
+			// if a file is present, send as FormData so backend can accept file uploads,
+			// otherwise send a plain object (backend should accept JSON endpoint for partners - if not, login will need a logo)
+			if (logoFile) {
+				const fd = new FormData();
+				fd.append('name', name);
+				fd.append('tier', tier);
+				if (website) fd.append('website', website);
+				if (description) fd.append('description', description);
+				fd.append('logo', logoFile);
+				await onAdd(fd);
+			} else {
+				// send JSON-friendly payload (parent should handle converting if needed)
+				const payload = {
+					name,
+					tier,
+					website: website || undefined,
+					description: description || undefined,
+				};
+				await onAdd(payload);
+			}
 			setName('');
 			setTier('sponsor');
 			setWebsite('');
 			setLogoFile(null);
+			setDescription('');
 			setIsExpanded(false);
 		} catch (e) {
 			setErr(e?.message || 'Failed to add partner');
@@ -42,7 +58,7 @@ const PartnerQuickAdd = React.memo(({ onAdd = () => {}, disabled = false }) => {
 			<button
 				onClick={() => setIsExpanded(true)}
 				disabled={disabled}
-				className="w-full p-4 border-2 border-dashed border-white/10 rounded-2xl hover:border-purple-500/50 hover:bg-purple-500/5 transition-all duration-300 group"
+				className="w-full p-4 border-2 border-dashed border-white/10 rounded-2xl hover-border group"
 			>
 				<div className="flex items-center justify-center gap-3 text-gray-400 group-hover:text-purple-300">
 					<Plus className="w-5 h-5" />
@@ -69,27 +85,33 @@ const PartnerQuickAdd = React.memo(({ onAdd = () => {}, disabled = false }) => {
 					value={name}
 					onChange={(e) => setName(e.target.value)}
 					placeholder="Partner name"
-					className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all duration-300"
+					className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
+					disabled={disabled}
+				/>
+
+				<textarea
+					value={description}
+					onChange={(e) => setDescription(e.target.value)}
+					placeholder="Short description (optional)"
+					className="w-full p-3 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none transition-all duration-300"
+					rows={3}
 					disabled={disabled}
 				/>
 
 				<div className="grid grid-cols-2 gap-4">
-					<select
+					<input
 						value={tier}
 						onChange={(e) => setTier(e.target.value)}
-						className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all duration-300"
+						className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
 						disabled={disabled}
 					>
-						<option value="sponsor">Sponsor</option>
-						<option value="collaborator">Collaborator</option>
-						<option value="partner">Partner</option>
-					</select>
+					</input>
 
 					<input
 						value={website}
 						onChange={(e) => setWebsite(e.target.value)}
 						placeholder="Website (optional)"
-						className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all duration-300"
+						className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
 						disabled={disabled}
 					/>
 				</div>
@@ -107,6 +129,9 @@ const PartnerQuickAdd = React.memo(({ onAdd = () => {}, disabled = false }) => {
 							✓ Selected: {logoFile.name}
 						</p>
 					)}
+					<p className="text-xs text-gray-400 mt-2">
+						Logo optional — you can add later in partner edit.
+					</p>
 				</div>
 
 				{err && (
@@ -119,7 +144,7 @@ const PartnerQuickAdd = React.memo(({ onAdd = () => {}, disabled = false }) => {
 					<button
 						onClick={submit}
 						disabled={adding || disabled}
-						className="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-2xl hover:from-emerald-600 hover:to-green-600 transition-all duration-300 disabled:opacity-50 font-semibold shadow-lg shadow-emerald-500/25"
+						className="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-2xl hover:from-emerald-600 hover:to-green-600 transition-all duration-300 disabled:opacity-50 font-semibold shadow-lg"
 					>
 						{adding ? (
 							<div className="flex items-center justify-center gap-2">
