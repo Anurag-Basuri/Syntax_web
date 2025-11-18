@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -50,6 +50,7 @@ const PricePill = ({ price }) => {
 const EventDetailPage = () => {
 	const { id } = useParams();
 	const navigate = useNavigate();
+	const [showRaw, setShowRaw] = useState(false);
 
 	const {
 		data: payload,
@@ -73,6 +74,14 @@ const EventDetailPage = () => {
 		return <div className="p-8">Error loading event: {error?.message || 'Unknown'}</div>;
 
 	const event = payload || {};
+	const rawJson = useMemo(() => {
+		try {
+			return JSON.stringify(event, null, 2);
+		} catch {
+			return String(event);
+		}
+	}, [event]);
+
 	const poster = event.posters?.[0]?.url || event.posters?.[0]?.secure_url || null;
 	const title = event.title || 'Untitled Event';
 	const dateLabel = event.eventDate ? prettyDate(event.eventDate) : 'TBD';
@@ -103,7 +112,7 @@ const EventDetailPage = () => {
 
 				<div className="rounded-2xl overflow-hidden shadow-lg">
 					{/* Poster */}
-					<div className="w-full h-64 md:h-96 bg-slate-100 dark:bg-slate-800">
+					<div className="w-full h-64 md:h-96 bg-slate-100 dark:bg-slate-800 relative">
 						{poster ? (
 							<img
 								src={poster}
@@ -115,24 +124,37 @@ const EventDetailPage = () => {
 								<div className="text-6xl text-white/90">🎭</div>
 							</div>
 						)}
+						{/* subtle overlay with title on large */}
+						<div className="absolute left-6 bottom-6 z-10 text-white">
+							<h1 className="text-xl md:text-3xl font-extrabold drop-shadow-lg neon-text">
+								{title}
+							</h1>
+							<div className="mt-1 text-sm mono-tech">
+								{venue} • {dateLabel}
+							</div>
+						</div>
 					</div>
 
 					{/* Content */}
 					<div className="p-6 md:p-8 bg-white dark:bg-slate-900">
-						<h1 className="text-2xl md:text-4xl font-extrabold mb-3 text-slate-900 dark:text-white">
-							{title}
-						</h1>
-
-						<div className="flex items-center gap-4 mb-4 text-sm text-slate-600 dark:text-slate-300">
-							<div className="flex items-center gap-2">
-								<Calendar size={16} className="text-indigo-500" />
-								{dateLabel}
+						{/* header row: title, quick meta */}
+						<div className="md:flex md:items-start md:justify-between">
+							<div className="min-w-0">
+								<h1 className="text-2xl md:text-3xl font-extrabold mb-2 text-slate-900 dark:text-white">
+									{title}
+								</h1>
+								<div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-300">
+									<div className="flex items-center gap-2">
+										<Calendar size={16} className="text-indigo-500" />
+										{dateLabel}
+									</div>
+									<div className="flex items-center gap-2">
+										<MapPin size={16} className="text-indigo-500" />
+										{venue}
+									</div>
+								</div>
 							</div>
-							<div className="flex items-center gap-2">
-								<MapPin size={16} className="text-indigo-500" />
-								{venue}
-							</div>
-							<div className="ml-auto">
+							<div className="mt-4 md:mt-0 md:flex-shrink-0">
 								<PricePill price={price} />
 							</div>
 						</div>
@@ -156,7 +178,7 @@ const EventDetailPage = () => {
 							</p>
 						</section>
 
-						{/* Speakers */}
+						{/* Speakers (same layout as modal but cleaner spacing) */}
 						{speakers.length > 0 && (
 							<section className="mb-6">
 								<h3 className="text-lg font-semibold mb-3">Speakers</h3>
@@ -198,25 +220,40 @@ const EventDetailPage = () => {
 
 						{/* Partners */}
 						{partners.length > 0 && (
-							<section className="mb-6">
-								<h3 className="text-lg font-semibold mb-3">Partners</h3>
-								<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+							<section className="mb-6 rounded-2xl p-4 bg-gradient-to-r from-indigo-50 to-white dark:from-slate-900 dark:to-slate-800 ring-1 ring-black/5">
+								<div className="flex items-start justify-between gap-4 mb-4">
+									<div>
+										<div className="text-sm text-indigo-600 font-semibold">
+											Partners
+										</div>
+										<h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white">
+											Sponsored & supported by
+										</h2>
+										<p className="mt-1 text-sm text-slate-500 dark:text-slate-300 max-w-lg">
+											Our partners make this possible — show them some love.
+										</p>
+									</div>
+								</div>
+
+								<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 items-center">
 									{partners.map((p, i) => (
 										<a
 											key={i}
 											href={p.website || '#'}
 											target="_blank"
 											rel="noreferrer"
-											className="flex items-center justify-center p-4 rounded-lg bg-white border"
+											onClick={(e) => e.stopPropagation()}
+											className={`flex items-center justify-center p-4 rounded-lg transition-transform transform hover:-translate-y-1 hover:shadow-xl ${'bg-white border'}`}
+											title={p.name}
 										>
 											{p.logo?.url ? (
 												<img
 													src={p.logo.url}
 													alt={p.name}
-													className="max-h-16 object-contain"
+													className="max-h-16 md:max-h-20 object-contain"
 												/>
 											) : (
-												<div className="h-12 w-full rounded bg-slate-100 flex items-center justify-center">
+												<div className="h-12 w-full rounded bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-sm text-slate-700 dark:text-slate-200 font-medium">
 													{(p.name || '—').slice(0, 22)}
 												</div>
 											)}
@@ -261,20 +298,44 @@ const EventDetailPage = () => {
 							</section>
 						)}
 
-						{/* Footer actions */}
+						{/* Footer actions + raw JSON toggle */}
 						<div className="flex items-center gap-2 justify-end">
 							<button
-								onClick={() =>
-									navigator.clipboard?.writeText(JSON.stringify(event, null, 2))
-								}
+								onClick={() => {
+									navigator.clipboard?.writeText(rawJson);
+									window.dispatchEvent(
+										new CustomEvent('toast', {
+											detail: { message: 'Event JSON copied' },
+										})
+									);
+								}}
 								className="px-3 py-1 rounded-md border"
 							>
 								Copy JSON
 							</button>
+
+							<button
+								onClick={() => setShowRaw((s) => !s)}
+								className="px-3 py-1 rounded-md border"
+							>
+								{showRaw ? 'Hide raw' : 'Show raw'}
+							</button>
+
 							<Link to="/events" className="px-3 py-1 rounded-md border">
 								All events
 							</Link>
 						</div>
+
+						{showRaw && (
+							<section className="mt-4">
+								<h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+									Raw event JSON
+								</h4>
+								<pre className="bg-slate-100 dark:bg-slate-800 p-3 rounded text-xs overflow-auto max-h-60 text-slate-800 dark:text-slate-200">
+									{rawJson}
+								</pre>
+							</section>
+						)}
 					</div>
 				</div>
 			</div>
