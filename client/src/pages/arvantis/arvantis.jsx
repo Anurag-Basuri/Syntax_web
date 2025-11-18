@@ -76,7 +76,11 @@ const normalizeLanding = (raw) => {
 const findTitleSponsor = (partners = []) => {
 	if (!partners || partners.length === 0) return null;
 	const byTier = partners.find(
-		(p) => p.tier && /title|title-sponsor|presenting|powered by|lead/i.test(p.tier)
+		(p) =>
+			p.tier &&
+			/title sponsor|Title Sponsor|title|title-sponsor|presenting|powered by|lead/i.test(
+				p.tier
+			)
 	);
 	if (byTier) return byTier;
 	const byFlag = partners.find((p) => p.isTitleSponsor || p.role === 'title' || p.titleSponsor);
@@ -225,6 +229,16 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 									onClick: (e) => e.stopPropagation(),
 							  }
 							: {};
+						const handleKeyDown = (e) => {
+							// If card is not an anchor and has website, allow Enter/Space to open it
+							if (
+								p.website &&
+								!p.website.startsWith('#') &&
+								(e.key === 'Enter' || e.key === ' ')
+							) {
+								window.open(p.website, '_blank', 'noopener,noreferrer');
+							}
+						};
 						return (
 							<Key
 								key={`${p.name}-${idx}`}
@@ -233,6 +247,7 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 								title={p.name}
 								// make cards keyboard-focusable when not anchors
 								tabIndex={p.website ? undefined : 0}
+								onKeyDown={p.website ? undefined : handleKeyDown}
 							>
 								<div className="partner-card-tech-inner">
 									<div className="partner-card-tech-media">
@@ -252,12 +267,6 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 
 									<div className="partner-card-tech-body">
 										<div className="flex items-center gap-3">
-											<h3
-												className="partner-card-tech-title truncate"
-												style={{ color: 'var(--text-primary)' }}
-											>
-												{p.name}
-											</h3>
 											<h3
 												className="partner-card-tech-title"
 												style={{ color: 'var(--text-primary)' }}
