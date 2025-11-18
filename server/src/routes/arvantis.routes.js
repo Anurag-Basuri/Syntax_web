@@ -161,28 +161,14 @@ router.patch(
 // Partner management
 router.post(
 	'/:identifier/partners',
-	(req, res, next) => {
-		/* eslint-disable no-console */
-		console.log('[ROUTE] POST /:identifier/partners', {
-			identifier: req.params.identifier,
-			contentType: req.headers['content-type'],
-		});
-		/* eslint-enable no-console */
-		next();
-	},
 	uploadFile('logo', { multiple: false, maxCount: 1 }),
 	validate([
 		param('identifier').notEmpty().withMessage('Fest identifier is required'),
 		body('name').notEmpty().trim().withMessage('Partner name is required'),
-		body('type')
-			.optional()
-			.isIn(['sponsor', 'collaborator'])
-			.withMessage('Invalid partner type'),
 		body('tier')
-			.optional()
-			.isIn(['sponsor', 'collaborator'])
-			.withMessage('Invalid partner tier'),
+			.optional(),
 		body('website').optional().isURL().withMessage('Must be a valid URL'),
+		body('description').optional().trim(),
 	]),
 	addPartner
 );
