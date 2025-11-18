@@ -815,4 +815,32 @@
 	}
 }
 
+/* Event detail tweaks for theme compatibility and improved UI */
+.event-detail-hero {
+	border-radius: 0.75rem;
+	overflow: hidden;
+}
+.event-detail-meta .btn-primary.neon-btn,
+.event-detail-hero .btn-primary.neon-btn {
+	width: 100%;
+}
+@media (min-width: 768px) {
+	.event-detail-hero .neon-text {
+		font-size: 2.25rem;
+	}
+}
+/* small utility tweaks */
+.glass-card.tech,
+.glass-card {
+	padding: 1rem;
+}
+.btn-ghost.small {
+	padding: 0.2rem 0.5rem;
+	font-size: 0.85rem;
+}
+/* ensure pre blocks are readable */
+pre {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
 /* ---------- End ARVANTIS styles ---------- */
