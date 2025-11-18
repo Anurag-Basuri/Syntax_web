@@ -567,8 +567,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit, currentUser }) => {
 						value={title}
 						onChange={(e) => setTitle(e.target.value)}
 						className="w-full p-3 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg"
-						placeholder="Title (required)"
-						required
+						placeholder="Title (optional)"
 					/>
 				</div>
 
