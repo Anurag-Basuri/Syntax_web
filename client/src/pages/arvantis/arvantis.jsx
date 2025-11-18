@@ -151,11 +151,11 @@ const FAQList = ({ faqs = [] }) => {
 	);
 };
 
-/* ---------- Partners showcase (improved line-wise premium layout) ---------- */
+/* ---------- Partners showcase — card grid (techy feel) ---------- */
 const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 	if (!partners || partners.length === 0) return null;
 
-	// normalize common fields and safe-URLs
+	// normalize fields and accept common media shapes
 	const normalized = partners.map((p) => ({
 		name: p.name || 'Partner',
 		website: p.website || null,
@@ -174,8 +174,8 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 			aria-labelledby="partners-heading"
 		>
 			<div className="glass-card p-6" role="region" aria-roledescription="partners">
-				<header className="flex items-start justify-between gap-6">
-					<div className="min-w-0">
+				<div className="flex items-center justify-between gap-4">
+					<div>
 						<h2
 							id="partners-heading"
 							className="text-xl font-extrabold"
@@ -183,26 +183,26 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 						>
 							Our Partners
 						</h2>
-						<p className="mt-2 muted">
-							Supporting organisations — logo, tier and short description.{' '}
-							<span className="font-medium">{partners.length} partners</span>
+						<p className="mt-1 muted">
+							Supporting organisations — logos, tier and short description.
 						</p>
 					</div>
 
+					{/* Prominent powered-by block for title sponsor */}
 					{titleSponsor && (
-						<div className="partner-poweredby-compact">
+						<div className="partner-poweredby-compact ml-auto">
 							<a
 								href={titleSponsor.website || '#'}
 								target={titleSponsor.website ? '_blank' : '_self'}
 								rel="noreferrer"
-								className="inline-flex items-center gap-3 p-2 rounded-md"
+								className="inline-flex items-center gap-3 p-2 rounded-md tech-poweredby"
 								onClick={(e) => e.stopPropagation()}
 							>
 								{titleSponsor.logo?.url ? (
 									<img
 										src={titleSponsor.logo.url}
 										alt={titleSponsor.name}
-										className="partner-logo h-8"
+										className="partner-logo h-9"
 										loading="lazy"
 									/>
 								) : (
@@ -212,13 +212,13 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 							</a>
 						</div>
 					)}
-				</header>
+				</div>
 
-				{/* responsive grid + list: logos left, details right for readability */}
-				<div className="partner-list mt-6 grid grid-cols-1 gap-4">
-					{normalized.map((p, i) => {
+				{/* Grid of partner cards */}
+				<div className="partners-cards-grid mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+					{normalized.map((p, idx) => {
 						const Key = p.website ? 'a' : 'div';
-						const rowProps = p.website
+						const props = p.website
 							? {
 									href: p.website,
 									target: '_blank',
@@ -228,63 +228,64 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 							: {};
 						return (
 							<Key
-								key={`${p.name}-${i}`}
-								{...rowProps}
-								className="partner-card group"
+								key={`${p.name}-${idx}`}
+								{...props}
+								className="partner-card-tech group"
+								title={p.name}
 							>
-								<div className="partner-card-inner">
-									<div className="partner-card-left">
+								<div className="partner-card-tech-inner">
+									<div className="partner-card-tech-media">
 										{p.logo ? (
 											<img
 												src={p.logo}
 												alt={p.name}
-												className="partner-logo"
+												className="partner-card-logo"
 												loading="lazy"
 											/>
 										) : (
-											<div className="partner-logo-fallback mono">
+											<div className="partner-card-logo-fallback mono">
 												{(p.name || '?').slice(0, 2).toUpperCase()}
 											</div>
 										)}
 									</div>
 
-									<div className="partner-card-body">
+									<div className="partner-card-tech-body">
 										<div className="flex items-center gap-3">
 											<h3
-												className="partner-name truncate"
-												title={p.name}
+												className="partner-card-tech-title truncate"
 												style={{ color: 'var(--text-primary)' }}
 											>
 												{p.name}
 											</h3>
-
-											{p.tier && (
-												<span className="partner-tier">{p.tier}</span>
-											)}
+											{p.tier && <span className="tier-badge">{p.tier}</span>}
 										</div>
-
-										{p.description && (
-											<p className="partner-desc text-sm muted mt-1">
+										{p.description ? (
+											<p className="partner-card-tech-desc text-sm muted mt-2">
 												{p.description}
 											</p>
+										) : (
+											<div className="text-xs muted mt-2">
+												No description provided.
+											</div>
 										)}
 
-										<div className="partner-meta mt-3 flex items-center gap-3">
-											{p.website && (
+										<div className="mt-4 flex items-center gap-3">
+											{p.website ? (
 												<a
+													className="partner-website inline-flex items-center gap-2"
 													href={p.website}
 													target="_blank"
 													rel="noreferrer"
 													onClick={(e) => e.stopPropagation()}
-													className="partner-visit-btn btn-ghost small"
 												>
-													Visit
+													<ExternalLink size={14} />{' '}
+													<span className="text-sm">Visit</span>
 												</a>
+											) : (
+												<span className="text-xs mono muted">
+													No website
+												</span>
 											)}
-											{/* small accessibility hint */}
-											<span className="text-xs muted mono">
-												{p.website ? 'External link' : 'No website'}
-											</span>
 										</div>
 									</div>
 								</div>
@@ -331,11 +332,11 @@ const ContactCard = ({ email, phone, socialLinks = {} }) => {
 
 				{socialLinks && (
 					<div className="mt-2 flex items-center gap-2">
-						{SocialIcon({ keyName: 'website', url: socialLinks.website })}
-						{SocialIcon({ keyName: 'twitter', url: socialLinks.twitter })}
-						{SocialIcon({ keyName: 'instagram', url: socialLinks.instagram })}
-						{SocialIcon({ keyName: 'facebook', url: socialLinks.facebook })}
-						{SocialIcon({ keyName: 'linkedin', url: socialLinks.linkedin })}
+						<SocialIcon keyName="website" url={socialLinks.website} />
+						<SocialIcon keyName="twitter" url={socialLinks.twitter} />
+						<SocialIcon keyName="instagram" url={socialLinks.instagram} />
+						<SocialIcon keyName="facebook" url={socialLinks.facebook} />
+						<SocialIcon keyName="linkedin" url={socialLinks.linkedin} />
 					</div>
 				)}
 			</div>
