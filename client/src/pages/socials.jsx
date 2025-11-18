@@ -504,6 +504,14 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit, currentUser }) => {
 			setSelectedFiles([]);
 			onSubmit();
 			onClose();
+			// Ensure UI shows latest content: refresh after a short delay
+			setTimeout(() => {
+				try {
+					window.location.reload();
+				} catch (e) {
+					/* ignore */
+				}
+			}, 600);
 		} catch (err) {
 			setError(err.message || 'Failed to create post');
 			toast.error(err.message || 'Failed to create post');
@@ -642,7 +650,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit, currentUser }) => {
 						<button
 							type="submit"
 							disabled={isSubmitting}
-							className="px-4 py-2 bg-[var(--button-primary-bg)] text-white rounded-lg"
+							className="btn-primary px-4 py-2"
 							aria-label="Post"
 						>
 							{isSubmitting ? (
