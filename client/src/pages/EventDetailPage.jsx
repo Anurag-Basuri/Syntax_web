@@ -65,14 +65,7 @@ const EventDetailPage = () => {
 		retry: 1,
 	});
 
-	useEffect(() => {
-		if (!id) navigate(-1);
-	}, [id, navigate]);
-
-	if (isLoading) return <LoadingBlock label="Loading event..." />;
-	if (isError)
-		return <div className="p-8">Error loading event: {error?.message || 'Unknown'}</div>;
-
+	// Keep hook order stable: derive event + rawJson BEFORE any early returns
 	const event = payload || {};
 	const rawJson = useMemo(() => {
 		try {
@@ -81,6 +74,14 @@ const EventDetailPage = () => {
 			return String(event);
 		}
 	}, [event]);
+
+	useEffect(() => {
+		if (!id) navigate(-1);
+	}, [id, navigate]);
+
+	if (isLoading) return <LoadingBlock label="Loading event..." />;
+	if (isError)
+		return <div className="p-8">Error loading event: {error?.message || 'Unknown'}</div>;
 
 	const poster = event.posters?.[0]?.url || event.posters?.[0]?.secure_url || null;
 	const title = event.title || 'Untitled Event';
