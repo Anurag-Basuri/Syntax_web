@@ -886,4 +886,67 @@
 	line-height: 1.6;
 }
 
+/* Event card overlay adjusts per theme to ensure readable text on image */
+.event-card-overlay {
+	pointer-events: none;
+	/* light mode: light translucent white fade to transparent so dark text sits over image */
+	background: linear-gradient(
+		to top,
+		rgba(255, 255, 255, 0.8),
+		rgba(255, 255, 255, 0.35) 30%,
+		transparent 60%
+	);
+	transition: background 240ms ease;
+}
+
+/* dark mode overlay: subtle dark gradient */
+.dark .event-card-overlay {
+	background: linear-gradient(
+		to top,
+		rgba(0, 0, 0, 0.6),
+		rgba(0, 0, 0, 0.25) 30%,
+		transparent 60%
+	);
+}
+
+/* token fallbacks if variables not defined */
+:root {
+	--text-primary: #0f172a; /* dark text for light mode */
+	--text-secondary: #475569;
+	--muted: #6b7280;
+	--accent-1: #06b6d4;
+	--glass-bg: rgba(255, 255, 255, 0.04);
+}
+
+/* event-card visual polish */
+.event-card {
+	border-radius: 1rem;
+	overflow: hidden;
+}
+
+/* ensure headings/metadata have good contrast in both themes */
+.event-card .text-[var(--text-primary)] {
+	color: var(--text-primary);
+}
+.event-card .text-[var(--text-secondary)] {
+	color: var(--text-secondary);
+}
+.event-card .text-[var(--muted)] {
+	color: var(--muted);
+}
+
+/* hover lift for cards (works on touch and mouse) */
+.hover-lift:hover {
+	transform: translateY(-6px);
+	box-shadow: 0 18px 50px rgba(2, 6, 23, 0.12);
+}
+
+/* line-clamp fallback for older browsers */
+.line-clamp-2 {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
 /* ---------- End ARVANTIS styles ---------- */
