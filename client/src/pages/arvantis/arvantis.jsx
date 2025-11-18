@@ -59,16 +59,6 @@ import '../../arvantis.css';
 const EventDetailModal = React.lazy(() => import('../../components/event/EventDetailModal.jsx'));
 const ImageLightbox = React.lazy(() => import('../../components/Arvantis/ImageLightbox.jsx'));
 
-/*
-  Refactor notes:
-  - Clean, semantic layout: Hero -> Prominent Partners (full-width) -> content grid (main + sidebar)
-  - Always show description & location under hero
-  - Partners are prominent and have anchor (#partners)
-  - Event detail modal implemented and opened via EventsGrid click
-  - Robust defensive data handling and proper keys
-  - Theme variables applied non-destructively
-*/
-
 /* ---------- Utilities ---------- */
 const safeArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 const normalizeLanding = (raw) => {
@@ -98,11 +88,21 @@ const findTitleSponsor = (partners = []) => {
 	);
 };
 
-/* ---------- Partners showcase (flat list, no grouping) ---------- */
+/* ---------- Partners showcase (improved line-wise premium layout) ---------- */
 const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 	if (!partners || partners.length === 0) return null;
 
-	const total = partners.length;
+	// normalize common fields and safe-URLs
+	const normalized = partners.map((p) => ({
+		name: p.name || 'Partner',
+		website: p.website || null,
+		logo:
+			p.logo && (p.logo.url || p.logo.secure_url || p.logo.publicUrl)
+				? p.logo.url || p.logo.secure_url || p.logo.publicUrl
+				: null,
+		tier: p.tier || 'Partner',
+		description: p.description || '',
+	}));
 
 	return (
 		<section
@@ -110,8 +110,8 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 			className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8"
 			aria-labelledby="partners-heading"
 		>
-			<div className="glass-card p-6" role="region" aria-roledescription="partners list">
-				<div className="flex items-start justify-between gap-6">
+			<div className="glass-card p-6" role="region" aria-roledescription="partners">
+				<header className="flex items-start justify-between gap-6">
 					<div className="min-w-0">
 						<h2
 							id="partners-heading"
@@ -121,21 +121,19 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 							Our Partners
 						</h2>
 						<p className="mt-2 muted">
-							Supporting organizations and sponsors — logos, tier and short
-							description. <span className="font-medium">{total} partners</span>
+							Supporting organisations — logo, tier and short description.{' '}
+							<span className="font-medium">{partners.length} partners</span>
 						</p>
 					</div>
 
-					{/* Title sponsor compact preview (kept as CTA) */}
 					{titleSponsor && (
-						<div className="flex items-center gap-3">
+						<div className="partner-poweredby-compact">
 							<a
 								href={titleSponsor.website || '#'}
 								target={titleSponsor.website ? '_blank' : '_self'}
-								rel={titleSponsor.website ? 'noopener noreferrer' : undefined}
-								className="inline-flex items-center gap-3 p-2 rounded-md partner-poweredby"
+								rel="noreferrer"
+								className="inline-flex items-center gap-3 p-2 rounded-md"
 								onClick={(e) => e.stopPropagation()}
-								aria-label={`Powered by ${titleSponsor.name}`}
 							>
 								{titleSponsor.logo?.url ? (
 									<img
@@ -147,19 +145,17 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 								) : (
 									<span className="mono">{titleSponsor.name}</span>
 								)}
-								<span className="text-sm muted">Powered by</span>
+								<span className="text-xs muted">Powered by</span>
 							</a>
 						</div>
 					)}
-				</div>
+				</header>
 
-				{/* Flat list, line-wise rows */}
-				<div className="mt-6 divide-y" role="list">
-					{partners.map((p, i) => {
-						const key = `${p.name || 'partner'}-${i}`;
-						const hasLink = !!p.website;
-						const RowWrapper = hasLink ? 'a' : 'div';
-						const rowProps = hasLink
+				{/* responsive grid + list: logos left, details right for readability */}
+				<div className="partner-list mt-6 grid grid-cols-1 gap-4">
+					{normalized.map((p, i) => {
+						const Key = p.website ? 'a' : 'div';
+						const rowProps = p.website
 							? {
 									href: p.website,
 									target: '_blank',
@@ -168,64 +164,68 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 							  }
 							: {};
 						return (
-							<RowWrapper
-								key={key}
+							<Key
+								key={`${p.name}-${i}`}
 								{...rowProps}
-								className="partner-row flex items-center gap-4 py-4"
-								role="listitem"
-								title={p.name}
+								className="partner-card group"
 							>
-								{/* logo */}
-								<div className="w-16 flex-shrink-0 flex items-center justify-center">
-									{p.logo?.url ? (
-										<img
-											src={p.logo.url}
-											alt={p.name}
-											className="partner-logo rounded-md"
-											loading="lazy"
-										/>
-									) : (
-										<div className="h-10 w-10 rounded-md bg-[var(--glass-bg)] flex items-center justify-center text-sm mono text-[var(--text-secondary)]">
-											{(p.name || '?').slice(0, 2).toUpperCase()}
-										</div>
-									)}
-								</div>
-
-								{/* name + tier + desc */}
-								<div className="min-w-0">
-									<div className="flex items-center gap-3">
-										{/* name (clickable if link) */}
-										<span
-											className={`text-sm font-semibold truncate ${
-												hasLink
-													? 'text-[var(--accent-1)] underline-offset-2 hover:underline'
-													: ''
-											}`}
-											style={{
-												color: hasLink
-													? 'var(--accent-1)'
-													: 'var(--text-primary)',
-											}}
-										>
-											{p.name}
-										</span>
-
-										{/* tier badge */}
-										{p.tier && (
-											<span className="text-xs px-2 py-0.5 rounded-full bg-[var(--glass-bg)] text-[var(--text-secondary)] border border-[var(--card-border)]">
-												{p.tier}
-											</span>
+								<div className="partner-card-inner">
+									<div className="partner-card-left">
+										{p.logo ? (
+											<img
+												src={p.logo}
+												alt={p.name}
+												className="partner-logo"
+												loading="lazy"
+											/>
+										) : (
+											<div className="partner-logo-fallback mono">
+												{(p.name || '?').slice(0, 2).toUpperCase()}
+											</div>
 										)}
 									</div>
 
-									{/* description */}
-									{p.description && (
-										<div className="text-sm mt-1 text-[var(--text-secondary)] truncate">
-											{p.description}
+									<div className="partner-card-body">
+										<div className="flex items-center gap-3">
+											<h3
+												className="partner-name truncate"
+												title={p.name}
+												style={{ color: 'var(--text-primary)' }}
+											>
+												{p.name}
+											</h3>
+
+											{p.tier && (
+												<span className="partner-tier">{p.tier}</span>
+											)}
 										</div>
-									)}
+
+										{p.description && (
+											<p className="partner-desc text-sm muted mt-1">
+												{p.description}
+											</p>
+										)}
+
+										<div className="partner-meta mt-3 flex items-center gap-3">
+											{p.website && (
+												<a
+													href={p.website}
+													target="_blank"
+													rel="noreferrer"
+													onClick={(e) => e.stopPropagation()}
+													className="partner-visit-btn btn-ghost small"
+												>
+													Visit
+												</a>
+											)}
+											{/* small accessibility hint */}
+											<span className="text-xs muted mono">
+												{p.website ? 'External link' : 'No website'}
+											</span>
+										</div>
+									</div>
 								</div>
-							</RowWrapper>
+							</Key>
 						);
 					})}
 				</div>
@@ -234,84 +234,49 @@ const PartnersShowcase = ({ partners = [], titleSponsor = null }) => {
 	);
 };
 
-/* ---------- FAQ (no search) ---------- */
-const FAQList = ({ faqs = [] }) => {
-	const [expanded, setExpanded] = useState({});
-
-	useEffect(() => setExpanded({}), [faqs]);
-
-	const toggle = useCallback((id) => setExpanded((s) => ({ ...s, [id]: !s[id] })), []);
-
-	if (!faqs || faqs.length === 0) return null;
-
+// ---------- Contact card (sidebar) ----------
+const ContactCard = ({ email, phone, socialLinks = {} }) => {
+	if (!email && !phone && Object.keys(socialLinks || {}).length === 0) return null;
 	return (
-		<section
-			aria-labelledby="arvantis-faqs"
-			className="mt-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-		>
-			<h3 id="arvantis-faqs" className="section-title flex items-center gap-2">
-				<HelpCircle size={20} className="text-[var(--accent-1)]" /> FAQs
-			</h3>
-
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-				{faqs.map((f, i) => {
-					const id = f._id || `faq-${i}`;
-					const open = !!expanded[id];
-					return (
-						<article
-							key={id}
-							className="glass-card p-4 transition-all"
-							aria-expanded={open}
+		<div className="glass-card contact-card p-4">
+			<div className="text-sm text-[var(--text-secondary)]">Contact</div>
+			<div className="mt-3 space-y-2">
+				{email && (
+					<div className="flex items-center gap-3">
+						<span className="mono">{email}</span>
+						<a
+							href={`mailto:${email}`}
+							className="btn-ghost small"
+							onClick={(e) => e.stopPropagation()}
 						>
-							<header>
-								<button
-									type="button"
-									onClick={() => toggle(id)}
-									className="w-full flex items-center justify-between text-left"
-									aria-controls={`faq-body-${id}`}
-									aria-expanded={open}
-								>
-									<div className="font-semibold text-[var(--text-primary)]">
-										{f.question}
-									</div>
-									{open ? (
-										<ChevronUp className="text-[var(--accent-1)]" />
-									) : (
-										<ChevronDown className="text-[var(--accent-1)]" />
-									)}
-								</button>
-							</header>
+							Email
+						</a>
+					</div>
+				)}
+				{phone && (
+					<div className="flex items-center gap-3">
+						<span className="mono">{phone}</span>
+						<a
+							href={`tel:${phone}`}
+							className="btn-ghost small"
+							onClick={(e) => e.stopPropagation()}
+						>
+							Call
+						</a>
+					</div>
+				)}
 
-							{open && (
-								<div
-									id={`faq-body-${id}`}
-									className="mt-3 text-[var(--text-secondary)]"
-								>
-									{f.answer}
-									<div className="mt-3">
-										<button
-											type="button"
-											className="btn-ghost small"
-											onClick={() => {
-												const url = `${window.location.origin}${window.location.pathname}#${id}`;
-												navigator.clipboard?.writeText?.(url);
-												window.dispatchEvent(
-													new CustomEvent('toast', {
-														detail: { message: 'FAQ link copied' },
-													})
-												);
-											}}
-										>
-											<Copy size={14} /> Copy link
-										</button>
-									</div>
-								</div>
-							)}
-						</article>
-					);
-				})}
+				{socialLinks && (
+					<div className="mt-2 flex items-center gap-2">
+						{SocialIcon({ keyName: 'website', url: socialLinks.website })}
+						{SocialIcon({ keyName: 'twitter', url: socialLinks.twitter })}
+						{SocialIcon({ keyName: 'instagram', url: socialLinks.instagram })}
+						{SocialIcon({ keyName: 'facebook', url: socialLinks.facebook })}
+						{SocialIcon({ keyName: 'linkedin', url: socialLinks.linkedin })}
+					</div>
+				)}
 			</div>
-		</section>
+		</div>
 	);
 };
 
@@ -853,6 +818,14 @@ const ArvantisPage = () => {
 						</div>
 					</div>
 
+					{/* Contact card */}
+					<ContactCard
+						email={fest?.contactEmail}
+						phone={fest?.contactPhone}
+						socialLinks={fest?.socialLinks}
+					/>
+
+					{/* Title sponsor (kept but simplified) */}
 					{titleSponsor && (
 						<div className="glass-card p-4">
 							<div className="text-sm text-[var(--text-secondary)]">
