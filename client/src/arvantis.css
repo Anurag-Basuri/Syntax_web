@@ -265,6 +265,47 @@
 	box-shadow: var(--shadow-lg);
 }
 
+/* Partners - flat list row style (improved readability & clickable) */
+.partner-row {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	padding: 0.75rem 0;
+}
+.partner-row:hover {
+	background: color-mix(in srgb, var(--glass-bg) 85%, transparent);
+	transform: translateY(-2px);
+	box-shadow: var(--shadow-sm);
+	transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.partner-logo {
+	max-height: 48px;
+	max-width: 120px;
+	object-fit: contain;
+	border-radius: 6px;
+	background: transparent;
+}
+
+/* powered-by compact preview near header */
+.partner-poweredby {
+	border-radius: 0.6rem;
+	padding: 0.35rem 0.5rem;
+	background: color-mix(in srgb, var(--glass-bg) 85%, transparent);
+	border: 1px solid var(--glass-border);
+}
+
+/* ensure partner rows are legible on small screens */
+@media (max-width: 640px) {
+	.partner-row {
+		gap: 0.75rem;
+	}
+	.partner-logo {
+		max-height: 40px;
+		max-width: 90px;
+	}
+}
+
 /* Gallery styles */
 .columns-2 {
 	column-gap: 1rem;
