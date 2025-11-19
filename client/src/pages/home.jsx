@@ -15,9 +15,9 @@ const Home = () => {
 				<main className="relative">
 					{/* The Guiding Line will be rendered inside the sections */}
 					<AboutSyntax />
-					<ArvantisIntro />
 					<ClubDescription />
 				</main>
+				<ArvantisIntro />
 				<EventsPreview />
 				<TeamPreview />
 				<Footer />

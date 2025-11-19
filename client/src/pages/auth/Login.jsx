@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, ArrowRight, XCircle } from 'lucide-react';
+import './login.css'; // new stylesheet for improved theme & responsiveness
 
 // Reusable, lightweight form components
 const InputField = ({
@@ -14,12 +15,8 @@ const InputField = ({
 	error,
 	ariaLabel,
 }) => (
-	<div className="relative w-full group">
-		{icon && (
-			<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 group-focus-within:text-purple-400 transition-colors">
-				{icon}
-			</div>
-		)}
+	<div className="input-wrap">
+		{icon && <div className="input-icon">{icon}</div>}
 		<input
 			aria-label={ariaLabel || name}
 			type={type}
@@ -27,12 +24,10 @@ const InputField = ({
 			placeholder={placeholder}
 			value={value}
 			onChange={onChange}
-			className={`w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all duration-200 ${
-				error ? 'border-red-500/50 focus:ring-red-500/50' : ''
-			}`}
+			className={`input-field ${error ? 'input-error' : ''}`}
 		/>
 		{error && (
-			<p className="mt-2 text-sm text-red-400 flex items-center gap-1" role="alert">
+			<p className="input-error-text" role="alert">
 				<XCircle size={14} /> {error}
 			</p>
 		)}
@@ -42,35 +37,18 @@ const InputField = ({
 const GradientButton = ({ children, isLoading, ...props }) => (
 	<button
 		type="submit"
-		className={`px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-purple-500/25 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
-			isLoading ? 'opacity-75 cursor-not-allowed' : ''
-		}`}
+		className={`btn-primary ${isLoading ? 'loading' : ''}`}
 		disabled={isLoading}
 		{...props}
 	>
 		{isLoading ? (
 			<>
-				<svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-					<circle
-						cx="12"
-						cy="12"
-						r="10"
-						stroke="currentColor"
-						strokeWidth="3"
-						className="opacity-25"
-					/>
-					<path
-						d="M4 12a8 8 0 018-8"
-						stroke="currentColor"
-						strokeWidth="3"
-						className="opacity-75"
-					/>
-				</svg>
-				<span>Authenticating...</span>
+				<span className="spinner" aria-hidden />
+				<span className="sr-only">Authenticating…</span>
 			</>
 		) : (
 			<>
-				{children}
+				<span>{children}</span>
 				<ArrowRight size={18} />
 			</>
 		)}
@@ -122,40 +100,46 @@ const LoginPage = () => {
 	};
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-[#0a0e17] via-[#0f172a] to-[#1e1b4b] flex justify-center p-4">
-			<div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8 mt-8">
-				<header className="text-center mb-8">
-					<h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-						Welcome Back, Builder
-					</h1>
-					<p className="mt-3 text-gray-300 text-lg">
-						Log in to access your dashboard and projects.
-					</p>
-				</header>
-
-				{serverError && (
-					<div
-						className="mb-6 p-4 rounded-xl border flex items-center gap-3 text-red-400 bg-red-500/10 border-red-500/20"
-						role="status"
-					>
-						<XCircle size={20} />
-						<span>{serverError}</span>
+		<div className="auth-page">
+			<div className="auth-shell">
+				<aside className="auth-brand">
+					<div className="logo" aria-hidden>
+						SC
 					</div>
-				)}
+					<div className="brand-text">
+						<h1>Welcome Back</h1>
+						<p className="muted">Sign in to access the admin dashboard</p>
+					</div>
+				</aside>
 
-				<form onSubmit={handleSubmit} className="space-y-6" noValidate>
-					<InputField
-						icon={<User size={18} />}
-						type="text"
-						name="identifier"
-						placeholder="LPU ID or Email"
-						value={loginData.identifier}
-						onChange={handleChange}
-						error={errors.identifier}
-					/>
-					<div>
-						<div className="relative w-full">
-							<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+				<main className="auth-card" role="main" aria-labelledby="login-heading">
+					<header className="card-header">
+						<h2 id="login-heading" className="card-title">
+							Log in to your account
+						</h2>
+						<p className="card-sub">Enter credentials to continue</p>
+					</header>
+
+					{serverError && (
+						<div className="server-error" role="status">
+							<XCircle size={18} />
+							<span>{serverError}</span>
+						</div>
+					)}
+
+					<form onSubmit={handleSubmit} className="form-stack" noValidate>
+						<InputField
+							icon={<User size={18} />}
+							type="text"
+							name="identifier"
+							placeholder="LPU ID or Email"
+							value={loginData.identifier}
+							onChange={handleChange}
+							error={errors.identifier}
+						/>
+
+						<div className="input-wrap">
+							<div className="input-icon">
 								<Lock size={18} />
 							</div>
 							<input
@@ -165,50 +149,43 @@ const LoginPage = () => {
 								placeholder="Password"
 								value={loginData.password}
 								onChange={handleChange}
-								className={`w-full pl-12 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all duration-200 ${
-									errors.password ? 'border-red-500/50 focus:ring-red-500/50' : ''
-								}`}
+								className={`input-field ${errors.password ? 'input-error' : ''}`}
 							/>
 							<button
 								type="button"
 								onClick={() => setShowPassword(!showPassword)}
-								className="absolute right-4 top-3.5 text-gray-400 hover:text-purple-400 transition-colors"
+								className="password-toggle"
 								aria-label={showPassword ? 'Hide password' : 'Show password'}
 							>
 								{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
 							</button>
+							{errors.password && (
+								<p className="input-error-text" role="alert">
+									<XCircle size={14} /> {errors.password}
+								</p>
+							)}
 						</div>
-						{errors.password && (
-							<p
-								className="mt-2 text-sm text-red-400 flex items-center gap-1"
-								role="alert"
-							>
-								<XCircle size={14} /> {errors.password}
-							</p>
-						)}
-						<div className="text-right mt-2">
+
+						<div className="form-actions">
 							<button
 								type="button"
-								className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+								className="link-muted"
+								onClick={() => navigate('/forgot')}
 							>
 								Forgot Password?
 							</button>
-						</div>
-					</div>
-					<div className="flex justify-end pt-4">
-						<GradientButton isLoading={loading}>Login</GradientButton>
-					</div>
-				</form>
 
-				<footer className="mt-8 text-center text-sm text-gray-400">
-					Don't have an account?{' '}
-					<button
-						onClick={() => navigate('/join')}
-						className="font-semibold text-purple-400 hover:text-purple-300 transition-colors"
-					>
-						Join the Club
-					</button>
-				</footer>
+							<GradientButton isLoading={loading}>Login</GradientButton>
+						</div>
+					</form>
+
+					<footer className="auth-footer">
+						Don't have an account?{' '}
+						<button onClick={() => navigate('/join')} className="link-cta">
+							Join the Club
+						</button>
+					</footer>
+				</main>
 			</div>
 		</div>
 	);
