@@ -298,14 +298,15 @@ const JoinPage = () => {
 				<aside className="join-info" aria-hidden>
 					<h2 className="join-title">Become a Syntax Builder</h2>
 					<p className="join-sub">
-						Join a community of creators, innovators and developers. Select up to 2
-						domains.
+						Apply to join our club — pick up to 2 domains and tell us about you.
 					</p>
+
 					<ul className="benefits">
-						<li>Hands-on workshops & events</li>
-						<li>Mentorship and project support</li>
-						<li>Priority access to tickets & resources</li>
+						<li>Hands-on workshops & hackathons</li>
+						<li>Mentorship, projects & internships</li>
+						<li>Priority tickets & resource access</li>
 					</ul>
+
 					<div className="join-cta">
 						<p className="muted">Already a member?</p>
 						<button className="btn-ghost small" onClick={() => navigate('/login')}>
