@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { submitApplication } from '../../services/applyServices.js';
 import { useNavigate } from 'react-router-dom';
 import { User, Mail, Phone, BookOpen, Users, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { useTheme } from '../../hooks/useTheme.js';
+import './join.css';
 
 /* --- Enhanced presentational components --- */
 const InputField = ({
@@ -13,13 +15,11 @@ const InputField = ({
 	onChange,
 	error,
 	ariaLabel,
+	inputMode,
+	maxLength,
 }) => (
 	<div className="relative w-full group">
-		{icon && (
-			<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 group-focus-within:text-purple-400 transition-colors">
-				{icon}
-			</div>
-		)}
+		{icon && <div className="icon-left">{icon}</div>}
 		<input
 			aria-label={ariaLabel || name}
 			type={type}
@@ -27,12 +27,12 @@ const InputField = ({
 			placeholder={placeholder}
 			value={value}
 			onChange={onChange}
-			className={`w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all duration-200 ${
-				error ? 'border-red-500/50 focus:ring-red-500/50' : ''
-			}`}
+			inputMode={inputMode}
+			maxLength={maxLength}
+			className={`form-input ${error ? 'input-error' : ''}`}
 		/>
 		{error && (
-			<p className="mt-2 text-sm text-red-400 flex items-center gap-1" role="alert">
+			<p className="field-error" role="alert">
 				<XCircle size={14} /> {error}
 			</p>
 		)}
@@ -49,18 +49,16 @@ const TextAreaField = ({ name, placeholder, value, onChange, error, maxLength, r
 			onChange={onChange}
 			maxLength={maxLength}
 			rows={5}
-			className={`w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 resize-y transition-all duration-200 ${
-				error ? 'border-red-500/50 focus:ring-red-500/50' : ''
-			}`}
+			className={`form-textarea ${error ? 'input-error' : ''}`}
 		/>
-		<div className="flex justify-between items-center mt-2">
+		<div className="field-meta">
 			{error && (
-				<p className="text-sm text-red-400 flex items-center gap-1" role="alert">
+				<p className="field-error" role="alert">
 					<XCircle size={14} /> {error}
 				</p>
 			)}
 			{remaining !== undefined && (
-				<p className={`text-xs ${remaining < 50 ? 'text-yellow-400' : 'text-gray-400'}`}>
+				<p className={`char-remaining ${remaining < 50 ? 'warn' : ''}`}>
 					{remaining} characters left
 				</p>
 			)}
@@ -71,15 +69,13 @@ const TextAreaField = ({ name, placeholder, value, onChange, error, maxLength, r
 const GradientButton = ({ children, isLoading, ...props }) => (
 	<button
 		type="submit"
-		className={`px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-purple-500/25 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2 ${
-			isLoading ? 'opacity-75 cursor-not-allowed' : ''
-		}`}
+		className={`btn-primary ${isLoading ? 'loading' : ''}`}
 		disabled={isLoading}
 		{...props}
 	>
 		{isLoading ? (
 			<>
-				<svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+				<svg className="spinner" viewBox="0 0 24 24" fill="none" aria-hidden>
 					<circle
 						cx="12"
 						cy="12"
@@ -107,21 +103,12 @@ const GradientButton = ({ children, isLoading, ...props }) => (
 );
 
 const StepIndicator = ({ step, totalSteps, title }) => (
-	<div className="flex items-center gap-3 mb-4">
-		<div
-			className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-				step <= totalSteps
-					? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white'
-					: 'bg-white/10 text-gray-400'
-			}`}
-		>
-			{step}
-		</div>
-		<h3 className="text-lg font-semibold text-white">{title}</h3>
+	<div className="step-indicator">
+		<div className={`step-bubble ${step <= totalSteps ? 'active' : ''}`}>{step}</div>
+		<h3 className="step-title">{title}</h3>
 	</div>
 );
 
-/* --- Domain options (expanded) --- */
 const DOMAIN_OPTIONS = [
 	{ key: 'development', label: 'Development' },
 	{ key: 'design', label: 'Design' },
@@ -138,6 +125,7 @@ const DOMAIN_OPTIONS = [
 const JoinPage = () => {
 	const navigate = useNavigate();
 	const hostelRef = useRef(null);
+	const { theme } = useTheme();
 	const [formData, setFormData] = useState({
 		fullName: '',
 		LpuId: '',
@@ -305,185 +293,180 @@ const JoinPage = () => {
 	const disableMoreDomains = domainsSelectedCount >= 2;
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-[#0a0e17] via-[#0f172a] to-[#1e1b4b] flex justify-center p-4">
-			<div className="w-full max-w-4xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl p-8 mt-8">
-				<header className="text-center mb-8">
-					<h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-						Become a Syntax Builder
-					</h1>
-					<p className="mt-3 text-gray-300 text-lg">
-						Join a community of creators, innovators, and developers. Select up to 2
+		<div className="join-page" data-theme={theme}>
+			<div className="join-shell">
+				<aside className="join-info" aria-hidden>
+					<h2 className="join-title">Become a Syntax Builder</h2>
+					<p className="join-sub">
+						Join a community of creators, innovators and developers. Select up to 2
 						domains.
 					</p>
-				</header>
-
-				{serverMessage.text && (
-					<div
-						className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${
-							serverMessage.type === 'success'
-								? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-								: 'text-red-400 bg-red-500/10 border-red-500/20'
-						}`}
-						role="status"
-					>
-						{serverMessage.type === 'success' ? (
-							<CheckCircle size={20} />
-						) : (
-							<XCircle size={20} />
-						)}
-						<span>{serverMessage.text}</span>
+					<ul className="benefits">
+						<li>Hands-on workshops & events</li>
+						<li>Mentorship and project support</li>
+						<li>Priority access to tickets & resources</li>
+					</ul>
+					<div className="join-cta">
+						<p className="muted">Already a member?</p>
+						<button className="btn-ghost small" onClick={() => navigate('/login')}>
+							Login
+						</button>
 					</div>
-				)}
+				</aside>
 
-				<form onSubmit={handleSubmit} className="space-y-8" noValidate>
-					{/* Personal */}
-					<div className="space-y-4">
-						<StepIndicator step={1} totalSteps={4} title="Personal Information" />
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-							<InputField
-								icon={<User size={18} />}
-								name="fullName"
-								placeholder="Full name"
-								value={formData.fullName}
-								onChange={handleChange}
-								error={errors.fullName}
-							/>
-							<InputField
-								icon={<Mail size={18} />}
-								type="email"
-								name="email"
-								placeholder="Email address"
-								value={formData.email}
-								onChange={handleChange}
-								error={errors.email}
-							/>
+				<main className="join-card" role="main" aria-labelledby="join-heading">
+					<header className="join-header">
+						<h1 id="join-heading">Application — Syntax Club</h1>
+						<p className="muted">Complete this form to apply for membership.</p>
+					</header>
+
+					{serverMessage.text && (
+						<div
+							className={`server-msg ${serverMessage.type}`}
+							role="status"
+							aria-live="polite"
+						>
+							{serverMessage.type === 'success' ? (
+								<CheckCircle size={18} />
+							) : (
+								<XCircle size={18} />
+							)}
+							<span>{serverMessage.text}</span>
 						</div>
-					</div>
+					)}
 
-					{/* Academic */}
-					<div className="space-y-4">
-						<StepIndicator step={2} totalSteps={4} title="Academic Details" />
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-							<InputField
-								icon={<User size={18} />}
-								name="LpuId"
-								placeholder="LPU ID (8 digits)"
-								value={formData.LpuId}
-								onChange={handleChange}
-								error={errors.LpuId}
-								ariaLabel="LPU ID"
-							/>
-							<InputField
-								icon={<BookOpen size={18} />}
-								name="course"
-								placeholder="Course (e.g., B.Tech CSE)"
-								value={formData.course}
-								onChange={handleChange}
-								error={errors.course}
-							/>
-							<InputField
-								icon={<Phone size={18} />}
-								type="tel"
-								name="phone"
-								placeholder="Phone number"
-								value={formData.phone}
-								onChange={handleChange}
-								error={errors.phone}
-							/>
-							<div className="relative w-full">
-								<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
-									<Users size={18} />
-								</div>
-								<select
-									aria-label="gender"
-									name="gender"
-									value={formData.gender}
+					<form onSubmit={handleSubmit} className="join-form" noValidate>
+						{/* Personal */}
+						<div className="section">
+							<StepIndicator step={1} totalSteps={4} title="Personal Information" />
+							<div className="grid cols-2">
+								<InputField
+									icon={<User size={18} />}
+									name="fullName"
+									placeholder="Full name"
+									value={formData.fullName}
 									onChange={handleChange}
-									className={`w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all duration-200 ${
-										errors.gender
-											? 'border-red-500/50 focus:ring-red-500/50'
-											: ''
-									}`}
-								>
-									<option value="" disabled>
-										Select gender
-									</option>
-									<option value="male">Male</option>
-									<option value="female">Female</option>
-								</select>
-								{errors.gender && (
-									<p
-										className="mt-2 text-sm text-red-400 flex items-center gap-1"
-										role="alert"
-									>
-										<XCircle size={14} /> {errors.gender}
-									</p>
-								)}
+									error={errors.fullName}
+								/>
+								<InputField
+									icon={<Mail size={18} />}
+									type="email"
+									name="email"
+									placeholder="Email address"
+									value={formData.email}
+									onChange={handleChange}
+									error={errors.email}
+								/>
 							</div>
 						</div>
-					</div>
 
-					{/* Preferences */}
-					<div className="space-y-4">
-						<StepIndicator step={3} totalSteps={4} title="Preferences & Domains" />
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-							<div>
-								<label className="block text-sm font-medium text-gray-300 mb-3">
-									Select domains{' '}
-									<span className="text-xs text-gray-400">
-										({domainsSelectedCount}/2)
-									</span>
-								</label>
-								<div className="grid grid-cols-2 gap-3">
-									{DOMAIN_OPTIONS.map((opt) => {
-										const checked = formData.domains.includes(opt.key);
-										const disabled = !checked && disableMoreDomains;
-										return (
-											<label
-												key={opt.key}
-												className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-													checked
-														? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
-														: disabled
-														? 'bg-white/5 border-white/10 text-gray-500 cursor-not-allowed'
-														: 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-gray-200'
-												}`}
-											>
-												<input
-													type="checkbox"
-													name="domains"
-													value={opt.key}
-													checked={checked}
-													onChange={handleChange}
-													disabled={disabled}
-													className="form-checkbox"
-													aria-checked={checked}
-												/>
-												<span className="text-sm">{opt.label}</span>
-											</label>
-										);
-									})}
+						{/* Academic */}
+						<div className="section">
+							<StepIndicator step={2} totalSteps={4} title="Academic Details" />
+							<div className="grid cols-2">
+								<InputField
+									icon={<User size={18} />}
+									name="LpuId"
+									placeholder="LPU ID (8 digits)"
+									value={formData.LpuId}
+									onChange={handleChange}
+									error={errors.LpuId}
+									ariaLabel="LPU ID"
+									inputMode="numeric"
+								/>
+								<InputField
+									icon={<BookOpen size={18} />}
+									name="course"
+									placeholder="Course (e.g., B.Tech CSE)"
+									value={formData.course}
+									onChange={handleChange}
+									error={errors.course}
+								/>
+								<InputField
+									icon={<Phone size={18} />}
+									type="tel"
+									name="phone"
+									placeholder="Phone number"
+									value={formData.phone}
+									onChange={handleChange}
+									error={errors.phone}
+								/>
+								<div className="relative w-full">
+									<div className="icon-left">
+										<Users size={18} />
+									</div>
+									<select
+										aria-label="gender"
+										name="gender"
+										value={formData.gender}
+										onChange={handleChange}
+										className={`form-input ${
+											errors.gender ? 'input-error' : ''
+										}`}
+									>
+										<option value="" disabled>
+											Select gender
+										</option>
+										<option value="male">Male</option>
+										<option value="female">Female</option>
+									</select>
+									{errors.gender && (
+										<p className="field-error">
+											<XCircle size={14} /> {errors.gender}
+										</p>
+									)}
 								</div>
-								{errors.domains && (
-									<p className="mt-3 text-sm text-red-400 flex items-center gap-1">
-										<XCircle size={14} /> {errors.domains}
-									</p>
-								)}
 							</div>
+						</div>
 
-							<div className="space-y-4">
+						{/* Preferences */}
+						<div className="section">
+							<StepIndicator step={3} totalSteps={4} title="Preferences & Domains" />
+							<div className="grid cols-2 gap">
 								<div>
-									<label className="block text-sm font-medium text-gray-300 mb-2">
-										Accommodation
+									<label className="label">
+										Select domains{' '}
+										<span className="muted">({domainsSelectedCount}/2)</span>
 									</label>
+									<div className="domains-grid">
+										{DOMAIN_OPTIONS.map((opt) => {
+											const checked = formData.domains.includes(opt.key);
+											const disabled = !checked && disableMoreDomains;
+											return (
+												<label
+													key={opt.key}
+													className={`domain-chip ${
+														checked ? 'checked' : ''
+													} ${disabled ? 'disabled' : ''}`}
+												>
+													<input
+														type="checkbox"
+														name="domains"
+														value={opt.key}
+														checked={checked}
+														onChange={handleChange}
+														disabled={disabled}
+													/>
+													<span>{opt.label}</span>
+												</label>
+											);
+										})}
+									</div>
+									{errors.domains && (
+										<p className="field-error">
+											<XCircle size={14} /> {errors.domains}
+										</p>
+									)}
+								</div>
+
+								<div className="space-y">
+									<label className="label">Accommodation</label>
 									<select
 										name="accommodation"
 										value={formData.accommodation}
 										onChange={handleChange}
-										className={`w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all duration-200 ${
-											errors.accommodation
-												? 'border-red-500/50 focus:ring-red-500/50'
-												: ''
+										className={`form-input ${
+											errors.accommodation ? 'input-error' : ''
 										}`}
 									>
 										<option value="" disabled>
@@ -493,95 +476,84 @@ const JoinPage = () => {
 										<option value="non-hostler">Non-Hostler</option>
 									</select>
 									{errors.accommodation && (
-										<p className="mt-2 text-sm text-red-400 flex items-center gap-1">
+										<p className="field-error">
 											<XCircle size={14} /> {errors.accommodation}
 										</p>
 									)}
-								</div>
 
-								{formData.accommodation === 'hostler' && (
-									<div>
-										<input
-											name="hostelName"
-											ref={hostelRef}
-											placeholder="Hostel name"
-											value={formData.hostelName}
-											onChange={handleChange}
-											className={`w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all duration-200 ${
-												errors.hostelName
-													? 'border-red-500/50 focus:ring-red-500/50'
-													: ''
-											}`}
-										/>
-										{errors.hostelName && (
-											<p className="mt-2 text-sm text-red-400 flex items-center gap-1">
-												<XCircle size={14} /> {errors.hostelName}
-											</p>
-										)}
+									{formData.accommodation === 'hostler' && (
+										<div>
+											<input
+												name="hostelName"
+												ref={hostelRef}
+												placeholder="Hostel name"
+												value={formData.hostelName}
+												onChange={handleChange}
+												className={`form-input ${
+													errors.hostelName ? 'input-error' : ''
+												}`}
+											/>
+											{errors.hostelName && (
+												<p className="field-error">
+													<XCircle size={14} /> {errors.hostelName}
+												</p>
+											)}
+										</div>
+									)}
+
+									<div className="checkboxes">
+										<label className="checkbox">
+											<input
+												type="checkbox"
+												name="previousExperience"
+												checked={formData.previousExperience}
+												onChange={handleChange}
+											/>
+											<span>Previous experience</span>
+										</label>
+										<label className="checkbox">
+											<input
+												type="checkbox"
+												name="anyotherorg"
+												checked={formData.anyotherorg}
+												onChange={handleChange}
+											/>
+											<span>Associated with other org</span>
+										</label>
 									</div>
-								)}
-
-								<div className="space-y-3">
-									<label className="flex items-center gap-3 cursor-pointer">
-										<input
-											type="checkbox"
-											name="previousExperience"
-											checked={formData.previousExperience}
-											onChange={handleChange}
-											className="form-checkbox"
-										/>
-										<span className="text-sm text-gray-200">
-											Previous experience
-										</span>
-									</label>
-									<label className="flex items-center gap-3 cursor-pointer">
-										<input
-											type="checkbox"
-											name="anyotherorg"
-											checked={formData.anyotherorg}
-											onChange={handleChange}
-											className="form-checkbox"
-										/>
-										<span className="text-sm text-gray-200">
-											Associated with other org
-										</span>
-									</label>
 								</div>
 							</div>
 						</div>
-					</div>
 
-					{/* About */}
-					<div className="space-y-4">
-						<StepIndicator step={4} totalSteps={4} title="About You" />
-						<TextAreaField
-							name="bio"
-							placeholder="A short bio about your interests and skills"
-							value={formData.bio}
-							onChange={(e) => {
-								if (e.target.value.length > BIO_MAX) return;
-								handleChange(e);
-							}}
-							error={errors.bio}
-							maxLength={BIO_MAX}
-							remaining={bioRemaining}
-						/>
-					</div>
+						{/* About */}
+						<div className="section">
+							<StepIndicator step={4} totalSteps={4} title="About You" />
+							<TextAreaField
+								name="bio"
+								placeholder="A short bio about your interests and skills"
+								value={formData.bio}
+								onChange={(e) => {
+									if (e.target.value.length > BIO_MAX) return;
+									handleChange(e);
+								}}
+								error={errors.bio}
+								maxLength={BIO_MAX}
+								remaining={bioRemaining}
+							/>
+						</div>
 
-					<div className="flex justify-end pt-4">
-						<GradientButton isLoading={loading}>Submit Application</GradientButton>
-					</div>
-				</form>
+						<div className="form-actions">
+							<GradientButton isLoading={loading}>Submit Application</GradientButton>
+						</div>
+					</form>
 
-				<footer className="mt-8 text-center text-sm text-gray-400">
-					Already a member?{' '}
-					<button
-						onClick={() => navigate('/login')}
-						className="font-semibold text-purple-400 hover:text-purple-300 transition-colors"
-					>
-						Login
-					</button>
-				</footer>
+					<footer className="join-footer">
+						Already a member?{' '}
+						<button onClick={() => navigate('/login')} className="link-cta">
+							Login
+						</button>
+					</footer>
+				</main>
 			</div>
 		</div>
 	);
