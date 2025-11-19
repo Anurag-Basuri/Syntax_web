@@ -37,13 +37,12 @@ const Footer = () => {
 	return (
 		<footer className="bg-transparent border-t border-white/6">
 			<div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-				{/* compact vertical spacing on mobile */}
 				<div className="py-5 md:py-8">
 					<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 items-start">
 						{/* Brand */}
 						<div className="flex flex-col gap-3">
 							<div className="flex items-center gap-3">
-								<div className="w-10 h-10 rounded-md bg-gradient-to-br from-purple-600 to-cyan-500 flex items-center justify-center text-white font-bold shadow-sm text-sm">
+								<div className="w-10 h-10 rounded-md bg-gradient-to-br from-purple-600 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
 									SC
 								</div>
 								<div>

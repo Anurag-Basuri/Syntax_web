@@ -457,3 +457,55 @@ select,
 button {
 	border-radius: 0.75rem;
 }
+
+/* Hero visuals tweaks: ensure consistent card sizes, spacing and responsive behavior */
+.hero-visuals-container {
+	/* grid managed via Tailwind classes, this adds a max height and preserves order */
+	align-items: start;
+}
+.hero-card {
+	/* make cards visually consistent and responsive */
+	min-height: 72px;
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	border-radius: 12px;
+	transition: transform 320ms ease, box-shadow 320ms ease;
+}
+.hero-card:hover {
+	transform: translateY(-6px);
+	box-shadow: var(--shadow-md);
+}
+
+/* Reduce heavy animations on small screens */
+@media (max-width: 640px) {
+	.hero-card {
+		min-height: 64px;
+		padding: 0.65rem;
+	}
+	.hero-visuals-container {
+		gap: 0.5rem;
+	}
+	.page-container {
+		padding-inline: 1rem;
+	}
+	.section-title {
+		font-size: 1.1rem;
+	}
+}
+
+/* Ensure hero badge and CTA spacing is roomy on mobile */
+@media (max-width: 420px) {
+	.hero-badge {
+		padding: 6px 10px;
+		font-size: 0.85rem;
+	}
+	.btn {
+		padding: 10px 12px;
+		border-radius: 10px;
+	}
+	.btn-primary,
+	.btn-secondary {
+		width: 100% !important;
+	}
+}
