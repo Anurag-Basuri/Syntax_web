@@ -108,7 +108,7 @@ const startServer = async () => {
 		}
 
 		// 4. Start the Express server
-		server = app.listen(PORT, () => {
+		server = server = app.listen(PORT, '0.0.0.0', () => {
 			console.log(
 				`🚀 Server is running in ${process.env.NODE_ENV.cyan} mode at http://localhost:${PORT}`
 					.green.bold
