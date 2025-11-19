@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../services/api.js';
@@ -16,6 +16,33 @@ import ProfileDisplay from '../components/member/ProfileDisplay.jsx';
 import PasswordResetModal from '../components/member/PasswordResetModal.jsx';
 import MessageNotification from '../components/member/MessageNotification.jsx';
 import { validateFile, simulateProgress } from '../utils/fileUtils.js';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth.js';
+import { useTheme } from '../hooks/useTheme.js';
+import { Edit2, Ticket, Calendar, Bell, User } from 'lucide-react';
+import './member.css';
+
+const StatItem = ({ label, value }) => (
+	<div className="stat-item">
+		<div className="stat-value">{value}</div>
+		<div className="stat-label">{label}</div>
+	</div>
+);
+
+const EmptyBlock = ({ title, hint, actionLabel, onAction }) => (
+	<div className="empty-block">
+		<div className="empty-icon">
+			<User size={36} />
+		</div>
+		<h4>{title}</h4>
+		<p className="muted">{hint}</p>
+		{actionLabel && (
+			<button className="btn-primary mt-3" onClick={onAction}>
+				{actionLabel}
+			</button>
+		)}
+	</div>
+);
 
 const MemberProfile = () => {
 	// --- react-query / services setup ---
@@ -486,6 +513,26 @@ const MemberProfile = () => {
 			</div>
 		);
 	}
+
+	const { currentUser } = useAuth();
+	const { theme } = useTheme();
+	const navigate = useNavigate();
+
+	// lightweight derived values (safe defaults)
+	const name = currentUser?.fullname || currentUser?.name || 'Member';
+	const avatar = currentUser?.profilePicture?.url || currentUser?.avatar || '';
+	const joined = currentUser?.createdAt ? new Date(currentUser.createdAt).getFullYear() : '';
+	const stats = useMemo(
+		() => ({
+			events: currentUser?.stats?.eventsAttended || 0,
+			tickets: currentUser?.stats?.tickets || 0,
+			projects: currentUser?.stats?.projects || 0,
+		}),
+		[currentUser]
+	);
+
+	const upcoming = currentUser?.upcomingEvents || [];
+	const activity = currentUser?.recentActivity || [];
 
 	return (
 		<div className="min-h-screen bg-gray-50 dark:bg-gray-900">
