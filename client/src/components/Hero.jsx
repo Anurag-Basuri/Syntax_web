@@ -32,7 +32,7 @@ const Hero = () => {
 	];
 
 	return (
-		<section className="relative overflow-hidden bg-transparent min-h-[72vh] flex items-center py-10">
+		<section className="relative overflow-hidden bg-transparent min-h-[72vh] flex items-center">
 			<div className="page-container">
 				{/* Use a single-column flow on small screens so narrative appears first,
                     and two-column layout on large screens for balanced composition */}
