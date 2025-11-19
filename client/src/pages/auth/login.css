@@ -1,16 +1,10 @@
-/* Clean, theme-aware login styles — improves contrast, spacing and responsiveness */
+/* Clean, theme-aware login styles — improved light/dark contrast and responsiveness */
 
-/* Theme tokens (light & dark safe) */
+/* Theme tokens (inherited from index.css; fallback values kept small here) */
 :root {
-	--bg-1: linear-gradient(180deg, #0b1220 0%, #071027 100%);
-	--card-bg: rgba(255, 255, 255, 0.04);
-	--glass-border: rgba(255, 255, 255, 0.06);
-	--accent-1: #7c3aed;
-	--accent-2: #06b6d4;
-	--muted: #9aa6b2;
-	--text: #e6eef8;
-	--input-bg: rgba(255, 255, 255, 0.03);
-	--input-border: rgba(255, 255, 255, 0.06);
+	--muted: var(--text-secondary, #9aa6b2);
+	--accent-1: var(--accent-1, #7c3aed);
+	--accent-2: var(--accent-2, #06b6d4);
 	--danger: #ff6b6b;
 }
 
@@ -21,10 +15,11 @@
 	align-items: center;
 	justify-content: center;
 	padding: 2rem 1rem;
-	background: transparent; /* was gradient — now transparent per request */
+	background: transparent;
+	color: var(--text); /* ensure body text inherits theme token */
 }
 
-/* Shell holds brand + card for slightly wider layout on desktop */
+/* Shell holds brand + card */
 .auth-shell {
 	width: 100%;
 	max-width: 920px;
@@ -53,30 +48,31 @@
 	align-items: center;
 	justify-content: center;
 	font-weight: 700;
-	color: white;
+	color: var(--button-foreground, #fff);
 	background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-	box-shadow: 0 10px 30px rgba(2, 6, 23, 0.25);
+	box-shadow: 0 10px 30px rgba(2, 6, 23, 0.12);
 	font-size: 1.25rem;
 }
 .brand-text h1 {
 	font-size: 1.2rem;
 	margin: 0;
+	color: var(--text);
 }
 .brand-text .muted {
-	color: var(--muted);
+	color: var(--text-secondary);
 	font-size: 0.95rem;
 	margin-top: 6px;
 }
 
-/* Card */
+/* Card: use tokenized card background and text color */
 .auth-card {
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+	background: var(--card-bg, rgba(255, 255, 255, 0.03));
 	backdrop-filter: blur(8px);
-	border: 1px solid var(--glass-border);
+	border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.06));
 	border-radius: 16px;
 	padding: 1rem;
 	max-width: 680px;
-	box-shadow: 0 20px 60px rgba(2, 6, 23, 0.35);
+	box-shadow: var(--shadow-lg, 0 20px 60px rgba(2, 6, 23, 0.2));
 	color: var(--text);
 }
 
@@ -87,9 +83,10 @@
 .card-title {
 	font-size: 1.25rem;
 	margin: 0;
+	color: var(--text);
 }
 .card-sub {
-	color: var(--muted);
+	color: var(--text-secondary);
 	margin-top: 6px;
 }
 
@@ -112,7 +109,7 @@
 	gap: 0.75rem;
 }
 
-/* Input styles */
+/* Input styles: use shared tokens for backgrounds/borders/text */
 .input-wrap {
 	position: relative;
 	display: block;
@@ -122,7 +119,7 @@
 	left: 12px;
 	top: 50%;
 	transform: translateY(-50%);
-	color: var(--muted);
+	color: var(--text-secondary);
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -130,19 +127,19 @@
 .input-field {
 	width: 100%;
 	padding: 12px 12px 12px 44px;
-	background: var(--input-bg);
-	border: 1px solid var(--input-border);
+	background: var(--input-bg, rgba(255, 255, 255, 0.03));
+	border: 1px solid var(--input-border, rgba(255, 255, 255, 0.06));
 	border-radius: 12px;
-	color: var(--text);
+	color: var(--input-text, var(--text));
 	transition: box-shadow 0.12s ease, transform 0.12s ease;
 }
 .input-field::placeholder {
-	color: rgba(230, 238, 248, 0.45);
+	color: var(--input-placeholder, rgba(230, 238, 248, 0.45));
 }
 .input-field:focus {
 	outline: none;
 	box-shadow: 0 6px 30px rgba(124, 58, 237, 0.08);
-	border-color: rgba(124, 58, 237, 0.28);
+	border-color: var(--accent-1);
 	transform: translateY(-1px);
 }
 .input-error {
@@ -166,7 +163,7 @@
 	transform: translateY(-50%);
 	background: transparent;
 	border: none;
-	color: var(--muted);
+	color: var(--text-secondary);
 	padding: 8px;
 	border-radius: 8px;
 	cursor: pointer;
@@ -181,10 +178,10 @@
 	gap: 0.75rem;
 }
 
-/* Primary button */
+/* Primary button uses shared button tokens */
 .btn-primary {
-	background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
-	color: white;
+	background: var(--button-bg, linear-gradient(90deg, var(--accent-1), var(--accent-2)));
+	color: var(--button-foreground, #fff);
 	padding: 10px 14px;
 	border-radius: 12px;
 	border: none;
@@ -192,7 +189,7 @@
 	align-items: center;
 	gap: 8px;
 	font-weight: 600;
-	box-shadow: 0 10px 30px rgba(124, 58, 237, 0.12);
+	box-shadow: var(--shadow-md, 0 10px 30px rgba(124, 58, 237, 0.12));
 }
 .btn-primary.loading {
 	opacity: 0.85;
@@ -215,7 +212,7 @@
 /* Footer links */
 .auth-footer {
 	margin-top: 1rem;
-	color: var(--muted);
+	color: var(--text-secondary);
 	font-size: 0.95rem;
 }
 .link-cta {
@@ -228,11 +225,20 @@
 .link-muted {
 	background: transparent;
 	border: none;
-	color: var(--muted);
+	color: var(--text-secondary);
 	cursor: pointer;
 }
 
-/* Responsive: stack on small screens */
+/* Ghost button: ensure visible on light backgrounds */
+.btn-ghost {
+	background: var(--button-secondary-bg, transparent);
+	color: var(--text);
+	border: 1px solid var(--button-secondary-border, rgba(255, 255, 255, 0.04));
+	padding: 8px 10px;
+	border-radius: 8px;
+}
+
+/* Responsive */
 @media (max-width: 900px) {
 	.auth-shell {
 		grid-template-columns: 1fr;
@@ -256,76 +262,18 @@
 	}
 }
 
-/* Reduced motion preference */
-@media (prefers-reduced-motion: reduce) {
-	* {
-		transition: none !important;
-		animation: none !important;
-	}
-}
-
-/* Light-theme overrides (applies when Login.jsx sets data-theme on root) */
-:root[data-theme='light'],
-[data-theme='light'] .auth-page {
-	--bg-1: linear-gradient(180deg, #ffffff, #f8fafc);
-	--card-bg: #ffffff;
-	--glass-border: rgba(2, 6, 23, 0.06);
-	--muted: #475569;
-	--text: #071b2c;
-	--input-bg: rgba(15, 23, 42, 0.03);
-	--input-border: rgba(15, 23, 42, 0.06);
-	--accent-1: #5b21b6;
-	--accent-2: #0891b2;
-}
-
-/* stronger focus outline for accessibility */
+/* accessibility focus */
 .input-field:focus,
-.form-input:focus,
-.form-textarea:focus,
 button:focus {
+	box-shadow: var(--focus-ring, 0 0 0 4px rgba(124, 58, 237, 0.08));
 	outline: none;
-	box-shadow: 0 6px 28px rgba(88, 28, 135, 0.08);
-	border-color: rgba(88, 28, 135, 0.28);
 }
 
-/* Ensure primary button remains visible in light mode */
-:root[data-theme='light'] .btn-primary,
-[data-theme='light'] .btn-primary {
-	color: #fff;
-	box-shadow: 0 10px 30px rgba(11, 22, 40, 0.06);
-}
-
-/* Make CTAs slightly larger on touch devices */
-@media (max-width: 520px) {
-	.btn-primary,
-	.btn-ghost,
-	.auth-button {
-		min-height: 44px;
-		padding-left: 12px;
-		padding-right: 12px;
-		font-size: 0.95rem;
-	}
-	.logo {
-		width: 56px;
-		height: 56px;
-	}
-}
-
-/* Small visual polish: compact header & subtle divider */
-.card-header {
-	padding-bottom: 0.5rem;
-	border-bottom: 1px dashed rgba(255, 255, 255, 0.02);
-	margin-bottom: 0.75rem;
-}
-.auth-brand .link-cta {
-	margin-top: 0.6rem;
-}
-
-/* Benefits list in login brand (matches join) */
+/* Benefits list */
 .auth-benefits {
 	margin: 0.6rem 0 0;
 	padding-left: 1rem;
-	color: var(--muted);
+	color: var(--text-secondary);
 	display: flex;
 	flex-direction: column;
 	gap: 0.25rem;
@@ -333,4 +281,12 @@ button:focus {
 }
 .auth-benefits li::marker {
 	color: var(--accent-1);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+	* {
+		transition: none !important;
+		animation: none !important;
+	}
 }
