@@ -7,6 +7,7 @@
 	--accent-1: #7c3aed;
 	--accent-2: #06b6d4;
 	--shadow: 0 14px 40px rgba(2, 6, 23, 0.5);
+	--max-card-w: 760px; /* narrower card on wide screens for better readability */
 }
 
 /* Light / bright mode overrides */
@@ -24,7 +25,7 @@
 /* Container */
 .policy-container {
 	min-height: 100vh;
-	padding: 2.5rem 1rem;
+	padding: 3rem 1rem; /* slightly larger vertical breathing room */
 	display: flex;
 	justify-content: center;
 	align-items: flex-start;
@@ -34,19 +35,31 @@
 /* Card */
 .policy-card {
 	width: 100%;
-	max-width: 900px;
-	border-radius: 16px;
-	padding: 1.25rem;
+	max-width: var(--max-card-w);
+	border-radius: 14px;
+	padding: 1.5rem 1.75rem;
+	margin-top: 2.25rem;
 	background: var(--card-bg);
 	border: 1px solid var(--glass-border);
 	color: var(--text);
 	box-shadow: var(--shadow);
-	backdrop-filter: blur(8px);
+	backdrop-filter: blur(6px);
+	transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+/* subtle lift on hover/focus for desktop */
+@media (min-width: 900px) {
+	.policy-card:hover {
+		transform: translateY(-6px);
+		box-shadow: 0 26px 60px rgba(2, 6, 23, 0.12);
+	}
 }
 
 /* Header / nav */
 .policy-nav {
 	margin-bottom: 1rem;
+	display: flex;
+	justify-content: flex-start;
 }
 .policy-back-btn {
 	display: inline-flex;
@@ -58,9 +71,11 @@
 	background: transparent;
 	color: var(--text-secondary);
 	cursor: pointer;
+	font-weight: 600;
 }
 .policy-back-btn:hover {
-	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+	transform: translateY(-1px);
 }
 
 /* Typography */
@@ -68,20 +83,36 @@
 	margin: 0 0 0.5rem 0;
 	font-size: 1.6rem;
 	color: var(--accent-1);
+	letter-spacing: -0.2px;
 }
+.policy-card .meta {
+	margin-top: 6px;
+	color: var(--text-secondary);
+	font-size: 0.95rem;
+}
+
+/* section heading visual improvement */
 .policy-card h2,
 .policy-card h3 {
 	color: var(--text);
-	margin-top: 0.6rem;
-	margin-bottom: 0.4rem;
+	margin-top: 1rem;
+	margin-bottom: 0.45rem;
+	font-weight: 700;
 }
 .policy-card p,
 .policy-card li,
 .policy-card dd,
 .policy-card dt {
 	color: var(--text-secondary);
-	line-height: 1.5;
-	font-size: 0.98rem;
+	line-height: 1.65;
+	font-size: 1rem;
+}
+
+/* section divider for clearer scanning */
+.policy-card section + section {
+	padding-top: 0.9rem;
+	margin-top: 0.9rem;
+	border-top: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 /* Lists and code */
@@ -89,15 +120,18 @@
 .policy-card ol {
 	margin-top: 0.5rem;
 	margin-bottom: 0.5rem;
+	padding-left: 1.1rem;
 }
 .policy-card address {
 	color: var(--text-secondary);
+	margin-top: 0.5rem;
 }
 
 /* Links */
 .policy-card a {
 	color: var(--accent-2);
 	text-decoration: underline;
+	font-weight: 600;
 }
 
 /* Prose helpers for better readability */
@@ -105,10 +139,22 @@
 	max-width: none;
 }
 
+/* Improve dt/dd presentation */
+.policy-card dt {
+	font-weight: 700;
+	color: var(--text);
+}
+.policy-card dd {
+	margin: 0 0 0.6rem 0;
+	color: var(--text-secondary);
+}
+
 /* Responsive */
+/* reduce horizontal padding on small screens but keep narrower card width on large screens */
 @media (max-width: 900px) {
 	.policy-card {
 		padding: 1rem;
+		max-width: calc(100% - 32px);
 	}
 	.policy-card h1 {
 		font-size: 1.4rem;
@@ -116,8 +162,9 @@
 }
 @media (max-width: 520px) {
 	.policy-card {
-		padding: 0.9rem;
+		padding: 0.85rem;
 		border-radius: 12px;
+		margin-top: 1rem;
 	}
 	.policy-back-btn {
 		padding: 10px 12px;
@@ -127,7 +174,7 @@
 	}
 	.policy-card p,
 	.policy-card li {
-		font-size: 0.96rem;
+		font-size: 0.97rem;
 	}
 }
 
@@ -139,10 +186,35 @@
 
 /* small helper: highlight short notes */
 .policy-note {
-	background: rgba(9, 17, 29, 0.03);
+	background: rgba(9, 17, 29, 0.025);
 	padding: 0.6rem;
 	border-radius: 8px;
 	border: 1px dashed var(--glass-border);
 	color: var(--text-secondary);
 	margin-top: 0.5rem;
+}
+
+/* optional: short table-of-contents block for quick navigation (used only if added) */
+.policy-toc {
+	margin-top: 0.5rem;
+	margin-bottom: 1rem;
+	padding: 0.6rem;
+	border-radius: 10px;
+	background: linear-gradient(180deg, rgba(0, 0, 0, 0.01), transparent);
+	border: 1px solid rgba(0, 0, 0, 0.02);
+}
+.policy-toc a {
+	display: inline-block;
+	margin-right: 12px;
+	color: var(--text-secondary);
+	font-size: 0.95rem;
+}
+
+/* ensure high contrast in bright mode for small muted elements */
+:root[data-theme='light'] .policy-back-btn {
+	color: var(--text-secondary);
+	border-color: rgba(2, 6, 23, 0.06);
+}
+:root[data-theme='light'] .policy-card section + section {
+	border-top-color: rgba(2, 6, 23, 0.04);
 }
