@@ -178,17 +178,15 @@ const AuthSection = ({ onNavigate }) => {
 
 	return (
 		<div className="navbar-auth-buttons">
+			{/* Fixed routes: use top-level /login and /join (AppRoutes expects these) */}
 			<button
-				onClick={() => onNavigate('/auth/login')}
+				onClick={() => onNavigate('/login')}
 				className="auth-button auth-button-secondary"
 			>
 				<LogIn className="h-4 w-4" />
 				<span>Login</span>
 			</button>
-			<button
-				onClick={() => onNavigate('/auth/join')}
-				className="auth-button auth-button-primary"
-			>
+			<button onClick={() => onNavigate('/join')} className="auth-button auth-button-primary">
 				<UserPlus className="h-4 w-4" />
 				<span>Join</span>
 			</button>
@@ -279,14 +277,14 @@ const MobileDrawer = ({ isOpen, onClose, onNavigate }) => {
 							{!isAuthenticated && (
 								<div className="mobile-drawer-auth">
 									<button
-										onClick={() => onNavigate('/auth/login')}
+										onClick={() => onNavigate('/login')}
 										className="mobile-auth-button secondary"
 									>
 										<LogIn className="h-4 w-4" />
 										<span>Login</span>
 									</button>
 									<button
-										onClick={() => onNavigate('/auth/join')}
+										onClick={() => onNavigate('/join')}
 										className="mobile-auth-button primary"
 									>
 										<UserPlus className="h-4 w-4" />
