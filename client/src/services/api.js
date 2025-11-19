@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getToken, setToken, removeToken } from '../utils/handleTokens.js';
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api.orgsyntax.xyz';
 
 // Public client — include credentials so server can read/send httpOnly refresh cookie
 const publicClient = axios.create({
