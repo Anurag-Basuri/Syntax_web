@@ -5,7 +5,6 @@ import { apiClient, publicClient } from './api.js';
  * { docs, totalDocs, page, totalPages, limit, hasPrevPage, hasNextPage, prevPage, nextPage }
  */
 const normalizePagination = (raw) => {
-	// raw may be axios resp or body
 	const payload = raw?.data ?? raw ?? {};
 	const data = payload.data ?? payload.docs ?? payload;
 	if (Array.isArray(data)) {
@@ -587,5 +586,132 @@ export const reorderFAQs = async (identifier, order) => {
 		return resp.data?.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to reorder FAQs.'));
+	}
+};
+
+// Guidelines
+export const addGuideline = async (identifier, payload) => {
+	if (!identifier) throw new Error('Fest identifier is required.');
+	try {
+		const resp = await apiClient.post(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guidelines`,
+			payload
+		);
+		return resp.data?.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to add guideline.'));
+	}
+};
+
+export const removeGuideline = async (identifier, guidelineId) => {
+	if (!identifier || !guidelineId) throw new Error('Identifier and guidelineId required.');
+	try {
+		const resp = await apiClient.delete(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guidelines/${encodeURIComponent(
+				guidelineId
+			)}`
+		);
+		return resp.status === 204 ? { success: true } : resp.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to remove guideline.'));
+	}
+};
+
+export const reorderGuidelines = async (identifier, order) => {
+	if (!identifier || !Array.isArray(order))
+		throw new Error('Identifier and order array required.');
+	try {
+		const resp = await apiClient.patch(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guidelines/reorder`,
+			{ order }
+		);
+		return resp.data?.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to reorder guidelines.'));
+	}
+};
+
+// Prizes
+export const addPrize = async (identifier, payload) => {
+	if (!identifier) throw new Error('Fest identifier is required.');
+	try {
+		const resp = await apiClient.post(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/prizes`,
+			payload
+		);
+		return resp.data?.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to add prize.'));
+	}
+};
+
+export const removePrize = async (identifier, prizeId) => {
+	if (!identifier || !prizeId) throw new Error('Identifier and prizeId required.');
+	try {
+		const resp = await apiClient.delete(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/prizes/${encodeURIComponent(
+				prizeId
+			)}`
+		);
+		return resp.status === 204 ? { success: true } : resp.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to remove prize.'));
+	}
+};
+
+export const reorderPrizes = async (identifier, order) => {
+	if (!identifier || !Array.isArray(order))
+		throw new Error('Identifier and order array required.');
+	try {
+		const resp = await apiClient.patch(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/prizes/reorder`,
+			{ order }
+		);
+		return resp.data?.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to reorder prizes.'));
+	}
+};
+
+// Guests
+export const addGuest = async (identifier, payload) => {
+	if (!identifier || !payload?.name) throw new Error('Identifier and guest name required.');
+	try {
+		const resp = await apiClient.post(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guests`,
+			payload
+		);
+		return resp.data?.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to add guest.'));
+	}
+};
+
+export const updateGuest = async (identifier, guestId, payload) => {
+	if (!identifier || !guestId) throw new Error('Identifier and guestId required.');
+	try {
+		const resp = await apiClient.patch(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guests/${encodeURIComponent(
+				guestId
+			)}`,
+			payload
+		);
+		return resp.data?.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to update guest.'));
+	}
+};
+
+export const removeGuest = async (identifier, guestId) => {
+	if (!identifier || !guestId) throw new Error('Identifier and guestId required.');
+	try {
+		const resp = await apiClient.delete(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guests/${encodeURIComponent(
+				guestId
+			)}`
+		);
+		return resp.status === 204 ? { success: true } : resp.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to remove guest.'));
 	}
 };
