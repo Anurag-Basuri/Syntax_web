@@ -709,10 +709,8 @@ const getPublicEventDetails = asyncHandler(async (req, res) => {
 
 // Example: when preparing event response that included fest.poster previously:
 const someHandler = asyncHandler(async (req, res) => {
-	// ...existing code that obtains fest ...
 	// const poster = fest.poster || null;    // old
-	const poster = getHeroMedia(fest); // new - works with posters[], heroMedia, poster virtual, gallery
-	// ...use poster.url or poster.caption safely...
+	const poster = getHeroMedia(fest); 
 });
 
 export {

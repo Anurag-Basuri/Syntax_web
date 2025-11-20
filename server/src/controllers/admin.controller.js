@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import jwt from 'jsonwebtoken';
+import { getHeroMedia } from '../utils/arvantisMedia.js';
 
 const generateAndSendTokens = async (admin, res, message, statusCode) => {
 	const accessToken = admin.generateAuthToken();
@@ -125,6 +126,21 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 	const accessToken = admin.generateAuthToken();
 
 	return ApiResponse.success(res, { accessToken }, 'Access token refreshed successfully');
+});
+
+// Example: when exporting or listing fests in admin tools
+const exportHandler = asyncHandler(async (req, res) => {
+	const fests = await Arvantis.find().lean().exec();
+	const rows = fests.map((f) => {
+		const hero = getHeroMedia(f);
+		return {
+			year: f.year,
+			name: f.name,
+			status: f.status,
+			heroUrl: hero?.url || '',
+		};
+	});
+	// ...existing export logic...
 });
 
 export { createAdmin, loginAdmin, logoutAdmin, currentAdmin, refreshAccessToken };
