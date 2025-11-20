@@ -4,6 +4,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { uploadFile, deleteFile, deleteFiles } from '../utils/cloudinary.js';
+import { getHeroMedia } from '../utils/arvantisMedia.js';
 
 /**
  * Helper: validate ObjectId and load event populateTickets: boolean - if true populate tickets
@@ -704,6 +705,14 @@ const getPublicEventDetails = asyncHandler(async (req, res) => {
 		status: ev.status,
 	};
 	return ApiResponse.success(res, publicObj, 'Public event details retrieved');
+});
+
+// Example: when preparing event response that included fest.poster previously:
+const someHandler = asyncHandler(async (req, res) => {
+	// ...existing code that obtains fest ...
+	// const poster = fest.poster || null;    // old
+	const poster = getHeroMedia(fest); // new - works with posters[], heroMedia, poster virtual, gallery
+	// ...use poster.url or poster.caption safely...
 });
 
 export {
