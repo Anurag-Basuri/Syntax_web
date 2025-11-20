@@ -11,23 +11,25 @@ const EditGuidelines = ({
 	onRemove,
 	onReorder,
 	actionBusy,
+	onUpdate, // optional
 }) => {
 	return (
 		<div className="mb-4">
-			<div className="flex items-center justify-between mb-2">
+			<div className="flex items-start justify-between mb-2 gap-3">
 				<h4 className="font-semibold text-white">Guidelines ({items.length})</h4>
-				<div className="flex items-center gap-2">
+				<div className="flex-1 flex items-start gap-2">
 					<input
 						value={quickTitle}
 						onChange={(e) => setQuickTitle(e.target.value)}
-						placeholder="Title"
+						placeholder="Short title (optional)"
 						className="p-2 bg-white/5 rounded w-44"
 					/>
-					<input
+					<textarea
 						value={quickDetails}
 						onChange={(e) => setQuickDetails(e.target.value)}
-						placeholder="Details"
-						className="p-2 bg-white/5 rounded w-64"
+						placeholder="Details / instructions (supports multiple lines)"
+						className="p-2 bg-white/5 rounded flex-1 min-h-[56px] resize-y"
+						rows={3}
 					/>
 					<button
 						onClick={onAdd}
@@ -43,13 +45,42 @@ const EditGuidelines = ({
 				{items.map((g, idx) => (
 					<div
 						key={String(g._id || g.id || idx)}
-						className="flex items-center justify-between p-3 bg-white/3 rounded"
+						className="flex items-start justify-between p-3 bg-white/3 rounded"
 					>
 						<div className="flex-1">
 							<div className="font-medium text-white">{g.title || '(untitled)'}</div>
-							<div className="text-sm text-gray-400">{g.details}</div>
+							{/* preserve line breaks and paragraphs */}
+							<div className="text-sm text-gray-400 whitespace-pre-wrap mt-1">
+								{g.details}
+							</div>
 						</div>
-						<div className="flex gap-2 items-center">
+						<div className="flex gap-2 items-start">
+							{onUpdate && (
+								<button
+									onClick={() => {
+										const newTitle = prompt(
+											'Edit guideline title',
+											g.title || ''
+										)?.trim();
+										const newDetails = prompt(
+											'Edit guideline details (multiline ok)',
+											g.details || ''
+										)?.trim();
+										if (
+											(newTitle !== null && newTitle !== g.title) ||
+											(newDetails !== null && newDetails !== g.details)
+										) {
+											onUpdate(g._id || g.id, {
+												title: newTitle ?? g.title,
+												details: newDetails ?? g.details,
+											});
+										}
+									}}
+									className="text-blue-400"
+								>
+									Edit
+								</button>
+							)}
 							<button
 								onClick={() => onRemove(g._id || g.id)}
 								className="text-red-400"
