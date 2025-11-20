@@ -1002,7 +1002,9 @@ const setVisibility = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, { visibility: fest.visibility }, 'Visibility updated', 200);
 });
 
-/* Add guideline (admin) */
+/* -----------------------------
+   Guidelines (admin)
+   ----------------------------- */
 const addGuideline = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 	const { title = '', details = '', order = 0 } = req.body;
@@ -1010,11 +1012,15 @@ const addGuideline = asyncHandler(async (req, res) => {
 	if (!title && !details)
 		throw new ApiError.BadRequest('title or details is required to create a guideline.');
 	fest.guidelines = fest.guidelines || [];
-	fest.guidelines.push({
+
+	// ensure each subdocument has a stable id (string) so frontend can reference it
+	const guid = {
+		id: mongoose.Types.ObjectId().toString(),
 		title: String(title).trim(),
 		details: String(details).trim(),
 		order: Number(order) || 0,
-	});
+	};
+	fest.guidelines.push(guid);
 
 	await fest.save();
 	const added = fest.guidelines[fest.guidelines.length - 1];
@@ -1026,16 +1032,19 @@ const addGuideline = asyncHandler(async (req, res) => {
 const removeGuideline = asyncHandler(async (req, res) => {
 	const { identifier, guidelineId } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
-	
-	if (!fest.guidelines || !fest.guidelines.id)
+
+	if (!fest.guidelines || fest.guidelines.length === 0)
 		throw new ApiError.NotFound('No guidelines found.');
-	
-	const sub = fest.guidelines.id(guidelineId);
-	
-	if (!sub) throw new ApiError.NotFound('Guideline not found.');
-	sub.remove();
+
+	// support both legacy _id and new string id
+	const idx = (fest.guidelines || []).findIndex(
+		(g) => String(g.id || g._id) === String(guidelineId)
+	);
+
+	if (idx === -1) throw new ApiError.NotFound('Guideline not found.');
+	fest.guidelines.splice(idx, 1);
 	await fest.save();
-	
+
 	return ApiResponse.success(res, null, 'Guideline removed', 200);
 });
 
@@ -1043,25 +1052,25 @@ const removeGuideline = asyncHandler(async (req, res) => {
 const reorderGuidelines = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const { order } = req.body;
-	
+
 	if (!Array.isArray(order))
 		throw new ApiError.BadRequest('order must be an array of guideline ids.');
-	
+
 	const fest = await findFestBySlugOrYear(identifier);
-	const map = new Map((fest.guidelines || []).map((g) => [String(g._id), g]));
+	const map = new Map((fest.guidelines || []).map((g) => [String(g.id || g._id), g]));
 	const newArr = [];
-	
+
 	order.forEach((id) => {
 		if (map.has(String(id))) {
 			newArr.push(map.get(String(id)));
 			map.delete(String(id));
 		}
 	});
-	
+
 	for (const g of map.values()) newArr.push(g);
 	fest.guidelines = newArr;
 	await fest.save();
-	
+
 	return ApiResponse.success(res, fest.guidelines, 'Guidelines reordered successfully', 200);
 });
 
@@ -1069,14 +1078,15 @@ const reorderGuidelines = asyncHandler(async (req, res) => {
 const addPrize = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 	const { title = '', position = '', amount, currency = 'INR', description = '' } = req.body;
-	
+
 	if (!title && !position && !amount)
 		throw new ApiError.BadRequest(
 			'At least one of title, position or amount is required to create a prize.'
 		);
 	fest.prizes = fest.prizes || [];
-	
+
 	const prize = {
+		id: mongoose.Types.ObjectId().toString(),
 		title: String(title).trim(),
 		position: String(position).trim(),
 		amount: amount !== undefined ? Number(amount) : undefined,
@@ -1086,7 +1096,7 @@ const addPrize = asyncHandler(async (req, res) => {
 	fest.prizes.push(prize);
 	await fest.save();
 	const added = fest.prizes[fest.prizes.length - 1];
-	
+
 	return ApiResponse.success(res, added, 'Prize added', 201);
 });
 
@@ -1094,13 +1104,14 @@ const addPrize = asyncHandler(async (req, res) => {
 const removePrize = asyncHandler(async (req, res) => {
 	const { identifier, prizeId } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
-	
-	if (!fest.prizes || !fest.prizes.id) throw new ApiError.NotFound('No prizes found.');
-	const sub = fest.prizes.id(prizeId);
-	if (!sub) throw new ApiError.NotFound('Prize not found.');
-	sub.remove();
+
+	if (!fest.prizes || fest.prizes.length === 0) throw new ApiError.NotFound('No prizes found.');
+
+	const idx = (fest.prizes || []).findIndex((p) => String(p.id || p._id) === String(prizeId));
+	if (idx === -1) throw new ApiError.NotFound('Prize not found.');
+	fest.prizes.splice(idx, 1);
 	await fest.save();
-	
+
 	return ApiResponse.success(res, null, 'Prize removed', 200);
 });
 
@@ -1108,14 +1119,14 @@ const removePrize = asyncHandler(async (req, res) => {
 const reorderPrizes = asyncHandler(async (req, res) => {
 	const { identifier } = req.params;
 	const { order } = req.body;
-	
+
 	if (!Array.isArray(order))
 		throw new ApiError.BadRequest('order must be an array of prize ids.');
-	
+
 	const fest = await findFestBySlugOrYear(identifier);
-	const map = new Map((fest.prizes || []).map((p) => [String(p._id), p]));
+	const map = new Map((fest.prizes || []).map((p) => [String(p.id || p._id), p]));
 	const newArr = [];
-	
+
 	order.forEach((id) => {
 		if (map.has(String(id))) {
 			newArr.push(map.get(String(id)));
@@ -1125,7 +1136,7 @@ const reorderPrizes = asyncHandler(async (req, res) => {
 	for (const p of map.values()) newArr.push(p);
 	fest.prizes = newArr;
 	await fest.save();
-	
+
 	return ApiResponse.success(res, fest.prizes, 'Prizes reordered successfully', 200);
 });
 
@@ -1133,53 +1144,56 @@ const reorderPrizes = asyncHandler(async (req, res) => {
 const addGuest = asyncHandler(async (req, res) => {
 	const fest = await findFestBySlugOrYear(req.params.identifier);
 	const { name = '', bio = '', socialLinks = {} } = req.body;
-	
+
 	if (!name) throw new ApiError.BadRequest('Guest name is required.');
 	fest.guests = fest.guests || [];
-	
+
 	const guest = {
+		id: mongoose.Types.ObjectId().toString(),
 		name: String(name).trim(),
 		bio: String(bio).trim(),
 		socialLinks: typeof socialLinks === 'object' ? socialLinks : {},
 	};
 	fest.guests.push(guest);
 	await fest.save();
-	
+
 	const added = fest.guests[fest.guests.length - 1];
-	
+
 	return ApiResponse.success(res, added, 'Guest added', 201);
 });
 
 const updateGuest = asyncHandler(async (req, res) => {
 	const { identifier, guestId } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
-	const sub = fest.guests && fest.guests.id ? fest.guests.id(guestId) : null;
-	
+	// find by string id or legacy _id
+	const sub = (fest.guests || []).find((g) => String(g.id || g._id) === String(guestId));
+
 	if (!sub) throw new ApiError.NotFound('Guest not found.');
-	
+
 	const { name, bio, socialLinks } = req.body;
-	
+
 	if (name !== undefined) sub.name = String(name).trim();
 	if (bio !== undefined) sub.bio = String(bio).trim();
 	if (socialLinks !== undefined && typeof socialLinks === 'object') sub.socialLinks = socialLinks;
-	
+
+	// mark modified and save
 	fest.markModified('guests');
 	await fest.save();
-	
+
 	return ApiResponse.success(res, sub, 'Guest updated', 200);
 });
 
 const removeGuest = asyncHandler(async (req, res) => {
 	const { identifier, guestId } = req.params;
 	const fest = await findFestBySlugOrYear(identifier);
-	
-	if (!fest.guests || !fest.guests.id) throw new ApiError.NotFound('No guests found.');
-	const sub = fest.guests.id(guestId);
-	
-	if (!sub) throw new ApiError.NotFound('Guest not found.');
-	sub.remove();
+
+	if (!fest.guests || fest.guests.length === 0) throw new ApiError.NotFound('No guests found.');
+	const idx = (fest.guests || []).findIndex((g) => String(g.id || g._id) === String(guestId));
+
+	if (idx === -1) throw new ApiError.NotFound('Guest not found.');
+	fest.guests.splice(idx, 1);
 	await fest.save();
-	
+
 	return ApiResponse.success(res, null, 'Guest removed', 200);
 });
 
