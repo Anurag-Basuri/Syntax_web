@@ -1002,6 +1002,187 @@ const setVisibility = asyncHandler(async (req, res) => {
 	return ApiResponse.success(res, { visibility: fest.visibility }, 'Visibility updated', 200);
 });
 
+/* Add guideline (admin) */
+const addGuideline = asyncHandler(async (req, res) => {
+	const fest = await findFestBySlugOrYear(req.params.identifier);
+	const { title = '', details = '', order = 0 } = req.body;
+
+	if (!title && !details)
+		throw new ApiError.BadRequest('title or details is required to create a guideline.');
+	fest.guidelines = fest.guidelines || [];
+	fest.guidelines.push({
+		title: String(title).trim(),
+		details: String(details).trim(),
+		order: Number(order) || 0,
+	});
+
+	await fest.save();
+	const added = fest.guidelines[fest.guidelines.length - 1];
+
+	return ApiResponse.success(res, added, 'Guideline added', 201);
+});
+
+/* Remove guideline */
+const removeGuideline = asyncHandler(async (req, res) => {
+	const { identifier, guidelineId } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	
+	if (!fest.guidelines || !fest.guidelines.id)
+		throw new ApiError.NotFound('No guidelines found.');
+	
+	const sub = fest.guidelines.id(guidelineId);
+	
+	if (!sub) throw new ApiError.NotFound('Guideline not found.');
+	sub.remove();
+	await fest.save();
+	
+	return ApiResponse.success(res, null, 'Guideline removed', 200);
+});
+
+/* Reorder guidelines */
+const reorderGuidelines = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const { order } = req.body;
+	
+	if (!Array.isArray(order))
+		throw new ApiError.BadRequest('order must be an array of guideline ids.');
+	
+	const fest = await findFestBySlugOrYear(identifier);
+	const map = new Map((fest.guidelines || []).map((g) => [String(g._id), g]));
+	const newArr = [];
+	
+	order.forEach((id) => {
+		if (map.has(String(id))) {
+			newArr.push(map.get(String(id)));
+			map.delete(String(id));
+		}
+	});
+	
+	for (const g of map.values()) newArr.push(g);
+	fest.guidelines = newArr;
+	await fest.save();
+	
+	return ApiResponse.success(res, fest.guidelines, 'Guidelines reordered successfully', 200);
+});
+
+/* Add prize */
+const addPrize = asyncHandler(async (req, res) => {
+	const fest = await findFestBySlugOrYear(req.params.identifier);
+	const { title = '', position = '', amount, currency = 'INR', description = '' } = req.body;
+	
+	if (!title && !position && !amount)
+		throw new ApiError.BadRequest(
+			'At least one of title, position or amount is required to create a prize.'
+		);
+	fest.prizes = fest.prizes || [];
+	
+	const prize = {
+		title: String(title).trim(),
+		position: String(position).trim(),
+		amount: amount !== undefined ? Number(amount) : undefined,
+		currency: String(currency).trim(),
+		description: String(description).trim(),
+	};
+	fest.prizes.push(prize);
+	await fest.save();
+	const added = fest.prizes[fest.prizes.length - 1];
+	
+	return ApiResponse.success(res, added, 'Prize added', 201);
+});
+
+/* Remove prize */
+const removePrize = asyncHandler(async (req, res) => {
+	const { identifier, prizeId } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	
+	if (!fest.prizes || !fest.prizes.id) throw new ApiError.NotFound('No prizes found.');
+	const sub = fest.prizes.id(prizeId);
+	if (!sub) throw new ApiError.NotFound('Prize not found.');
+	sub.remove();
+	await fest.save();
+	
+	return ApiResponse.success(res, null, 'Prize removed', 200);
+});
+
+/* Reorder prizes */
+const reorderPrizes = asyncHandler(async (req, res) => {
+	const { identifier } = req.params;
+	const { order } = req.body;
+	
+	if (!Array.isArray(order))
+		throw new ApiError.BadRequest('order must be an array of prize ids.');
+	
+	const fest = await findFestBySlugOrYear(identifier);
+	const map = new Map((fest.prizes || []).map((p) => [String(p._id), p]));
+	const newArr = [];
+	
+	order.forEach((id) => {
+		if (map.has(String(id))) {
+			newArr.push(map.get(String(id)));
+			map.delete(String(id));
+		}
+	});
+	for (const p of map.values()) newArr.push(p);
+	fest.prizes = newArr;
+	await fest.save();
+	
+	return ApiResponse.success(res, fest.prizes, 'Prizes reordered successfully', 200);
+});
+
+/* Guests CRUD (optional fields supported) */
+const addGuest = asyncHandler(async (req, res) => {
+	const fest = await findFestBySlugOrYear(req.params.identifier);
+	const { name = '', bio = '', socialLinks = {} } = req.body;
+	
+	if (!name) throw new ApiError.BadRequest('Guest name is required.');
+	fest.guests = fest.guests || [];
+	
+	const guest = {
+		name: String(name).trim(),
+		bio: String(bio).trim(),
+		socialLinks: typeof socialLinks === 'object' ? socialLinks : {},
+	};
+	fest.guests.push(guest);
+	await fest.save();
+	
+	const added = fest.guests[fest.guests.length - 1];
+	
+	return ApiResponse.success(res, added, 'Guest added', 201);
+});
+
+const updateGuest = asyncHandler(async (req, res) => {
+	const { identifier, guestId } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	const sub = fest.guests && fest.guests.id ? fest.guests.id(guestId) : null;
+	
+	if (!sub) throw new ApiError.NotFound('Guest not found.');
+	
+	const { name, bio, socialLinks } = req.body;
+	
+	if (name !== undefined) sub.name = String(name).trim();
+	if (bio !== undefined) sub.bio = String(bio).trim();
+	if (socialLinks !== undefined && typeof socialLinks === 'object') sub.socialLinks = socialLinks;
+	
+	fest.markModified('guests');
+	await fest.save();
+	
+	return ApiResponse.success(res, sub, 'Guest updated', 200);
+});
+
+const removeGuest = asyncHandler(async (req, res) => {
+	const { identifier, guestId } = req.params;
+	const fest = await findFestBySlugOrYear(identifier);
+	
+	if (!fest.guests || !fest.guests.id) throw new ApiError.NotFound('No guests found.');
+	const sub = fest.guests.id(guestId);
+	
+	if (!sub) throw new ApiError.NotFound('Guest not found.');
+	sub.remove();
+	await fest.save();
+	
+	return ApiResponse.success(res, null, 'Guest removed', 200);
+});
+
 /* export */
 export {
 	getLatestFest,
@@ -1040,4 +1221,13 @@ export {
 	removeFAQ,
 	reorderFAQs,
 	setVisibility,
+	addGuideline,
+	removeGuideline,
+	reorderGuidelines,
+	addPrize,
+	removePrize,
+	reorderPrizes,
+	addGuest,
+	updateGuest,
+	removeGuest,
 };
