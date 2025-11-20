@@ -33,7 +33,6 @@ import {
 	removeFAQ as svcRemoveFAQ,
 	reorderFAQs as svcReorderFAQs,
 	bulkDeleteMedia as svcBulkDeleteMedia,
-	/* new/used services */
 	addGuideline,
 	removeGuideline,
 	reorderGuidelines,
@@ -67,6 +66,154 @@ const safeFilename = (s = '') => String(s).replace(/[:]/g, '-').replace(/\s+/g, 
 
 const EditArvantis = ({ setDashboardError = () => {} }) => {
 	const [fests, setFests] = useState([]);
+
+	// Guests quick add states
+	const [guestQuickName, setGuestQuickName] = useState('');
+	const [guestQuickBio, setGuestQuickBio] = useState('');
+
+	// Guidelines quick add states
+	const [guidelineQuickTitle, setGuidelineQuickTitle] = useState('');
+	const [guidelineQuickDetails, setGuidelineQuickDetails] = useState('');
+
+	// Handler for adding a prize
+	const handleAddPrize = async (prize) => {
+		if (!editForm || !editForm._id) return;
+		try {
+			const added = await addPrize(editForm._id, prize);
+			setEditForm((s) => ({ ...s, prizes: [...(s.prizes || []), added] }));
+			setToast({ type: 'success', message: 'Prize added' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to add prize'));
+		}
+	};
+
+	// Handler for removing a prize
+	const handleRemovePrize = async (prizeId) => {
+		if (!editForm || !editForm._id || !prizeId) return;
+		if (!window.confirm('Remove prize?')) return;
+		try {
+			await removePrize(editForm._id, prizeId);
+			setEditForm((s) => ({
+				...s,
+				prizes: (s.prizes || []).filter((p) => String(p._id || p.id) !== String(prizeId)),
+			}));
+			setToast({ type: 'success', message: 'Prize removed' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to remove prize'));
+		}
+	};
+
+	// Handler for reordering prizes
+	const reorderPrizeItems = async (fromIdx, toIdx) => {
+		if (!editForm || !editForm._id) return;
+		const prizes = editForm.prizes || [];
+		if (fromIdx < 0 || toIdx < 0 || fromIdx >= prizes.length || toIdx >= prizes.length) return;
+		const copy = prizes.slice();
+		const [moved] = copy.splice(fromIdx, 1);
+		copy.splice(toIdx, 0, moved);
+		const order = copy.map((p) => String(p._id || p.id));
+		try {
+			await reorderPrizes(editForm._id, order);
+			setEditForm((s) => ({ ...s, prizes: copy }));
+			setToast({ type: 'success', message: 'Prizes reordered' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to reorder prizes'));
+		}
+	};
+
+	// Handler for adding a guideline
+	const handleAddGuideline = async (guideline) => {
+		if (!editForm || !editForm._id) return;
+		try {
+			const added = await addGuideline(editForm._id, guideline);
+			setEditForm((s) => ({ ...s, guidelines: [...(s.guidelines || []), added] }));
+			setToast({ type: 'success', message: 'Guideline added' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to add guideline'));
+		}
+	};
+
+	// Handler for removing a guideline
+	const handleRemoveGuideline = async (guidelineId) => {
+		if (!editForm || !editForm._id || !guidelineId) return;
+		if (!window.confirm('Remove guideline?')) return;
+		try {
+			await removeGuideline(editForm._id, guidelineId);
+			setEditForm((s) => ({
+				...s,
+				guidelines: (s.guidelines || []).filter(
+					(g) => String(g._id || g.id) !== String(guidelineId)
+				),
+			}));
+			setToast({ type: 'success', message: 'Guideline removed' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to remove guideline'));
+		}
+	};
+
+	// Handler for reordering guidelines
+	const reorderGuidelineItems = async (fromIdx, toIdx) => {
+		if (!editForm || !editForm._id) return;
+		const guidelines = editForm.guidelines || [];
+		if (fromIdx < 0 || toIdx < 0 || fromIdx >= guidelines.length || toIdx >= guidelines.length)
+			return;
+		const copy = guidelines.slice();
+		const [moved] = copy.splice(fromIdx, 1);
+		copy.splice(toIdx, 0, moved);
+		const order = copy.map((g) => String(g._id || g.id));
+		try {
+			await reorderGuidelines(editForm._id, order);
+			setEditForm((s) => ({ ...s, guidelines: copy }));
+			setToast({ type: 'success', message: 'Guidelines reordered' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to reorder guidelines'));
+		}
+	};
+
+	// Handler for adding a guest
+	const handleAddGuest = async (guest) => {
+		if (!editForm || !editForm._id) return;
+		try {
+			const added = await addGuest(editForm._id, guest);
+			setEditForm((s) => ({ ...s, guests: [...(s.guests || []), added] }));
+			setToast({ type: 'success', message: 'Guest added' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to add guest'));
+		}
+	};
+
+	// Handler for updating a guest
+	const handleUpdateGuest = async (guestId, updates) => {
+		if (!editForm || !editForm._id || !guestId) return;
+		try {
+			const updated = await updateGuest(editForm._id, guestId, updates);
+			setEditForm((s) => ({
+				...s,
+				guests: (s.guests || []).map((g) =>
+					String(g._id || g.id) === String(guestId) ? updated : g
+				),
+			}));
+			setToast({ type: 'success', message: 'Guest updated' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to update guest'));
+		}
+	};
+
+	// Handler for removing a guest
+	const handleRemoveGuest = async (guestId) => {
+		if (!editForm || !editForm._id || !guestId) return;
+		if (!window.confirm('Remove guest?')) return;
+		try {
+			await removeGuest(editForm._id, guestId);
+			setEditForm((s) => ({
+				...s,
+				guests: (s.guests || []).filter((g) => String(g._id || g.id) !== String(guestId)),
+			}));
+			setToast({ type: 'success', message: 'Guest removed' });
+		} catch (err) {
+			setDashboardErrorRef.current(getErrMsg(err, 'Failed to remove guest'));
+		}
+	};
 	const [loading, setLoading] = useState(true);
 	const [events, setEvents] = useState([]);
 	const [selectedFestId, setSelectedFestId] = useState(null);
@@ -100,6 +247,12 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 	const [heroCaption, setHeroCaption] = useState('');
 
 	const [toast, setToast] = useState(null);
+
+	// Prizes quick add states
+	const [prizeQuickTitle, setPrizeQuickTitle] = useState('');
+	const [prizeQuickPosition, setPrizeQuickPosition] = useState('');
+	const [prizeQuickAmount, setPrizeQuickAmount] = useState('');
+	const [prizeQuickCurrency, setPrizeQuickCurrency] = useState('');
 
 	const mountedRef = useRef(false);
 	const setDashboardErrorRef = useRef(setDashboardError);
@@ -802,278 +955,47 @@ const EditArvantis = ({ setDashboardError = () => {} }) => {
 
 				{editForm && (
 					<GlassCard className="p-6">
-						<div className="flex items-start justify-between mb-4 gap-4">
-							<div>
-								<h2 className="text-2xl font-semibold text-white">
-									{editForm.name} — {editForm.year}
-								</h2>
-								<div className="text-sm text-gray-400">
-									Status:{' '}
-									<Badge variant={editForm.status}>{editForm.status}</Badge>
-								</div>
-							</div>
+						<FestHeader
+							editForm={editForm}
+							saveEdit={() => void saveEdit()}
+							removeFest={(f) => void removeFest(f)}
+							downloadReport={async () => {
+								try {
+									await downloadFestReport(editForm._id);
+									setToast({ type: 'success', message: 'Report downloaded' });
+								} catch (err) {
+									setToast({
+										type: 'error',
+										message: getErrMsg(err, 'Failed to download report'),
+									});
+								}
+							}}
+							actionBusy={actionBusy}
+						/>
 
-							<div className="flex gap-2">
-								<button
-									onClick={() => void saveEdit()}
-									disabled={actionBusy}
-									className="px-4 py-2 bg-emerald-600 text-white rounded"
-								>
-									Save
-								</button>
-								<button
-									onClick={() => void removeFest(editForm)}
-									disabled={actionBusy}
-									className="px-4 py-2 bg-red-600 text-white rounded"
-								>
-									Delete
-								</button>
-								<button
-									onClick={async () => {
-										try {
-											await downloadFestReport(editForm._id);
-											setToast({
-												type: 'success',
-												message: 'Report downloaded',
-											});
-										} catch (err) {
-											setToast({
-												type: 'error',
-												message: getErrMsg(
-													err,
-													'Failed to download report'
-												),
-											});
-										}
-									}}
-									disabled={actionBusy}
-									className="px-4 py-2 bg-gray-800 text-white rounded"
-								>
-									Download Report
-								</button>
-							</div>
-						</div>
+						<BasicDetails
+							editForm={editForm}
+							setEditForm={setEditForm}
+							heroCaption={heroCaption}
+							setHeroCaption={setHeroCaption}
+						/>
 
-						{/* Basic fields */}
-						<div className="grid grid-cols-2 gap-4 mb-4">
-							<input
-								value={editForm.location || ''}
-								onChange={(e) =>
-									setEditForm((s) => ({ ...s, location: e.target.value }))
-								}
-								className="p-3 bg-white/5 rounded"
-								placeholder="Location"
-							/>
-							<input
-								value={editForm.contactEmail || ''}
-								onChange={(e) =>
-									setEditForm((s) => ({ ...s, contactEmail: e.target.value }))
-								}
-								className="p-3 bg-white/5 rounded"
-								placeholder="Contact email"
-							/>
-							<textarea
-								value={editForm.description || ''}
-								onChange={(e) =>
-									setEditForm((s) => ({ ...s, description: e.target.value }))
-								}
-								className="col-span-2 p-3 bg-white/5 rounded"
-								rows={4}
-								placeholder="Description"
-							/>
-							<input
-								value={editForm.tagline || ''}
-								onChange={(e) =>
-									setEditForm((s) => ({ ...s, tagline: e.target.value }))
-								}
-								className="p-3 bg-white/5 rounded"
-								placeholder="Tagline (short)"
-							/>
-							<input
-								type="datetime-local"
-								value={
-									editForm.startDate
-										? new Date(editForm.startDate).toISOString().slice(0, 16)
-										: ''
-								}
-								onChange={(e) =>
-									setEditForm((s) => ({
-										...s,
-										startDate: e.target.value || null,
-									}))
-								}
-								className="p-3 bg-white/5 rounded"
-							/>
-							<input
-								type="datetime-local"
-								value={
-									editForm.endDate
-										? new Date(editForm.endDate).toISOString().slice(0, 16)
-										: ''
-								}
-								onChange={(e) =>
-									setEditForm((s) => ({ ...s, endDate: e.target.value || null }))
-								}
-								className="p-3 bg-white/5 rounded"
-							/>
-						</div>
-
-						{/* Posters */}
-						<div className="mb-4">
-							<h4 className="font-semibold text-white mb-2">Posters</h4>
-							<div className="flex gap-2 flex-wrap mb-3">
-								{(editForm.posters || []).length === 0 && (
-									<div className="text-sm text-gray-400">No posters uploaded</div>
-								)}
-								{(editForm.posters || []).map((p) => (
-									<div
-										key={p.publicId}
-										className="relative w-36 h-48 bg-gray-800 rounded overflow-hidden"
-									>
-										{p.url && (
-											<img
-												src={p.url}
-												alt={p.caption || ''}
-												className="object-cover w-full h-full"
-											/>
-										)}
-										<div className="absolute bottom-0 left-0 right-0 p-2 bg-black/40 flex items-center justify-between gap-2">
-											<div className="text-xs text-white truncate">
-												{p.caption || p.publicId}
-											</div>
-											<div className="flex gap-2">
-												<button
-													onClick={() => removePoster(p.publicId)}
-													disabled={actionBusy}
-													className="text-red-400 p-1"
-													title="Delete poster"
-												>
-													<Trash2 className="w-4 h-4" />
-												</button>
-												<button
-													onClick={() => toggleMediaSelect(p.publicId)}
-													className={`p-1 rounded-full ${
-														mediaSelection.has(p.publicId)
-															? 'bg-purple-600 text-white'
-															: 'bg-black/50 text-purple-600'
-													}`}
-													aria-label="Select poster"
-												>
-													{mediaSelection.has(p.publicId) ? '✓' : 'P'}
-												</button>
-											</div>
-										</div>
-									</div>
-								))}
-							</div>
-							<input
-								type="file"
-								multiple
-								accept="image/*"
-								onChange={(e) =>
-									void uploadPoster(Array.from(e.target.files || []))
-								}
-								disabled={actionBusy}
-							/>
-						</div>
-
-						{/* Hero */}
-						<div className="mb-4">
-							<h4 className="font-semibold text-white mb-2">Hero Image</h4>
-							{editForm.hero ? (
-								<div className="flex items-center gap-4 mb-2">
-									<img
-										src={editForm.hero.url}
-										alt="hero"
-										className="w-40 h-24 object-cover rounded"
-									/>
-									<div className="flex-1">
-										<div className="text-sm text-gray-400 mb-1">
-											{editForm.hero.caption || ''}
-										</div>
-										<input
-											value={heroCaption}
-											onChange={(e) => setHeroCaption(e.target.value)}
-											placeholder="Edit hero caption (local)"
-											className="p-2 bg-white/5 rounded w-full mb-2"
-										/>
-									</div>
-									<div className="ml-auto flex gap-2">
-										<button
-											onClick={() => removeHero()}
-											disabled={actionBusy}
-											className="px-3 py-1 rounded bg-red-600 text-white"
-										>
-											Delete Hero
-										</button>
-									</div>
-								</div>
-							) : (
-								<div className="text-sm text-gray-400 mb-2">No hero image</div>
-							)}
-
-							<div className="flex gap-2 items-center">
-								<input
-									type="file"
-									accept="image/*"
-									onChange={(e) => setHeroFile(e.target.files?.[0] || null)}
-									disabled={actionBusy}
-								/>
-								<input
-									type="text"
-									placeholder="Caption (optional)"
-									value={heroCaption}
-									onChange={(e) => setHeroCaption(e.target.value)}
-									className="p-2 bg-white/5 rounded flex-1"
-									disabled={actionBusy}
-								/>
-								<button
-									onClick={() => uploadHero(heroFile, heroCaption)}
-									disabled={actionBusy || !heroFile}
-									className="px-3 py-2 bg-emerald-600 text-white rounded"
-								>
-									Upload Hero
-								</button>
-							</div>
-						</div>
-
-						{/* Gallery */}
-						<div className="mb-4">
-							<h4 className="font-semibold text-white mb-2">Gallery</h4>
-							<div className="flex gap-2 flex-wrap mb-2">
-								{editForm.gallery?.map((g, i) => (
-									<div
-										key={g.publicId || i}
-										className="relative w-36 h-24 bg-gray-800 rounded overflow-hidden"
-									>
-										{g.url && (
-											<img
-												src={g.url}
-												alt={g.caption || ''}
-												className="object-cover w-full h-full"
-											/>
-										)}
-										<button
-											onClick={() => void removeGalleryItem(g.publicId)}
-											className="absolute top-1 right-1 p-1 bg-black/50 rounded text-red-400"
-											aria-label="Remove gallery item"
-										>
-											<Trash2 className="w-4 h-4" />
-										</button>
-									</div>
-								))}
-								{editForm.gallery?.length === 0 && (
-									<div className="text-sm text-gray-400">No gallery items</div>
-								)}
-							</div>
-							<input
-								type="file"
-								multiple
-								accept="image/*,video/*"
-								onChange={(e) => void addGallery(Array.from(e.target.files || []))}
-								disabled={actionBusy}
-							/>
-						</div>
+						<MediaSection
+							editForm={editForm}
+							mediaSelection={mediaSelection}
+							toggleMediaSelect={toggleMediaSelect}
+							uploadPoster={uploadPoster}
+							removePoster={removePoster}
+							heroFile={heroFile}
+							setHeroFile={setHeroFile}
+							heroCaption={heroCaption}
+							setHeroCaption={setHeroCaption}
+							uploadHero={uploadHero}
+							removeHero={removeHero}
+							addGallery={addGallery}
+							removeGalleryItem={removeGalleryItem}
+							actionBusy={actionBusy}
+						/>
 
 						{/* Partners */}
 						<div className="mb-4">
