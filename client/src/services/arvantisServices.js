@@ -95,7 +95,7 @@ export const updateFestDetails = async (identifier, updateData) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/update`,
 			updateData
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update fest details.'));
 	}
@@ -105,7 +105,7 @@ export const deleteFest = async (identifier) => {
 	if (!identifier) throw new Error('Fest identifier is required.');
 	try {
 		const resp = await apiClient.delete(`/api/v1/arvantis/${encodeURIComponent(identifier)}`);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to delete fest.'));
 	}
@@ -118,7 +118,7 @@ export const duplicateFest = async (identifier, year) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/duplicate`,
 			{ year }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to duplicate fest.'));
 	}
@@ -131,7 +131,7 @@ export const setFestStatus = async (identifier, status) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/status`,
 			{ status }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to set fest status.'));
 	}
@@ -144,7 +144,7 @@ export const updatePresentation = async (identifier, data) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/presentation`,
 			data
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update presentation.'));
 	}
@@ -157,7 +157,7 @@ export const updateSocialLinks = async (identifier, socialLinks) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/social-links`,
 			socialLinks
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update social links.'));
 	}
@@ -170,7 +170,7 @@ export const updateThemeColors = async (identifier, themeColors) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/theme`,
 			themeColors
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update theme colors.'));
 	}
@@ -197,7 +197,7 @@ export const addPartner = async (identifier, formData) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/partners`,
 			formData
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to add partner.'));
 	}
@@ -212,7 +212,7 @@ export const updatePartner = async (identifier, partnerName, formData) => {
 			)}`,
 			formData
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update partner.'));
 	}
@@ -226,7 +226,7 @@ export const removePartner = async (identifier, partnerName) => {
 				partnerName
 			)}`
 		);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove partner.'));
 	}
@@ -240,7 +240,7 @@ export const reorderPartners = async (identifier, order) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/partners/reorder`,
 			{ order }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to reorder partners.'));
 	}
@@ -254,7 +254,7 @@ export const linkEventToFest = async (identifier, eventId) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/events`,
 			{ eventId }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to link event to fest.'));
 	}
@@ -268,7 +268,7 @@ export const unlinkEventFromFest = async (identifier, eventId) => {
 				eventId
 			)}`
 		);
-		return resp.data?.data ?? { success: true };
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to unlink event from fest.'));
 	}
@@ -284,7 +284,7 @@ export const addFestPoster = async (identifier, formData) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/posters`,
 			formData
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to upload poster(s).'));
 	}
@@ -307,7 +307,7 @@ export const removeFestPoster = async (identifier, publicId) => {
 				`/api/v1/arvantis/${encodeURIComponent(identifier)}/poster`
 			);
 		}
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove poster.'));
 	}
@@ -320,7 +320,7 @@ export const updateFestHero = async (identifier, formData) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/hero`,
 			formData
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update hero media.'));
 	}
@@ -333,7 +333,7 @@ export const removeFestHero = async (identifier) => {
 		const resp = await apiClient.delete(
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/hero`
 		);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove hero media.'));
 	}
@@ -346,7 +346,7 @@ export const addGalleryMedia = async (identifier, formData) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/gallery`,
 			formData
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to add gallery media.'));
 	}
@@ -360,7 +360,7 @@ export const removeGalleryMedia = async (identifier, publicId) => {
 				publicId
 			)}`
 		);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove gallery media.'));
 	}
@@ -374,7 +374,7 @@ export const reorderGallery = async (identifier, order) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/gallery/reorder`,
 			{ order }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to reorder gallery.'));
 	}
@@ -407,7 +407,7 @@ export const exportFestsCSV = async () => {
 export const getFestAnalytics = async () => {
 	try {
 		const resp = await apiClient.get('/api/v1/arvantis/analytics/overview');
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to fetch analytics.'));
 	}
@@ -416,7 +416,7 @@ export const getFestAnalytics = async () => {
 export const getFestStatistics = async () => {
 	try {
 		const resp = await apiClient.get('/api/v1/arvantis/statistics/overview');
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to fetch statistics.'));
 	}
@@ -428,7 +428,7 @@ export const generateFestReport = async (identifier) => {
 		const resp = await apiClient.get(
 			`/api/v1/arvantis/reports/${encodeURIComponent(identifier)}`
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to generate report.'));
 	}
@@ -486,7 +486,7 @@ export const addTrack = async (identifier, payload) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/tracks`,
 			payload
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to add track.'));
 	}
@@ -501,7 +501,7 @@ export const updateTrack = async (identifier, trackKey, payload) => {
 			)}`,
 			payload
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update track.'));
 	}
@@ -515,7 +515,7 @@ export const removeTrack = async (identifier, trackKey) => {
 				trackKey
 			)}`
 		);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove track.'));
 	}
@@ -529,7 +529,7 @@ export const reorderTracks = async (identifier, order) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/tracks/reorder`,
 			{ order }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to reorder tracks.'));
 	}
@@ -544,7 +544,7 @@ export const addFAQ = async (identifier, payload) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/faqs`,
 			payload
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to add FAQ.'));
 	}
@@ -557,7 +557,7 @@ export const updateFAQ = async (identifier, faqId, payload) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/faqs/${encodeURIComponent(faqId)}`,
 			payload
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update FAQ.'));
 	}
@@ -569,7 +569,7 @@ export const removeFAQ = async (identifier, faqId) => {
 		const resp = await apiClient.delete(
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/faqs/${encodeURIComponent(faqId)}`
 		);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove FAQ.'));
 	}
@@ -583,7 +583,7 @@ export const reorderFAQs = async (identifier, order) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/faqs/reorder`,
 			{ order }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to reorder FAQs.'));
 	}
@@ -597,9 +597,24 @@ export const addGuideline = async (identifier, payload) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guidelines`,
 			payload
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to add guideline.'));
+	}
+};
+
+export const updateGuideline = async (identifier, guidelineId, payload) => {
+	if (!identifier || !guidelineId) throw new Error('Identifier and guidelineId required.');
+	try {
+		const resp = await apiClient.patch(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guidelines/${encodeURIComponent(
+				guidelineId
+			)}`,
+			payload
+		);
+		return resp.data?.data ?? resp.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to update guideline.'));
 	}
 };
 
@@ -611,7 +626,7 @@ export const removeGuideline = async (identifier, guidelineId) => {
 				guidelineId
 			)}`
 		);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove guideline.'));
 	}
@@ -625,7 +640,7 @@ export const reorderGuidelines = async (identifier, order) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guidelines/reorder`,
 			{ order }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to reorder guidelines.'));
 	}
@@ -639,9 +654,24 @@ export const addPrize = async (identifier, payload) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/prizes`,
 			payload
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to add prize.'));
+	}
+};
+
+export const updatePrize = async (identifier, prizeId, payload) => {
+	if (!identifier || !prizeId) throw new Error('Identifier and prizeId required.');
+	try {
+		const resp = await apiClient.patch(
+			`/api/v1/arvantis/${encodeURIComponent(identifier)}/prizes/${encodeURIComponent(
+				prizeId
+			)}`,
+			payload
+		);
+		return resp.data?.data ?? resp.data;
+	} catch (err) {
+		throw new Error(extractError(err, 'Failed to update prize.'));
 	}
 };
 
@@ -653,7 +683,7 @@ export const removePrize = async (identifier, prizeId) => {
 				prizeId
 			)}`
 		);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove prize.'));
 	}
@@ -667,7 +697,7 @@ export const reorderPrizes = async (identifier, order) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/prizes/reorder`,
 			{ order }
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to reorder prizes.'));
 	}
@@ -681,7 +711,7 @@ export const addGuest = async (identifier, payload) => {
 			`/api/v1/arvantis/${encodeURIComponent(identifier)}/guests`,
 			payload
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to add guest.'));
 	}
@@ -696,7 +726,7 @@ export const updateGuest = async (identifier, guestId, payload) => {
 			)}`,
 			payload
 		);
-		return resp.data?.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to update guest.'));
 	}
@@ -710,7 +740,7 @@ export const removeGuest = async (identifier, guestId) => {
 				guestId
 			)}`
 		);
-		return resp.status === 204 ? { success: true } : resp.data;
+		return resp.data?.data ?? resp.data;
 	} catch (err) {
 		throw new Error(extractError(err, 'Failed to remove guest.'));
 	}
