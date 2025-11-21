@@ -37,9 +37,11 @@ import {
 	reorderFAQs,
 	setVisibility,
 	addGuideline,
+	updateGuideline,
 	removeGuideline,
 	reorderGuidelines,
 	addPrize,
+	updatePrize,
 	removePrize,
 	reorderPrizes,
 	addGuest,
@@ -388,6 +390,18 @@ router.post(
 	addGuideline
 );
 
+router.patch(
+	'/:identifier/guidelines/:guidelineId',
+	validate([
+		param('identifier').notEmpty().withMessage('Fest identifier is required'),
+		param('guidelineId').notEmpty().withMessage('Guideline id is required'),
+		body('title').optional().trim(),
+		body('details').optional().trim(),
+		body('order').optional().isInt().toInt(),
+	]),
+	updateGuideline
+);
+
 router.delete(
 	'/:identifier/guidelines/:guidelineId',
 	validate([
@@ -420,6 +434,20 @@ router.post(
 		body('description').optional().trim(),
 	]),
 	addPrize
+);
+
+router.patch(
+	'/:identifier/prizes/:prizeId',
+	validate([
+		param('identifier').notEmpty().withMessage('Fest identifier is required'),
+		param('prizeId').notEmpty().withMessage('Prize id is required'),
+		body('title').optional().trim(),
+		body('position').optional().trim(),
+		body('amount').optional().isNumeric().toFloat(),
+		body('currency').optional().trim(),
+		body('description').optional().trim(),
+	]),
+	updatePrize
 );
 
 router.delete(
