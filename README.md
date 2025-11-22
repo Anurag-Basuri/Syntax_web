@@ -1,51 +1,45 @@
-# Syntax Club — Full Stack Platform
+# Syntax Club — Full Stack Platform (Improved README)
 
-This document is a single-source, developer-focused README for the Syntax Club repository. It describes the codebase, architecture, key modules (including the Arvantis fest subsystem), development workflow, env variables, APIs, and recommended practices for extending and deploying the application.
+This README documents the full Syntax_Club repository (client + server). It is developer-focused and designed to help new contributors and maintainers quickly understand architecture, data flows, code structure, setup, and extension points. It also includes practical engineering notes (security, performance, testing, deployment).
 
 Table of contents
 
 - Project summary
-- High-level architecture
-- Technology stack
-- Repository layout (detailed)
-  - Client
-  - Server
-- Arvantis module — design & flow
-  - Data model
-  - Media handling
-  - Controllers & routes
-- Frontend structure & key components
-- Services & API clients
-- Middleware & utilities (server)
-- Local development — quickstart
-- Environment variables (examples)
-- API overview — important endpoints
-- Testing, linting & scripts
-- Deployment notes & recommendations
-- Troubleshooting & tips
-- Contributing & code style
-- Useful references
+- High-level architecture & runtime flow
+- Technology stack (detailed)
+- Repository layout (explain what each folder does)
+- Key modules and important files (what to read first)
+- Data models and Arvantis domain model (fields, sub-resources)
+- Media handling & upload flow (Cloudinary + multer)
+- Frontend architecture & component map
+- Services / API clients (how frontend talks to backend)
+- Middleware, utilities & server helpers
+- Local development — quickstart & useful scripts
+- Environment variables — full examples
+- API reference (most-used endpoints)
+- Testing, linting & CI recommendations
+- Production & deployment checklist
+- Troubleshooting & common gotchas
+- How to extend Arvantis editor (practical recipe)
+- Contribution guidelines & code style
+- Appendix: useful CLI commands & tips
 
 ---
 
 ## Project summary
 
-Syntax Club is a full-stack web application composed of:
-
-- A React + Vite single page application (client/) that renders a public site and an admin dashboard.
-- An Express + Node.js backend (server/) using MongoDB (mongoose) exposing a REST API for application data and admin operations.
-
-A major feature set is the "Arvantis" module: a festival/editions manager with events, partners, media (hero/posters/gallery), guidelines, prizes, tracks, guests, analytics and reporting.
+- Syntax Club is a full-stack application for club management and events, with a prominent feature: the Arvantis festival subsystem.
+- It contains a React + Vite frontend (client/) and an Express + Node.js + MongoDB backend (server/).
+- The Arvantis module supports multi-edition fests, events, partners, media (hero/posters/gallery), tracks, FAQs, guidelines, prizes, guests, analytics and exports.
 
 ---
 
-## High-level architecture
+## High-level architecture & runtime flow
 
-- Client (SPA) ↔ Server (REST API)
-- Server stores persistent data in MongoDB and stores media via Cloudinary (or other configured provider).
-- Authentication uses JWT tokens and role checks in middleware.
-- File uploads use multer on the server; media utilities handle Cloudinary upload/delete and canonicalize media objects returned to clients.
-- Frontend organizes domain API calls in services/\*.js; components call services and show UI.
+1. Frontend (SPA) renders public pages and an admin dashboard. It calls REST endpoints on the server.
+2. Server exposes REST API (versioned under /api/v1) and performs business logic, persisting data in MongoDB via Mongoose.
+3. Media files uploaded by admins are accepted as multipart/form-data and handled by multer; production systems upload to Cloudinary (server/src/utils/cloudinary.js) and return normalized media objects (server/src/utils/arvantisMedia.js).
+4. Authentication uses JWT (server middleware) for protected routes; admin UI calls admin endpoints via auth-equipped axios client.
 
 ---
 
@@ -53,301 +47,346 @@ A major feature set is the "Arvantis" module: a festival/editions manager with e
 
 Frontend
 
-- React, JSX, functional components
-- Vite (dev server & build)
-- TailwindCSS for styling
-- React Query (recommended where used)
+- React (functional components, hooks)
+- Vite (fast dev server, HMR)
+- TailwindCSS for utility-first styling + a few custom CSS files
+- Axios for HTTP (client/src/services/api.js)
+- Optional: React Query for caching (project can adopt more use)
 - Framer Motion (animations)
-- Icons via Lucide or similar
-- Modern tooling: ESLint, Prettier
+- ESLint, Prettier for code style
 
 Backend
 
-- Node.js + Express
-- MongoDB + Mongoose
-- Multer for multipart/form-data (uploads)
-- Cloudinary util for media storage
-- Validation middleware + custom ApiError / ApiResponse helpers
-- Utilities: asyncHandler, arvantisMedia normalization helpers
+- Node.js (>=18 recommended) + Express
+- MongoDB with Mongoose schemas
+- Multer (uploads) + Cloudinary utility for remote storage
+- Middleware: auth, validation, rate limiting, CORS, normalizeEvent
+- Utilities: ApiError/ApiResponse, asyncHandler wrapper, arvantisMedia normalizer
 
-Dev tooling
+Dev / infra
 
-- nodemon for dev server reloads
-- PM2 / Docker recommended for production
+- nodemon for server dev
+- Docker (suggested) for reproducible deployment
+- PM2 or container orchestration recommended for production
 
 ---
 
-## Repository layout (important files & folders)
+## Repository layout (what each top-level folder contains)
 
-Top-level:
+Root
 
-- client/ — frontend SPA
-- server/ — backend API
-- README.md — this file
+- README.md (this file)
+- .env (dev-only)
+- package.json (root-level tasks, if any)
 
-Client (d:\projects\Syntax_Club\client)
+client/ (frontend)
 
-- package.json, vite.config.js, tailwind.config.js
-- src/main.jsx — app entry
-- src/index.css, arvantis.css, design.css — styling
-- src/services/\*.js — centralized API clients (api.js) and domain services (arvantisServices.js, eventServices.js, etc.)
-- src/components/ — UI components, grouped (Arvantis, admin, event, member, etc.)
-  - Arvantis components: GlassCard.jsx, ImageLightbox.jsx, MediaSection.jsx, PosterHero.jsx, FestList.jsx, FestHeader.jsx, EditGuidelines.jsx, EditPrizes.jsx, EditGuests.jsx, etc.
-- src/pages/ — route-level pages (arvantis/, adminDash.jsx, home.jsx, etc.)
-- src/utils/ — small helpers (formatApiError.js, fileUtils.js, handleTokens.js)
+- index.html, vite.config.js, tailwind.config.js
+- src/main.jsx — app bootstrap (router, contexts)
+- src/pages/ — page-level components (home, adminDash, arvantis)
+- src/components/ — reusable UI components, grouped by domain: Arvantis, admin, event, member, etc.
+- src/services/ — HTTP clients & domain API wrapper functions (arvantisServices.js, eventServices.js, authServices.js)
+- src/utils/ — small helpers (fileUtils, formatApiError, handleTokens)
+- src/styles/ and global CSS files (index.css, arvantis.css, design.css)
+- assets/ for static images and icons
 
-Server (d:\projects\Syntax_Club\server)
+server/ (backend)
 
-- package.json, src/app.js, src/server.js
-- src/controllers/ — domain controllers: arvantis.controller.js, event.controller.js, member.controller.js, ticket.controller.js, etc.
-- src/models/ — mongoose models: arvantis.model.js, event.model.js, member.model.js, ticket.model.js, ...
-- src/routes/ — express routers (arvantis.routes.js, event.routes.js, member.routes.js, ...)
+- src/app.js — express app wiring (middlewares, routes)
+- src/server.js — server listen/bootstrap
+- src/controllers/ — controllers per domain: arvantis.controller.js, event.controller.js, ticket.controller.js etc.
+- src/models/ — Mongoose schemas (arvantis.model.js, event.model.js, member.model.js, ticket.model.js)
+- src/routes/ — route definitions and route-level validation
 - src/middlewares/ — auth.middleware.js, multer.middleware.js, validator.middleware.js, normalizeEvent.middleware.js, rateLimit.middleware.js
-- src/utils/ — ApiError.js, ApiResponse.js, cloudinary.js, arvantisMedia.js, asyncHandler.js, error.js, format helpers
-- src/services/ — service-layer helpers (qrcode.service.js, email.service.js, payment integrations)
+- src/utils/ — cloudinary.js, arvantisMedia.js, ApiError.js, ApiResponse.js, asyncHandler.js, error.js
+- src/services/ — service helpers: qrcode, email, payment integrations
+- uploads/ — local storage fallback (dev)
 
 ---
 
-## Arvantis module — design & flow
+## Key modules & recommended files to read first
 
-Purpose: manage festival editions ("fests") and related data such as events, partners, media, tracks, FAQs, guidelines, prizes, guests, analytics and reports.
+Frontend
 
-Key concepts:
+1. client/src/services/api.js — axios clients, auth token injection
+2. client/src/services/arvantisServices.js — the canonical set of API wrappers used by Arvantis pages/components
+3. client/src/pages/arvantis/editArvantis.jsx — admin editor (comprehensive usage of services)
+4. client/src/components/Arvantis/\* — MediaSection.jsx, FestHeader.jsx, FestList.jsx, ImageLightbox.jsx, EditGuidelines.jsx, EditPrizes.jsx, EditGuests.jsx
 
-- A Fest (Arvantis document) contains metadata (name, year, slug, dates, location, contact), arrays for partners, posters, gallery, tracks, faqs, guidelines, prizes, guests and references to events.
-- Media model: media items are normalized via server utils (arvantisMedia.js) to include keys such as publicId, url, secureUrl, mimeType, width, height and optional caption.
-- Media upload endpoints accept multipart FormData; server multer middleware stores file buffer to Cloudinary (or disk in dev) and returns normalized objects.
+Backend
 
-Data model (high level)
-
-- server/src/models/arvantis.model.js — Arvantis schema with fields:
-  - name, year, slug, tagline, description, startDate, endDate, location, status, socialLinks, themeColors
-  - arrays: partners, posters, gallery, tracks, faqs, guidelines, prizes, guests
-  - analytics and report metadata (generated)
-
-Media handling
-
-- Upload flow: client sends FormData -> server multer middleware -> cloudinary util -> arvantisMedia.normalize -> returns media object -> controller pushes to fest doc -> response returns updated media object(s).
-- Deletion: controller deletes Cloudinary publicId + removes object from DB arrays; bulk-delete endpoint exists.
-
-Controllers & routes
-
-- server/src/controllers/arvantis.controller.js — implements CRUD for fests and sub-resources (partners, media, guidelines, prizes, guests, tracks, faqs), analytics + export endpoints, duplicatefest, status toggles and reporting.
-- server/src/routes/arvantis.routes.js — wires public and admin endpoints, uses middlewares (protect, authorize) for admin-only routes.
-- client/src/services/arvantisServices.js — mirrors routes via functions: getArvantisLandingData, getAllFests, getFestDetails, createFest, updateFestDetails, addGalleryMedia, addFestPoster, updateFestHero, bulkDeleteMedia, addGuideline, updatePrize, addGuest, reorder endpoints, export & analytics downloads, etc.
+1. server/src/models/arvantis.model.js — domain model for Arvantis (fields & subdocuments)
+2. server/src/controllers/arvantis.controller.js — controller actions: list, details, create, update, media upload, sub-resource CRUD
+3. server/src/routes/arvantis.routes.js — API surface and middleware wiring
+4. server/src/utils/arvantisMedia.js & cloudinary.js — how uploaded files are normalized and stored
 
 ---
 
-## Frontend structure & key components
+## Arvantis data model (conceptual, high-level)
 
-- Main app entry: src/main.jsx wiring router, contexts (Auth, Theme) and app-shell.
-- Arvantis pages:
-  - pages/arvantis/arvantis.jsx — public landing page composition (hero, editions, events grid, gallery).
-  - pages/arvantis/editArvantis.jsx — admin editor for fests (complete editing UI, uses all services).
-- Components:
-  - PosterHero.jsx — hero + poster rendering + CTA
-  - EventsGrid.jsx — lists events with lazy-load details
-  - ImageLightbox.jsx — fullscreen image viewer (recommendation: mount in a portal; README includes fix hint)
-  - MediaSection.jsx — admin UI for hero/posters/gallery upload & delete
-  - FestList.jsx & FestHeader.jsx — admin list and header controls
-  - EditGuidelines.jsx, EditPrizes.jsx, EditGuests.jsx — small CRUD editors for sub-resources
-- Services:
-  - src/services/api.js — axios clients (apiClient with auth, publicClient)
-  - arvantisServices.js — all Arvantis-related API wrappers and helpers including normalizePagination and error extraction
-  - eventServices.js, memberServices.js, authServices.js — domain services for other flows
+- Fest (Arvantis document) fields:
+  - core: \_id, name, slug, year, tagline, description, startDate, endDate, location, status, visibility
+  - contact: contactEmail, contactPhone, socialLinks (object)
+  - theme: themeColors (object), presentation (rich markdown/blocks)
+  - media: heroMedia (object), posters (array of media), gallery (array of media)
+  - arrays: partners, tracks, faqs, guidelines, prizes, guests
+  - analytics/reporting: analytics metadata, usage stats, exported reports
+- Subdocuments (media item): { publicId, url, secureUrl, mimeType, width, height, caption, providerMeta }
 
 ---
 
-## Middleware & utilities (server)
+## Media handling & upload flow (important)
 
-Key middlewares:
+1. Client builds FormData objects (file(s) + optional metadata).
+2. Server multer.middleware receives file(s) and (in production) streams them to Cloudinary via server/src/utils/cloudinary.js.
+3. cloudinary util returns provider metadata; arvantisMedia.normalize transforms provider response to canonical media object.
+4. Controller stores the canonical media object in the fest document and returns it to client.
+5. Deletion endpoints remove provider resource (cloudinary.delete) and update DB arrays. Bulk delete endpoint exists for batch ops.
 
-- auth.middleware.js — protects admin routes and provides authorize(role) checks
-- multer.middleware.js — handles multipart uploads and file size/type validation
-- validator.middleware.js — express-validator wrappers for route validation
-- normalizeEvent.middleware.js — normalizes incoming event payloads to expected shape
-- rateLimit.middleware.js — apply request throttling for public API
+Best practices:
 
-Utilities:
-
-- cloudinary.js — Cloudinary client wrappers (upload, delete)
-- arvantisMedia.js — normalizes media objects (consistent publicId, url, mime, dimensions)
-- ApiError.js / ApiResponse.js — consistent response envelope and error-handling
-- asyncHandler.js — wraps async controllers to forward errors to error handler
+- Keep images transcoded & sized via Cloudinary transformations (use cached CDN URLs).
+- For large files use direct-to-cloud uploads (signed upload) in future iteration to offload server RAM.
+- Normalize and version media objects in DB so frontends can render deterministic shapes.
 
 ---
 
-## Local development — quickstart
+## Frontend architecture & component map (how UI pieces connect)
 
-Prerequisites
+- Pages: the top-level pages (home, arvantis landing, editArvantis admin) compose smaller components.
+- Arvantis components:
+  - PosterHero — hero area with CTA and poster thumbnails
+  - EventsGrid — event tiles; fetch event details lazily
+  - GalleryGrid + ImageLightbox — gallery thumbnails with fullscreen viewer (use portal)
+  - Admin: editArvantis.jsx orchestrates:
+    - FestList (left panel: pick edition)
+    - FestHeader (save, delete, status, duplicate)
+    - BasicDetails (edit metadata)
+    - MediaSection (hero, posters, gallery)
+    - EditGuidelines, EditPrizes, EditGuests (sub-resource editors)
+- Data flow:
+  - UI triggers actions -> call functions from client/src/services/arvantisServices.js -> update local state and/or refetch -> show toast/error via centralized helper.
 
-- Node.js 18+ (LTS recommended)
+Important UI notes
+
+- ImageLightbox should be mounted using React Portal to avoid stacking context and scrolling issues.
+- Use loading states for long operations and optimistic UI updates only when rollback is possible.
+
+---
+
+## Services / API clients (what to use & where)
+
+- client/src/services/api.js exports:
+  - apiClient: axios instance for authenticated admin operations (includes auth token)
+  - publicClient: axios instance for public endpoints (no token)
+- client/src/services/arvantisServices.js provides high-level functions that mirror server routes and include:
+  - normalizePagination, extractError helpers
+  - getArvantisLandingData, getAllFests, getFestDetails
+  - admin functions: createFest, updateFestDetails, deleteFest, duplicateFest, setFestStatus, updatePresentation, updateSocialLinks, updateThemeColors
+  - media: addFestPoster, removeFestPoster, updateFestHero, addGalleryMedia, removeGalleryMedia, bulkDeleteMedia
+  - sub-resources: addPartner/updatePartner/removePartner/reorderPartners, addTrack/updateTrack/removeTrack/reorderTracks, addFAQ/updateFAQ/removeFAQ/reorderFAQs, addGuideline/updateGuideline/removeGuideline/reorderGuidelines, addPrize/updatePrize/removePrize/reorderPrizes, addGuest/updateGuest/removeGuest
+  - exports/analytics: exportFestsCSV, getFestAnalytics/getFestStatistics, generateFestReport & download helpers
+
+Guideline:
+
+- Reuse service functions directly in components/pages; keep API logic in services, UI-only logic in components.
+
+---
+
+## Server middleware & utilities (what they do)
+
+- auth.middleware.js — validates JWT and attaches user to request, plus role-based guard.
+- multer.middleware.js — file size/type validation; provides single/multiple handlers for route usage.
+- validator.middleware.js — express-validator wrappers that standardize error responses.
+- normalizeEvent.middleware.js — converts event payload shapes into canonical format before persistence.
+- rateLimit.middleware.js — basic per-IP throttling for public endpoints.
+- utils/ApiError.js & ApiResponse.js — consistent envelope for success / error responses.
+- asyncHandler.js — catch async exceptions and forward to central error handler.
+
+---
+
+## Local development — quickstart & useful scripts
+
+Prereqs
+
+- Node.js 18+ (LTS)
 - MongoDB (local or Atlas)
-- Cloudinary account for media (recommended) or a local uploads fallback
+- Recommended: Cloudinary account (for media); otherwise the server falls back to local uploads folder.
 
-Install
+Clone & install
 
 ```bash
-# server
-cd server
+git clone <repo-url> d:\projects\Syntax_Club
+cd d:\projects\Syntax_Club\server
 npm install
-
-# client
-cd client
+cd ../client
 npm install
 ```
 
-Run in development (two terminals)
+Run in dev (two terminals)
 
 ```bash
-# start server (nodemon recommended)
-cd server
-npm run dev
+# Terminal 1: server
+cd d:\projects\Syntax_Club\server
+npm run dev         # nodemon or equivalent
 
-# start client (vite)
-cd client
-npm run dev
+# Terminal 2: client
+cd d:\projects\Syntax_Club\client
+npm run dev         # vite dev
 ```
 
-Build & run production
+Build & preview
 
 ```bash
-# client build
-cd client
+# frontend build
+cd d:\projects\Syntax_Club\client
 npm run build
+npm run preview     # serve production bundle locally
 
-# server start (ensure production env vars)
-cd server
-npm run start
+# server production
+cd d:\projects\Syntax_Club\server
+NODE_ENV=production npm start
 ```
 
-Useful scripts (check package.json in each folder):
+Helpful npm scripts (check package.json in each folder)
 
 - client: dev, build, preview, lint, format
-- server: dev (nodemon), start, migrate (if present), seed (if present)
+- server: dev, start, seed (if present)
 
 ---
 
-## Environment variables (examples)
+## Environment variables (complete examples)
 
-Server (.env)
+server/.env (example)
 
-- NODE_ENV=development
-- PORT=5000
-- MONGO_URI=mongodb://localhost:27017/syntax_club
-- JWT_SECRET=your_jwt_secret
-- JWT_EXPIRES_IN=7d
-- CLOUDINARY_CLOUD_NAME=...
-- CLOUDINARY_API_KEY=...
-- CLOUDINARY_API_SECRET=...
-- EMAIL*PROVIDER*\* (if email.service configured)
-- CASHFREE/INSTAMOJO keys (if payments used)
+```
+NODE_ENV=development
+PORT=5000
+MONGO_URI=mongodb://127.0.0.1:27017/syntax_club
+JWT_SECRET=change_this_to_a_secure_random_string
+JWT_EXPIRES_IN=7d
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+EMAIL_FROM=hello@syntaxclub.example
+SMTP_HOST=smtp.example
+SMTP_PORT=587
+SMTP_USER=smtp_user
+SMTP_PASS=smtp_pass
+```
 
-Client (.env)
+client/.env (example)
 
-- VITE_API_BASE=http://localhost:5000/api/v1
-- VITE_SENTRY_DSN=... (optional)
-- VITE_OTHER_KEYS=...
+```
+VITE_API_BASE=http://localhost:5000/api/v1
+VITE_SENTRY_DSN=       # optional
+VITE_SOME_FEATURE_FLAG=true
+```
 
-Notes:
-
-- Keep secrets out of repo. Use a .env.local for local overrides (gitignored).
-
----
-
-## API overview — important endpoints
-
-Base path: /api/v1 (confirm api.js in client for exact base)
-
-Arvantis (public)
-
-- GET /api/v1/arvantis/landing — latest public landing data
-- GET /api/v1/arvantis — list fests (paginated)
-- GET /api/v1/arvantis/:identifier — fest details (slug / year / id)
-
-Arvantis (admin — protected)
-
-- POST /api/v1/arvantis — create fest
-- PATCH /api/v1/arvantis/:identifier/update — update details
-- DELETE /api/v1/arvantis/:identifier — delete fest
-- PATCH /api/v1/arvantis/:identifier/posters — upload posters (FormData)
-- PATCH /api/v1/arvantis/:identifier/hero — upload hero (FormData)
-- POST /api/v1/arvantis/:identifier/gallery — add gallery media
-- DELETE /api/v1/arvantis/:identifier/gallery/:publicId — remove gallery item
-- POST /api/v1/arvantis/:identifier/guidelines — add guideline
-- PATCH /api/v1/arvantis/:identifier/guidelines/:guidelineId — update guideline
-- DELETE /api/v1/arvantis/:identifier/guidelines/:guidelineId — delete guideline
-- Similar routes exist for prizes, guests, partners, tracks, faqs, reordering, bulk-media-delete, analytics and report export
-
-Other domains: events, members, tickets — see server/src/routes/\* for complete list.
+Security note: Never commit real secrets. Provide `.env.example` and add `.env` to .gitignore.
 
 ---
 
-## Testing, linting & code quality
+## API reference (essential endpoints — quick lookup)
 
-- Lint: run ESLint in client and server (scripts defined in package.json)
-- Format: Prettier config included
-- Unit & integration tests: add tests under client/**tests** and server/tests (not included by default)
-- Recommended: add GitHub Actions to run lint & tests on PRs, and run build for production before merge.
+Base: {VITE_API_BASE} (client uses /api/v1 by default)
 
----
+Public
 
-## Deployment notes & recommendations
+- GET /arvantis/landing
+- GET /arvantis?page=&limit=&q=
+- GET /arvantis/:identifier
 
-- Frontend: build with Vite and deploy static files to CDN or static host (Vercel, Netlify, S3+CloudFront).
-- Backend: serve with Node/PM2, inside Docker container, or on a node host. Ensure env vars set and DB accessible.
-- Use a CDN and caching for images — Cloudinary or S3 + CloudFront recommended.
-- Use TLS/HTTPS, enable HTTP security headers, and rate limit public endpoints.
+Admin (requires auth)
 
-Suggested production checklist:
+- POST /arvantis
+- PATCH /arvantis/:identifier/update
+- DELETE /arvantis/:identifier
+- PATCH /arvantis/:identifier/posters (FormData: posters[])
+- PATCH /arvantis/:identifier/hero (FormData: hero, caption)
+- POST /arvantis/:identifier/gallery (FormData: media[])
+- DELETE /arvantis/:identifier/gallery/:publicId
+- POST /arvantis/:identifier/media/bulk-delete (body: { publicIds: [] })
+- Partners, tracks, faqs, guidelines, prizes, guests: CRUD + reorder endpoints (see server/src/routes/arvantis.routes.js)
+- GET /arvantis/export/csv (returns CSV blob)
+- GET /arvantis/analytics/overview
+- GET /arvantis/statistics/overview
+- GET /arvantis/reports/:identifier
 
-- Enable CORS only for required origins
-- Set secure cookie flags
-- Ensure large file uploads are blocked or buffered to cloud storage
-- Configure logging/monitoring (Sentry/LogDNA)
-- Backup MongoDB or use managed Atlas with snapshots
-
----
-
-## Troubleshooting & tips
-
-- Image lightbox scrolling: ensure Lightbox mounts in a portal and sets document.body.style.overflow = 'hidden' while open.
-- 401/403 errors: ensure auth token present in apiClient (client/src/services/api.js) and the server's JWT_SECRET matches the token issuer.
-- Upload failures: verify Cloudinary credentials and check multer limits in multer.middleware.js.
-- Mongoose validation errors: controllers return standardized error messages via ApiError — inspect server logs for stack traces.
+For complete route list inspect `server/src/routes/*.js`.
 
 ---
 
-## Extending the Arvantis editor (practical tips)
+## Testing, linting & CI recommendations
 
-- Frontend: add small focused components for sub-resources (GuidelineEditor, PrizeEditor, PartnerEditor) and reuse services in src/services/arvantisServices.js.
-- Batch operations: prefer server-side batch endpoints (bulk media delete already present) to keep client logic simple.
-- Caching: use React Query for admin lists and details; invalidate queries after mutations.
-- Accessibility: provide labels, keyboard navigation and alt text for all images.
-
----
-
-## Contributing & code style
-
-- Follow existing folder conventions (components grouped by domain).
-- Add a unit test for any new controller or frontend component that contains business logic.
-- Open a PR with descriptive title + link to issue. CI should pass lint & tests before merge.
-- Keep commits small and atomic; use conventional commit messages if desired.
+- Add unit tests for controllers and services (Jest or Mocha + Supertest for API).
+- Add frontend tests for components (React Testing Library).
+- CI pipeline should run: lint -> unit tests -> build.
+- Add pre-commit hooks (husky) to run lint and simple tests locally.
 
 ---
 
-## Useful references (quick links inside repo)
+## Production & deployment checklist
 
-- Client entry & config: client/src/main.jsx, client/vite.config.js, client/tailwind.config.js
-- Arvantis UI: client/src/pages/arvantis, client/src/components/Arvantis
-- Arvantis server: server/src/controllers/arvantis.controller.js, server/src/routes/arvantis.routes.js, server/src/models/arvantis.model.js
-- Media util: server/src/utils/arvantisMedia.js and server/src/utils/cloudinary.js
-- API helpers: client/src/services/arvantisServices.js and client/src/services/api.js
+- Use environment-specific Cloudinary credentials.
+- Ensure CORS origins are restricted to your frontend host(s).
+- Use HTTPS and secure cookie flags for any auth cookies.
+- Move file uploads to direct-to-cloud signed uploads if handling large files.
+- Use process manager (PM2) or Docker; consider containerizing both client (static) and server.
+- Add monitoring: logs (structured JSON), performance tracing (APM), error reporting (Sentry).
+- Backup MongoDB regularly (Atlas snapshots or backup pipelines).
+
+Suggested Docker snippet (high-level)
+
+- Build client static files during CI, serve via nginx.
+- Run server in a Node container, connected to production MongoDB.
+- Use docker-compose with a named network and volumes for logs/backups.
 
 ---
 
-If you want, I can:
+## Troubleshooting & common gotchas
 
-- Patch ImageLightbox.jsx to use a React portal and fix scroll/position problems.
-- Generate a Dockerfile and docker-compose.yml for local multi-service development (client + server + mongo).
-- Create sample .env.example files for client and server with exact keys.
+- 401/403: validate token issuance and that apiClient attaches Authorization header (client/src/services/api.js).
+- Upload fails: check multer limits in server/src/middlewares/multer.middleware.js and Cloudinary credentials.
+- Lightbox scrolling: mount ImageLightbox via a React portal; set document.body.style.overflow = 'hidden' while open.
+- Mongoose validation errors: controller error handler returns ApiError with details — inspect server logs & response payload.
+
+---
+
+## How to extend Arvantis editor (practical recipe)
+
+1. Add new server route + controller function (e.g., `/arvantis/:id/new-feature`).
+2. Implement validation middleware and unit tests for controller.
+3. Add service wrapper function in `client/src/services/arvantisServices.js`.
+4. Create small focused UI component (components/Arvantis/NewFeatureEditor.jsx) — keep it presentational and call service functions.
+5. Add component to `client/src/pages/arvantis/editArvantis.jsx` and wire UX states (loading, errors, success).
+6. Use optimistic update only if safe; otherwise fetch the updated fest document after mutation (getFestDetails).
+
+---
+
+## Contribution guidelines & code style
+
+- Use existing ESLint/Prettier configs. Run lint and format before pushing.
+- Keep commits atomic and descriptive. Use PRs with clear descriptions and testing notes.
+- Document new API endpoints in this README and add integration tests.
+- Review DB migrations when changing Mongoose schemas.
+
+---
+
+## Appendix: useful commands & tips
+
+Server
+
+- dev: cd server && npm run dev
+- start prod: NODE_ENV=production npm start
+- seed (if provided): npm run seed
+
+Client
+
+- dev: cd client && npm run dev
+- build: cd client && npm run build
+- preview: npm run preview
+
+Database
+
+- Start local mongo: `mongod --dbpath <path>` or use Docker: `docker run -d -p 27017:27017 --name mongo mongo:6`
